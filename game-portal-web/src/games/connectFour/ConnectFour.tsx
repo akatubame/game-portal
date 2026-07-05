@@ -1,5 +1,6 @@
 import { CircleDot, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type {
   ConnectFourCell,
   ConnectFourDifficulty,
@@ -236,6 +237,7 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
 
   const result = useMemo(() => findResult(board), [board]);
   const outcome = getOutcome(result, board);
+  const ranking = useRanking({ gameId: `connect-four-${difficulty}`, metricLabel: "Wins", mode: "higher" });
   const legalColumns = getLegalColumns(board);
 
   useEffect(() => {
@@ -386,6 +388,11 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
             <span>現在: {status === "playing" ? (turn === "red" ? "あなたの番" : "COMの番") : "待機中"}</span>
             <span>難易度: {difficultyLabels[difficulty]}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "finished" && outcome === "win" ? { score: record.streak, display: `${record.streak}連勝`, meta: difficultyLabels[difficulty] } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startGame}>

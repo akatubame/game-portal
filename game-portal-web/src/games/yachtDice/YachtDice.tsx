@@ -1,5 +1,6 @@
 import { Dice5, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { YachtBest, YachtCategoryId, YachtScoreSheet, YachtStatus } from "./types";
 
 type YachtDiceProps = {
@@ -149,6 +150,7 @@ export function YachtDice({ onBack }: YachtDiceProps) {
   const [message, setMessage] = useState("サイコロを最大3回振り、狙う役にスコアを記録していきましょう。");
 
   const total = useMemo(() => getTotal(scores), [scores]);
+  const ranking = useRanking({ gameId: "yacht-dice-score", metricLabel: "Score", mode: "higher" });
   const round = Object.keys(scores).length + 1;
   const hasRolled = status === "playing" && rollsLeft < MAX_ROLLS;
   const isComplete = Object.keys(scores).length >= categories.length;
@@ -306,6 +308,11 @@ export function YachtDice({ onBack }: YachtDiceProps) {
             <span>記録済み: {Object.keys(scores).length}/{categories.length}</span>
             <span>ベスト: {best ? `${best.score}点` : "まだ記録なし"}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "finished" ? { score: total, display: `${total}点`, meta: `記録済み ${Object.keys(scores).length}/${categories.length}` } : null}
+          />
 
           <div className="yacht-hint">
             <Dice5 aria-hidden="true" />

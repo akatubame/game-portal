@@ -1,5 +1,6 @@
 import { Keyboard, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import { typingPhrases } from "./phrases";
 import type { TypingPhrase, TypingResult, TypingStatus } from "./types";
 
@@ -55,6 +56,7 @@ export function TypingGame({ onBack }: TypingGameProps) {
     () => calculateScore(correctChars, completedPhrases, accuracy),
     [accuracy, completedPhrases, correctChars]
   );
+  const ranking = useRanking({ gameId: "typing-score", metricLabel: "Score", mode: "higher" });
 
   useEffect(() => {
     if (status !== "playing") {
@@ -230,6 +232,11 @@ export function TypingGame({ onBack }: TypingGameProps) {
               <p>まだ記録がありません。</p>
             )}
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "finished" ? { score, display: `${score}点`, meta: `正確率${accuracy}% / ${completedPhrases}フレーズ` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startRound}>

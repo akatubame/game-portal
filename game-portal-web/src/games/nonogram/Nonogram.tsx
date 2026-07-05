@@ -1,5 +1,6 @@
 import { Eye, Grid3X3, Paintbrush, RotateCcw, Sparkles, X } from "lucide-react";
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { NonogramCell, NonogramPuzzle, NonogramRecord, NonogramStatus, NonogramTool } from "./types";
 
 type NonogramProps = {
@@ -631,6 +632,7 @@ export function Nonogram({ onBack }: NonogramProps) {
   const dragState = useRef<DragState | null>(null);
 
   const puzzle = puzzles[puzzleIndex];
+  const ranking = useRanking({ gameId: `nonogram-${puzzle.id}`, metricLabel: "Moves", mode: "lower" });
   const rows = puzzle.solution.length;
   const columns = puzzle.solution[0].length;
   const rowHints = useMemo(() => puzzle.solution.map(getLineHints), [puzzle]);
@@ -911,6 +913,11 @@ export function Nonogram({ onBack }: NonogramProps) {
             <span>状態: {status === "cleared" ? "クリア" : "挑戦中"}</span>
             <span>現在の道具: {tool === "fill" ? "塗る" : "×印"}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "cleared" ? { score: moves, display: `${moves}手`, meta: `${puzzle.name} / ${columns}×${rows}` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => startPuzzle()}>

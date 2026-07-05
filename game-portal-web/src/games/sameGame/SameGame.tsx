@@ -1,5 +1,6 @@
 import { Eraser, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { CSSProperties } from "react";
 import type { SameGameBest, SameGameCell, SameGameColor, SameGameDifficulty, SameGameStatus } from "./types";
 
@@ -158,6 +159,7 @@ export function SameGame({ onBack }: SameGameProps) {
   const [bestByDifficulty, setBestByDifficulty] = useState<Record<SameGameDifficulty, SameGameBest | undefined>>(() => readBest());
 
   const settings = difficultySettings[difficulty];
+  const ranking = useRanking({ gameId: `same-game-${difficulty}`, metricLabel: "Score", mode: "higher" });
   const currentBest = bestByDifficulty[difficulty];
   const blocksLeft = remainingBlocks(board);
   const movesAvailable = useMemo(() => hasMoves(board, settings.columns, settings.rows), [board, settings.columns, settings.rows]);
@@ -305,6 +307,11 @@ export function SameGame({ onBack }: SameGameProps) {
             <span>消せる塊: {movesAvailable ? "あり" : "なし"}</span>
             <span>ベスト: {currentBest ? `${currentBest.score}点` : "まだ記録なし"}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "finished" ? { score, display: `${score}点`, meta: `${settings.label} / 残り${blocksLeft}個` } : null}
+          />
 
           <div className="same-hint">
             <Eraser aria-hidden="true" />

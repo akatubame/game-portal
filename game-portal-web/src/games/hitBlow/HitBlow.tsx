@@ -1,5 +1,6 @@
 import { Check, Delete, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { HitBlowBest, HitBlowDifficulty, HitBlowGuess, HitBlowStatus } from "./types";
 
 type HitBlowProps = {
@@ -98,6 +99,7 @@ export function HitBlow({ onBack }: HitBlowProps) {
   const [bestByDifficulty, setBestByDifficulty] = useState<Record<HitBlowDifficulty, HitBlowBest | undefined>>(() => readBest());
 
   const settings = difficultySettings[difficulty];
+  const ranking = useRanking({ gameId: `hit-blow-${difficulty}`, metricLabel: "Attempts", mode: "lower" });
   const attemptsLeft = settings.attempts - guesses.length;
   const currentBest = bestByDifficulty[difficulty];
   const inputDigits = useMemo(() => input.padEnd(4, " ").split("").slice(0, 4), [input]);
@@ -286,6 +288,11 @@ export function HitBlow({ onBack }: HitBlowProps) {
             <span>ヒント: {settings.hint && status !== "idle" ? `先頭は ${answer[0]}` : "なし"}</span>
             <span>ベスト: {currentBest ? `${currentBest.attempts}回 / ${formatTime(currentBest.seconds)}` : "まだ記録なし"}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "cleared" ? { score: guesses.length * 10000 + seconds, display: `${guesses.length}回 / ${formatTime(seconds)}`, meta: settings.label } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => startGame()}>

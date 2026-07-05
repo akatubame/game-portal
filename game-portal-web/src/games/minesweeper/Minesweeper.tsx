@@ -1,5 +1,6 @@
 import { Bomb, Flag, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState, type CSSProperties, type MouseEvent } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import {
   countFlags,
   countRevealedSafeCells,
@@ -50,6 +51,7 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
   const safeCells = difficulty.rows * difficulty.columns - difficulty.mines;
   const remainingMines = difficulty.mines - flagCount;
   const bestTime = bestTimes[difficulty.id] ?? null;
+  const ranking = useRanking({ gameId: `minesweeper-${difficulty.id}`, metricLabel: "Time", mode: "lower" });
 
   const recordBestTime = (clearSeconds: number) => {
     setBestTimes((current) => {
@@ -263,6 +265,11 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
             <Bomb aria-hidden="true" />
             <p>残り地雷数は「地雷数 - 旗の数」です。旗の置きすぎにはご注意を。</p>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "won" ? { score: seconds, display: `${formatTime(seconds)}秒`, meta: difficulty.label } : null}
+          />
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
             棚へ戻る

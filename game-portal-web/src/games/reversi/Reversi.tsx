@@ -1,5 +1,6 @@
 import { RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { ReversiDifficulty, ReversiDisc, ReversiMove, ReversiOutcome, ReversiPlayer, ReversiRecord, ReversiStatus } from "./types";
 
 type ReversiProps = {
@@ -170,6 +171,7 @@ export function Reversi({ onBack }: ReversiProps) {
   const score = useMemo(() => countDiscs(board), [board]);
   const playerMoves = useMemo(() => getLegalMoves(board, "black"), [board]);
   const cpuMoves = useMemo(() => getLegalMoves(board, "white"), [board]);
+  const ranking = useRanking({ gameId: `reversi-${difficulty}`, metricLabel: "Margin", mode: "higher" });
   const legalMoveIndexes = new Set(playerMoves.map((move) => move.index));
 
   const finishGame = (finalBoard: ReversiDisc[]) => {
@@ -339,6 +341,11 @@ export function Reversi({ onBack }: ReversiProps) {
             <span>負け: {record.losses}</span>
             <span>現在: {status === "playing" ? (turn === "black" ? "あなたの番" : "COMの番") : "待機中"}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "finished" && score.black > score.white ? { score: score.black - score.white, display: `${score.black}-${score.white}`, meta: difficultyLabels[difficulty] } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startGame}>

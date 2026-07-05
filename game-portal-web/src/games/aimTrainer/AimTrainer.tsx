@@ -1,6 +1,7 @@
 import { Crosshair, RotateCcw, Target } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { MouseEvent } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { AimTarget, AimTrainerResult, AimTrainerStatus } from "./types";
 
 type AimTrainerProps = {
@@ -50,6 +51,7 @@ export function AimTrainer({ onBack }: AimTrainerProps) {
 
   const accuracy = useMemo(() => calculateAccuracy(hits, misses), [hits, misses]);
   const score = useMemo(() => calculateScore(hits, misses, bestStreak), [bestStreak, hits, misses]);
+  const ranking = useRanking({ gameId: "aim-trainer-score", metricLabel: "Score", mode: "higher" });
 
   useEffect(() => {
     if (status !== "playing") {
@@ -207,6 +209,11 @@ export function AimTrainer({ onBack }: AimTrainerProps) {
               <p>まだ記録がありません。</p>
             )}
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "finished" ? { score, display: `${score}点`, meta: `${hits}ヒット / 命中率${accuracy}%` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startRound}>

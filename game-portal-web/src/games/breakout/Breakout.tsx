@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { Ball, Brick, BreakoutResult, BreakoutStatus } from "./types";
 
 type BreakoutProps = {
@@ -86,6 +87,7 @@ export function Breakout({ onBack }: BreakoutProps) {
 
   const clearedBricks = useMemo(() => bricks.filter((brick) => !brick.alive).length, [bricks]);
   const score = clearedBricks * 100 + lives * 50;
+  const ranking = useRanking({ gameId: "breakout-score", metricLabel: "Score", mode: "higher" });
 
   const releasePaddleControls = () => {
     moveLeftRef.current = false;
@@ -494,6 +496,11 @@ export function Breakout({ onBack }: BreakoutProps) {
               <p>まだ記録がありません。</p>
             )}
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "cleared" || status === "finished" ? { score, display: `${score}点`, meta: `破壊${clearedBricks}個 / 残機${lives}` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startGame}>

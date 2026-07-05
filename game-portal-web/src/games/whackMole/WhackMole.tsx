@@ -1,5 +1,6 @@
 import { Hammer, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { MoleHole, WhackMoleResult, WhackMoleStatus } from "./types";
 
 type WhackMoleProps = {
@@ -72,6 +73,7 @@ export function WhackMole({ onBack }: WhackMoleProps) {
     () => calculateScore(hits, misses, bestCombo, goldenHits, bombHits),
     [bestCombo, bombHits, goldenHits, hits, misses]
   );
+  const ranking = useRanking({ gameId: "whack-mole-score", metricLabel: "Score", mode: "higher" });
 
   useEffect(() => {
     statusRef.current = status;
@@ -249,6 +251,11 @@ export function WhackMole({ onBack }: WhackMoleProps) {
               <p>まだ記録がありません。</p>
             )}
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "finished" ? { score, display: `${score}点`, meta: `${hits}ヒット / 最高${bestCombo}コンボ` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startRound}>

@@ -1,5 +1,6 @@
 import { CircleDot, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { PegBest, PegCell, PegPosition, PegStatus } from "./types";
 
 type PegSolitaireProps = {
@@ -128,6 +129,7 @@ export function PegSolitaire({ onBack }: PegSolitaireProps) {
   const [message, setMessage] = useState("ペグを選び、隣のペグを飛び越えて空きマスへ移動します。飛び越えたペグは取り除かれます。");
 
   const remaining = countPegs(board);
+  const ranking = useRanking({ gameId: "peg-solitaire-result", metricLabel: "Result", mode: "lower" });
   const legalTargets = useMemo(() => getLegalTargets(board, selected), [board, selected]);
 
   const saveBest = (nextRemaining: number, nextMoves: number) => {
@@ -285,6 +287,11 @@ export function PegSolitaire({ onBack }: PegSolitaireProps) {
             <span>ベスト: {best ? `残り${best.remaining}本 / ${best.moves}手` : "まだ記録なし"}</span>
             <span>目標: 最後の1本</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "cleared" || status === "stuck" ? { score: remaining * 1000 + moves, display: `残り${remaining}本 / ${moves}手`, meta: status === "cleared" ? "クリア" : "手詰まり" } : null}
+          />
 
           <div className="peg-hint">
             <CircleDot aria-hidden="true" />

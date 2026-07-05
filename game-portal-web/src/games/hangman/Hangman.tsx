@@ -1,5 +1,6 @@
 import { Lightbulb, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { HangmanRecord, HangmanStatus, HangmanWord } from "./types";
 import { HANGMAN_WORDS } from "./words";
 
@@ -52,6 +53,7 @@ export function Hangman({ onBack }: HangmanProps) {
   const guessedSet = useMemo(() => new Set(guessedLetters), [guessedLetters]);
   const visibleWord = getVisibleWord(currentWord.word, guessedSet);
   const remainingMisses = MAX_MISSES - wrongLetters.length;
+  const ranking = useRanking({ gameId: "hangman-streak", metricLabel: "Streak", mode: "higher" });
 
   const startGame = () => {
     setCurrentWord((previous) => pickWord(previous));
@@ -192,6 +194,11 @@ export function Hangman({ onBack }: HangmanProps) {
             <span>ミスした文字: {wrongLetters.length > 0 ? wrongLetters.join(", ") : "なし"}</span>
             <span>状態: {status === "playing" ? "挑戦中" : status === "won" ? "勝利" : status === "lost" ? "失敗" : "待機中"}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "won" ? { score: record.streak, display: `${record.streak}連勝`, meta: `${currentWord.word} / ミス${wrongLetters.length}` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startGame}>

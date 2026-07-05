@@ -1,5 +1,6 @@
 import { Lightbulb, RotateCcw, Shuffle } from "lucide-react";
 import { useEffect, useState, type CSSProperties } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import { countLitCells, createPuzzle, isCleared, lightsOutDifficulties, toggleAt } from "./logic";
 import type { LightsOutBoard, LightsOutDifficultyId, LightsOutStatus } from "./types";
 
@@ -34,6 +35,7 @@ export function LightsOut({ onBack }: LightsOutProps) {
     const stored = window.localStorage.getItem(bestTimeKey);
     return stored ? Number(stored) || null : null;
   });
+  const ranking = useRanking({ gameId: `lights-out-${difficulty.id}`, metricLabel: "Moves", mode: "lower" });
 
   useEffect(() => {
     const stored = window.localStorage.getItem(bestScoreKey);
@@ -183,6 +185,11 @@ export function LightsOut({ onBack }: LightsOutProps) {
             <span>ベスト手数: {bestMoves ?? "未記録"}</span>
             <span>ベストタイム: {bestTime === null ? "未記録" : formatTime(bestTime)}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "cleared" ? { score: moves, display: `${moves}手`, meta: `${difficulty.label} / ${formatTime(seconds)}` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => resetGame()}>

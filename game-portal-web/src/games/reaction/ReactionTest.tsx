@@ -1,5 +1,6 @@
 import { RotateCcw, Zap } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { ReactionResult, ReactionStatus } from "./types";
 
 type ReactionTestProps = {
@@ -46,6 +47,7 @@ export function ReactionTest({ onBack }: ReactionTestProps) {
   const [history, setHistory] = useState<ReactionResult[]>(() => readHistory());
   const timeoutRef = useRef<number | null>(null);
   const readyAtRef = useRef<number | null>(null);
+  const ranking = useRanking({ gameId: "reaction-time", metricLabel: "Time", mode: "lower" });
 
   const average = useMemo(() => {
     if (history.length === 0) {
@@ -189,6 +191,11 @@ export function ReactionTest({ onBack }: ReactionTestProps) {
               </ol>
             )}
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={lastResult ? { score: lastResult.milliseconds, display: `${lastResult.milliseconds}ms` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startRound}>

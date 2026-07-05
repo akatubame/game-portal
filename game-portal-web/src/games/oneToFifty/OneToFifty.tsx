@@ -1,5 +1,6 @@
 import { RotateCcw, Sparkles, Timer, Trophy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { OneToFiftyCell, OneToFiftyRecord, OneToFiftyStatus } from "./types";
 
 type OneToFiftyProps = {
@@ -52,6 +53,7 @@ export function OneToFifty({ onBack }: OneToFiftyProps) {
   const [targetChangedAt, setTargetChangedAt] = useState<number | null>(null);
   const [record, setRecord] = useState<OneToFiftyRecord>(() => readRecord());
   const [message, setMessage] = useState("1から50まで、数字を順番にタッチしましょう。まずは「開始」を押してください。");
+  const ranking = useRanking({ gameId: "one-to-fifty-time", metricLabel: "Time", mode: "lower" });
 
   useEffect(() => {
     if (status !== "playing" || startedAt === null) {
@@ -204,6 +206,11 @@ export function OneToFifty({ onBack }: OneToFiftyProps) {
               <strong>{record.plays} 回</strong>
             </div>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "cleared" ? { score: elapsedMs, display: `${formatTime(elapsedMs)} 秒`, meta: `ミス ${mistakes} 回` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startGame}>

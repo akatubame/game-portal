@@ -1,5 +1,6 @@
 import { RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import { countMatchedPairs, createMemoryCards, isCleared, memoryDifficulties } from "./logic";
 import type { MemoryCard, MemoryDifficultyId, MemoryStatus } from "./types";
 
@@ -30,6 +31,7 @@ export function Memory({ onBack }: MemoryProps) {
   const matchedPairs = useMemo(() => countMatchedPairs(cards), [cards]);
   const bestScoreKey = `game-shelf-memory-best-${difficulty.id}`;
   const bestTimeKey = `game-shelf-memory-best-time-${difficulty.id}`;
+  const ranking = useRanking({ gameId: `memory-${difficulty.id}`, metricLabel: "Time", mode: "lower" });
   const [bestMoves, setBestMoves] = useState<number | null>(() => {
     const stored = window.localStorage.getItem(bestScoreKey);
     return stored ? Number(stored) || null : null;
@@ -226,6 +228,11 @@ export function Memory({ onBack }: MemoryProps) {
             <span>ベスト手数: {bestMoves ?? "未記録"}</span>
             <span>ベストタイム: {bestTime === null ? "未記録" : formatTime(bestTime)}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "cleared" ? { score: seconds, display: formatTime(seconds), meta: `${difficulty.label} / ${moves}手` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => resetGame()}>

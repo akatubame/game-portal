@@ -1,5 +1,6 @@
 import { Eraser, Lightbulb, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import { cloneGrid, countFilledCells, countMistakes, hasConflict, isComplete, isGivenCell, isSolved } from "./logic";
 import { sudokuPuzzles } from "./puzzles";
 import type { SudokuGrid } from "./types";
@@ -49,6 +50,7 @@ export function Sudoku({ onBack }: SudokuProps) {
   const filledCells = useMemo(() => countFilledCells(grid), [grid]);
   const solved = useMemo(() => isSolved(grid, puzzle.solution), [grid, puzzle.solution]);
   const complete = useMemo(() => isComplete(grid), [grid]);
+  const ranking = useRanking({ gameId: `sudoku-${puzzle.id}`, metricLabel: "Time", mode: "lower" });
   const bestTime = bestTimes[puzzle.id] ?? null;
 
   useEffect(() => {
@@ -267,6 +269,11 @@ export function Sudoku({ onBack }: SudokuProps) {
           <p className="sudoku-note">
             ベストタイム: <strong>{bestTime === null ? "未記録" : formatTime(bestTime)}</strong>
           </p>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={solved ? { score: Math.max(1, seconds), display: formatTime(Math.max(1, seconds)), meta: `${puzzle.difficulty} - ${puzzle.title}` } : null}
+          />
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
             棚へ戻る

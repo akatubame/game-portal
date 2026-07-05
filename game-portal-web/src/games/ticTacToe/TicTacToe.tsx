@@ -1,5 +1,6 @@
 import { Brain, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type {
   TicTacToeCell,
   TicTacToeDifficulty,
@@ -189,6 +190,7 @@ export function TicTacToe({ onBack }: TicTacToeProps) {
   const line = useMemo(() => findLine(board), [board]);
   const winningLine = line?.line ?? [];
   const outcome = getOutcome(line, board);
+  const ranking = useRanking({ gameId: `tic-tac-toe-${difficulty}`, metricLabel: "Wins", mode: "higher" });
 
   useEffect(() => {
     if (status !== "playing" || !outcome) {
@@ -325,6 +327,11 @@ export function TicTacToe({ onBack }: TicTacToeProps) {
             <span>現在: {status === "playing" ? (turn === "X" ? "あなたの番" : "COMの番") : "待機中"}</span>
             <span>難易度: {difficultyLabels[difficulty]}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "finished" && outcome === "win" ? { score: record.streak, display: `${record.streak}連勝`, meta: difficultyLabels[difficulty] } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startGame}>

@@ -1,5 +1,6 @@
 import { Check, RotateCcw, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { ColorChoice, ColorJudgeBest, ColorJudgeStatus, ColorQuestion } from "./types";
 
 type ColorJudgeProps = {
@@ -52,6 +53,7 @@ export function ColorJudge({ onBack }: ColorJudgeProps) {
   const resultSavedRef = useRef(false);
 
   const score = useMemo(() => calculateScore(correct, mistakes, bestCombo), [bestCombo, correct, mistakes]);
+  const ranking = useRanking({ gameId: "color-judge-score", metricLabel: "Score", mode: "higher" });
   const isMatch = question.textColor.name === question.wordColor.name;
 
   useEffect(() => {
@@ -198,6 +200,11 @@ export function ColorJudge({ onBack }: ColorJudgeProps) {
               <p>まだ記録がありません。</p>
             )}
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "finished" ? { score, display: `${score}点`, meta: `正解 ${correct} / 最高 ${bestCombo}コンボ` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startRound}>

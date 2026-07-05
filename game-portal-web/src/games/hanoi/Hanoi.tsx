@@ -1,5 +1,6 @@
 import { RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { CSSProperties } from "react";
 import type { HanoiBest, HanoiPeg, HanoiStatus } from "./types";
 
@@ -64,6 +65,7 @@ export function Hanoi({ onBack }: HanoiProps) {
   const currentBest = bestByDisk[String(diskCount)];
   const currentBestTime = bestTimes[String(diskCount)] ?? null;
   const isSolved = useMemo(() => pegs[2].length === diskCount, [diskCount, pegs]);
+  const ranking = useRanking({ gameId: `hanoi-${diskCount}`, metricLabel: "Moves", mode: "lower" });
 
   useEffect(() => {
     if (status !== "playing") {
@@ -266,6 +268,11 @@ export function Hanoi({ onBack }: HanoiProps) {
             <span>ベスト: {currentBest ? `${currentBest.moves}手` : "まだ記録なし"}</span>
             <span>ベストタイム: {currentBestTime === null ? "未記録" : formatTime(currentBestTime)}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "solved" ? { score: moves, display: `${moves}手`, meta: `${diskCount}枚 / ${formatTime(seconds)}` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => startGame()}>

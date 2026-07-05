@@ -1,5 +1,6 @@
 import { PaintBucket, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { CSSProperties } from "react";
 import type { FloodBest, FloodColor, FloodDifficulty, FloodStatus } from "./types";
 
@@ -112,6 +113,7 @@ export function FloodFill({ onBack }: FloodFillProps) {
   const [bestByDifficulty, setBestByDifficulty] = useState<Record<FloodDifficulty, FloodBest | undefined>>(() => readBest());
 
   const settings = difficultySettings[difficulty];
+  const ranking = useRanking({ gameId: `flood-fill-${difficulty}`, metricLabel: "Moves", mode: "lower" });
   const currentColor = board[0];
   const floodSize = useMemo(() => getFloodRegion(board, settings.size).size, [board, settings.size]);
   const progress = Math.round((floodSize / board.length) * 100);
@@ -258,6 +260,11 @@ export function FloodFill({ onBack }: FloodFillProps) {
             <span>盤面: {settings.size}×{settings.size}</span>
             <span>ベスト: {currentBest ? `${currentBest.moves}手` : "まだ記録なし"}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "cleared" ? { score: moves, display: `${moves}手`, meta: settings.label } : null}
+          />
 
           <div className="flood-hint">
             <PaintBucket aria-hidden="true" />

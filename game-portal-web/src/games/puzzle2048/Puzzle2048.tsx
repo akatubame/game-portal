@@ -1,5 +1,6 @@
 import { RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import { addRandomTile, canMove, createInitialBoard, hasWon, moveBoard } from "./logic";
 import type { Board, Direction } from "./types";
 
@@ -40,6 +41,7 @@ export function Puzzle2048({ onBack }: Puzzle2048Props) {
   const [won, setWon] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const ranking = useRanking({ gameId: "2048-score", metricLabel: "Score", mode: "higher" });
 
   const statusText = useMemo(() => {
     if (gameOver) {
@@ -201,6 +203,10 @@ export function Puzzle2048({ onBack }: Puzzle2048Props) {
               棚へ戻る
             </button>
           </div>
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={score > 0 ? { score, display: `${score}点`, meta: gameOver ? "Game Over" : won ? "2048達成" : "途中記録" } : null}
+          />
         </aside>
       </div>
     </section>

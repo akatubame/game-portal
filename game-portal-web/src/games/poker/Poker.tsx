@@ -1,5 +1,6 @@
 import { CircleDollarSign, RotateCcw, Sparkles, Trophy } from "lucide-react";
 import { useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { PokerCard, PokerHandResult, PokerRank, PokerRecord, PokerStatus, PokerSuit } from "./types";
 
 type PokerProps = {
@@ -118,6 +119,7 @@ export function Poker({ onBack }: PokerProps) {
   const [message, setMessage] = useState("5枚のカードを配り、交換したいカードを選んで役を作りましょう。");
 
   const result = useMemo(() => evaluateHand(hand), [hand]);
+  const ranking = useRanking({ gameId: "poker-hand-score", metricLabel: "Score", mode: "higher" });
   const selectedCount = selectedIndexes.length;
 
   const deal = () => {
@@ -252,6 +254,11 @@ export function Poker({ onBack }: PokerProps) {
               </span>
             ))}
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "drawn" ? { score: result.score, display: `${result.score}点`, meta: result.name } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={deal}>

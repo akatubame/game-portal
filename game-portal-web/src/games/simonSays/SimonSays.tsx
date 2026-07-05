@@ -1,5 +1,6 @@
 import { Brain, Play, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { SimonBest, SimonColor, SimonStatus } from "./types";
 
 type SimonSaysProps = {
@@ -60,6 +61,7 @@ export function SimonSays({ onBack }: SimonSaysProps) {
   const timeoutRefs = useRef<number[]>([]);
 
   const level = sequence.length;
+  const ranking = useRanking({ gameId: "simon-says-score", metricLabel: "Score", mode: "higher" });
   const score = useMemo(() => Math.max(0, level - (status === "idle" ? 0 : 1)) * 10 + inputIndex, [inputIndex, level, status]);
   const message = getMessage(status, level, inputIndex);
 
@@ -225,6 +227,11 @@ export function SimonSays({ onBack }: SimonSaysProps) {
             <span>直近スコア: {lastScore}</span>
             <span>ベスト: {best ? `Lv.${best.level} / ${best.score}点` : "まだ記録なし"}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={(status === "failed" || status === "cleared") && lastScore > 0 ? { score: lastScore, display: `${lastScore}点`, meta: status === "cleared" ? `Lv.${ROUND_CLEAR_LEVEL} クリア` : `Lv.${Math.max(0, level - 1)}` } : null}
+          />
 
           <div className="simon-sequence-preview" aria-label="現在のラウンド情報">
             <span>Pattern Length</span>

@@ -1,5 +1,6 @@
 import { Apple, Pause, Play, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { Direction, Point, SnakeResult, SnakeStatus } from "./types";
 
 type SnakeGameProps = {
@@ -77,6 +78,7 @@ export function SnakeGame({ onBack }: SnakeGameProps) {
   const applesRef = useRef(apples);
 
   const score = useMemo(() => calculateScore(apples, snake.length), [apples, snake.length]);
+  const ranking = useRanking({ gameId: "snake-score", metricLabel: "Score", mode: "higher" });
 
   useEffect(() => {
     snakeRef.current = snake;
@@ -331,6 +333,11 @@ export function SnakeGame({ onBack }: SnakeGameProps) {
               <p>まだ記録がありません。</p>
             )}
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "finished" ? { score, display: `${score}点`, meta: `リンゴ${apples}個 / 長さ${snake.length}` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startGame}>

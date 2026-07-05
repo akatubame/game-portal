@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { CSSProperties } from "react";
 import type { MazeBest, MazeCell, MazeDifficulty, MazeStatus } from "./types";
 
@@ -102,6 +103,7 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
   const [bestBySize, setBestBySize] = useState<Record<string, MazeBest>>(() => readBest());
 
   const size = difficultySettings[difficulty].size;
+  const ranking = useRanking({ gameId: `maze-escape-${size}`, metricLabel: "Time", mode: "lower" });
   const goalIndex = size * size - 1;
   const currentBest = bestBySize[String(size)];
   const visitedPath = useMemo(() => {
@@ -285,6 +287,11 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
             <span>現在: {status === "playing" ? "探索中" : status === "cleared" ? "脱出成功" : "待機中"}</span>
             <span>ベスト: {currentBest ? `${currentBest.moves}手 / ${formatTime(currentBest.seconds)}` : "まだ記録なし"}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "cleared" ? { score: seconds, display: formatTime(seconds), meta: `${size}×${size} / ${moves}手` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => startGame()}>

@@ -1,5 +1,6 @@
 import { Calculator, RotateCcw, Send } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { MathOperator, MathProblem, MentalMathResult, MentalMathStatus } from "./types";
 
 type MentalMathProps = {
@@ -53,6 +54,7 @@ export function MentalMath({ onBack }: MentalMathProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const score = useMemo(() => calculateScore(solved, mistakes, bestStreak), [bestStreak, mistakes, solved]);
+  const ranking = useRanking({ gameId: "mental-math-score", metricLabel: "Score", mode: "higher" });
 
   useEffect(() => {
     if (status !== "playing") {
@@ -222,6 +224,11 @@ export function MentalMath({ onBack }: MentalMathProps) {
               <p>まだ記録がありません。</p>
             )}
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "finished" ? { score, display: `${score}点`, meta: `${solved}問正解 / 最高${bestStreak}連続` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startRound}>

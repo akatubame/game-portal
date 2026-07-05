@@ -1,5 +1,6 @@
 import { Club, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { BlackjackCard, BlackjackOutcome, BlackjackRecord, BlackjackStatus, BlackjackSuit } from "./types";
 
 type BlackjackProps = {
@@ -113,6 +114,7 @@ export function Blackjack({ onBack }: BlackjackProps) {
 
   const playerTotal = useMemo(() => handValue(playerHand), [playerHand]);
   const dealerTotal = useMemo(() => handValue(dealerHand), [dealerHand]);
+  const ranking = useRanking({ gameId: "blackjack-chips", metricLabel: "Chips", mode: "higher" });
   const visibleDealerTotal = status === "playing" && dealerHand.length > 1 ? handValue([dealerHand[0]]) : dealerTotal;
 
   const finishRound = (nextPlayerHand: BlackjackCard[], nextDealerHand: BlackjackCard[]) => {
@@ -272,6 +274,11 @@ export function Blackjack({ onBack }: BlackjackProps) {
             <span>山札: {deck.length}枚</span>
             <span>状態: {status === "playing" ? "あなたの番" : status === "finished" ? "勝負終了" : "待機中"}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "finished" ? { score: record.chips, display: `${record.chips}枚`, meta: outcome ? outcome.toUpperCase() : "ROUND END" } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={deal}>

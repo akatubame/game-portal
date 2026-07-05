@@ -1,5 +1,6 @@
 import { Hand, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { NimDifficulty, NimRecord, NimSetup, NimStatus, NimTurn } from "./types";
 
 type NimProps = {
@@ -128,6 +129,7 @@ export function Nim({ onBack }: NimProps) {
 
   const remaining = useMemo(() => piles.reduce((total, pile) => total + pile, 0), [piles]);
   const nimSum = useMemo(() => getNimSum(piles), [piles]);
+  const ranking = useRanking({ gameId: `nim-${setup}-${difficulty}`, metricLabel: "Streak", mode: "higher" });
   const canPlay = status === "playing" && turn === "player";
 
   const finishGame = (nextStatus: "won" | "lost") => {
@@ -296,6 +298,11 @@ export function Nim({ onBack }: NimProps) {
             <span>Nim和: {nimSum}</span>
             <span>最高連勝: {record.bestStreak}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "won" ? { score: record.streak, display: `${record.streak}連勝`, meta: `${setupLabels[setup]} / ${difficultyLabels[difficulty]}` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => startGame()}>

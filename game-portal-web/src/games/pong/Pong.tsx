@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronUp, Pause, Play, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { PongBall, PongDifficulty, PongResult, PongStatus } from "./types";
 
 type PongProps = {
@@ -83,6 +84,7 @@ export function Pong({ onBack }: PongProps) {
   const [difficulty, setDifficulty] = useState<PongDifficulty>("normal");
   const [message, setMessage] = useState("スタートを押して、CPUとのポン対戦を始めましょう。");
   const [bestResult, setBestResult] = useState<PongResult | null>(() => readBestResult());
+  const ranking = useRanking({ gameId: `pong-${difficulty}`, metricLabel: "Margin", mode: "higher" });
 
   const statusRef = useRef(status);
   const ballRef = useRef(ball);
@@ -513,6 +515,11 @@ export function Pong({ onBack }: PongProps) {
               <p>まだ勝利記録がありません。</p>
             )}
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "finished" && playerScore > cpuScore ? { score: playerScore - cpuScore, display: `${playerScore}-${cpuScore}`, meta: `${difficultySettings[difficulty].label} / 勝利` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startGame}>

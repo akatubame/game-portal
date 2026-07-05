@@ -1,5 +1,6 @@
 import { RotateCcw, Shuffle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import { EMPTY_TILE, canMoveTile, isSolved, moveTile, shuffleBoard } from "./logic";
 import type { SlideBoard, SlideStatus } from "./types";
 
@@ -28,6 +29,7 @@ export function Slide15({ onBack }: Slide15Props) {
     const stored = window.localStorage.getItem(bestTimeKey);
     return stored ? Number(stored) || null : null;
   });
+  const ranking = useRanking({ gameId: "slide15-time", metricLabel: "Time", mode: "lower" });
 
   const movableIndexes = useMemo(() => getMovableIndexSet(board), [board]);
 
@@ -153,6 +155,11 @@ export function Slide15({ onBack }: Slide15Props) {
             <span>ベストタイム: {bestTime === null ? "未記録" : formatTime(bestTime)}</span>
             <span>状態: {status === "ready" ? "開始前" : status === "playing" ? "挑戦中" : "クリア"}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "cleared" ? { score: seconds, display: formatTime(seconds), meta: `${moves}手` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={resetGame}>

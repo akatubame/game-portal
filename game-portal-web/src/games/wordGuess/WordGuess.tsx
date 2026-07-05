@@ -1,5 +1,6 @@
 import { Delete, Keyboard, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { LetterState, WordGuessAttempt, WordGuessRecord, WordGuessStatus } from "./types";
 
 type WordGuessProps = {
@@ -124,6 +125,7 @@ export function WordGuess({ onBack }: WordGuessProps) {
 
   const keyStates = useMemo(() => getKeyStates(attempts), [attempts]);
   const attemptsLeft = MAX_ATTEMPTS - attempts.length;
+  const ranking = useRanking({ gameId: "word-guess-attempts", metricLabel: "Attempts", mode: "lower" });
 
   const startGame = () => {
     setAnswer(pickWord());
@@ -286,6 +288,11 @@ export function WordGuess({ onBack }: WordGuessProps) {
             <span>最高連勝: {record.bestStreak}</span>
             <span>単語数: {WORDS.length}</span>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "won" ? { score: attempts.length, display: `${attempts.length}回`, meta: `連勝${record.streak} / ${answer}` } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startGame}>

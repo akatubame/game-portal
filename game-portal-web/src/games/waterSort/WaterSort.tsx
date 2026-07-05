@@ -1,5 +1,6 @@
 import { RotateCcw, Sparkles, Trophy, Undo2 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { RankingPanel, useRanking } from "../ranking";
 import type { WaterBottle, WaterColor, WaterSortHistory, WaterSortRecord, WaterSortStatus } from "./types";
 
 type WaterSortProps = {
@@ -138,6 +139,7 @@ export function WaterSort({ onBack }: WaterSortProps) {
   const [message, setMessage] = useState("同じ色の水だけを重ねられます。ボトルを選んで、注ぎ先を選びましょう。");
 
   const level = levels[levelIndex];
+  const ranking = useRanking({ gameId: `water-sort-${level.id}`, metricLabel: "Moves", mode: "lower" });
   const bestMoves = record[level.id] ?? null;
   const filledBottleCount = useMemo(() => bottles.filter((bottle) => bottle.length === CAPACITY && bottle.every((color) => color === bottle[0])).length, [bottles]);
 
@@ -319,6 +321,11 @@ export function WaterSort({ onBack }: WaterSortProps) {
               <strong>{status === "cleared" ? "クリア" : "挑戦中"}</strong>
             </div>
           </div>
+
+          <RankingPanel
+            ranking={ranking}
+            pendingScore={status === "cleared" ? { score: moves, display: `${moves}手`, meta: level.name } : null}
+          />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => startLevel()}>
