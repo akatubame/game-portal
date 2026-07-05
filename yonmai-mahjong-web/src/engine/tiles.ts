@@ -11,7 +11,9 @@ export const tileId = (tile: Tile): string => {
   return `dragon_${tile.dragon}`;
 };
 
-export const tileImagePath = (tile: Tile): string => `/tiles/${tileId(tile)}.png`;
+const assetBasePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+export const tileImagePath = (tile: Tile): string => `${assetBasePath}/tiles/${tileId(tile)}.png`;
 
 export const tileEqual = (a: Tile, b: Tile): boolean => tileId(a) === tileId(b);
 
