@@ -1,5 +1,8 @@
-import { ArrowLeft, ArrowUpRight, Gamepad2, Search } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Gamepad2, Languages, Search } from "lucide-react";
 import { useEffect, useMemo, useState, type ComponentType, type CSSProperties } from "react";
+import { detectInitialLanguage, I18nContext, type Language, uiText } from "./i18n";
+import { DomTranslationLayer } from "./domTranslations";
+import { genreLabels, getGameText } from "./games/gameTranslations";
 import { games, type Game } from "./games/gamesRegistry";
 import { AimTrainer } from "./games/aimTrainer/AimTrainer";
 import { Blackjack } from "./games/blackjack/Blackjack";
@@ -68,7 +71,7 @@ const gameViews: Record<string, ComponentType<{ onBack: () => void }>> = {
 };
 
 const recentGameIds = ["nonogram", "poker", "waterSort", "oneToFifty"];
-const allGenresLabel = "ALL GENRES";
+const allGenresKey = "__all__";
 
 function getSelectedGameId() {
   return new URLSearchParams(window.location.search).get("game");
@@ -76,9 +79,11 @@ function getSelectedGameId() {
 
 export function App() {
   const [selectedGameId, setSelectedGameId] = useState(() => getSelectedGameId());
+  const [language, setLanguageState] = useState<Language>(() => detectInitialLanguage());
   const [query, setQuery] = useState("");
-  const [selectedGenre, setSelectedGenre] = useState(allGenresLabel);
+  const [selectedGenre, setSelectedGenre] = useState(allGenresKey);
   const SelectedGame = selectedGameId ? gameViews[selectedGameId] : undefined;
+  const t = uiText[language];
 
   const availableGames = useMemo(
     () => games.filter((game) => game.status !== "coming-soon"),
@@ -94,7 +99,7 @@ export function App() {
 
   const genres = useMemo(
     () => [
-      allGenresLabel,
+      allGenresKey,
       ...Array.from(new Set(availableGames.map((game) => game.genre))).sort()
     ],
     [availableGames]
@@ -104,18 +109,28 @@ export function App() {
     const normalizedQuery = query.trim().toLowerCase();
 
     return games.filter((game) => {
-      const matchesGenre = selectedGenre === allGenresLabel || game.genre === selectedGenre;
+      const translatedGame = getGameText(game, language);
+      const matchesGenre = selectedGenre === allGenresKey || game.genre === selectedGenre;
       const matchesQuery = !normalizedQuery || [
         game.title,
         game.englishTitle,
         game.description,
         game.genre,
-        game.kind
+        game.kind,
+        translatedGame.title,
+        translatedGame.description,
+        translatedGame.genre,
+        translatedGame.alternateTitle
       ].some((value) => value.toLowerCase().includes(normalizedQuery));
 
       return matchesGenre && matchesQuery;
     });
-  }, [query, selectedGenre]);
+  }, [language, query, selectedGenre]);
+
+  const setLanguage = (nextLanguage: Language) => {
+    setLanguageState(nextLanguage);
+    localStorage.setItem("game-shelf-language", nextLanguage);
+  };
 
   useEffect(() => {
     const handleNavigation = () => {
@@ -129,6 +144,16 @@ export function App() {
     };
   }, []);
 
+  useEffect(() => {
+    document.documentElement.lang = language;
+    document.title = language === "ja" ? "Game Shelf | ブラウザゲーム集" : "Game Shelf | Browser Games";
+
+    const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    if (description) {
+      description.content = t.metaDescription;
+    }
+  }, [language, t.metaDescription]);
+
   const returnToShelf = () => {
     window.history.pushState({}, "", window.location.pathname);
     setSelectedGameId(null);
@@ -136,106 +161,120 @@ export function App() {
 
   if (SelectedGame) {
     return (
-      <main className="game-screen">
-        <button className="back-button" type="button" onClick={returnToShelf}>
-          <ArrowLeft aria-hidden="true" />
-          Back to Game Shelf
-        </button>
-        <SelectedGame onBack={returnToShelf} />
-      </main>
+      <I18nContext.Provider value={{ language, setLanguage }}>
+        <main className="game-screen">
+          <DomTranslationLayer language={language} />
+          <div className="game-topbar">
+            <button className="back-button" type="button" onClick={returnToShelf}>
+              <ArrowLeft aria-hidden="true" />
+              {t.backToShelf}
+            </button>
+            <LanguageSwitcher language={language} setLanguage={setLanguage} />
+          </div>
+          <SelectedGame onBack={returnToShelf} />
+        </main>
+      </I18nContext.Provider>
     );
   }
 
   return (
+    <I18nContext.Provider value={{ language, setLanguage }}>
     <main>
+      <DomTranslationLayer language={language} />
       <header className="hero">
         <div className="brand-mark" aria-hidden="true">
           <Gamepad2 />
         </div>
         <div>
-          <p className="eyebrow">LOCAL BROWSER GAMES</p>
+          <p className="eyebrow">{t.brandEyebrow}</p>
           <h1>Game Shelf</h1>
-          <p className="lead">
-            Pick a small browser game from this local shelf. Search, filter, or jump straight into the newest additions.
-          </p>
+          <p className="lead">{t.lead}</p>
         </div>
+        <LanguageSwitcher language={language} setLanguage={setLanguage} />
       </header>
 
       <section className="quick-shelf" aria-labelledby="recent-games-title">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">RECENTLY ADDED</p>
-            <h2 id="recent-games-title">New on the shelf</h2>
+            <p className="eyebrow">{t.recentlyAdded}</p>
+            <h2 id="recent-games-title">{t.newOnShelf}</h2>
           </div>
-          <span>{recentGames.length} PICKS</span>
+          <span>{recentGames.length} {t.picks}</span>
         </div>
         <div className="quick-grid">
           {recentGames.map((game, index) => (
-            <GameCard game={game} index={index} key={game.id} onSelect={setSelectedGameId} compact />
+            <GameCard game={game} index={index} key={game.id} language={language} onSelect={setSelectedGameId} compact />
           ))}
         </div>
       </section>
 
-      <section className="shelf-tools" aria-label="Game shelf controls">
+      <section className="shelf-tools" aria-label={t.shelfControls}>
         <label className="search-box">
           <Search aria-hidden="true" />
-          <span className="sr-only">Search games</span>
+          <span className="sr-only">{t.searchGames}</span>
           <input
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search by title, genre, or type"
+            placeholder={t.searchPlaceholder}
           />
         </label>
         <label className="genre-filter">
-          <span>Genre</span>
+          <span>{t.genre}</span>
           <select value={selectedGenre} onChange={(event) => setSelectedGenre(event.target.value)}>
             {genres.map((genre) => (
-              <option key={genre} value={genre}>{genre}</option>
+              <option key={genre} value={genre}>
+                {genre === allGenresKey ? t.allGenres : getLocalizedGenre(genre, language)}
+              </option>
             ))}
           </select>
         </label>
         <div className="shelf-count" aria-live="polite">
           <strong>{filteredGames.length}</strong>
-          <span>shown</span>
+          <span>{t.shown}</span>
         </div>
       </section>
 
-      <section className="game-grid" aria-label="Game list">
+      <section className="game-grid" aria-label={t.gameList}>
         {filteredGames.map((game, index) => (
-          <GameCard game={game} index={index} key={game.id} onSelect={setSelectedGameId} />
+          <GameCard game={game} index={index} key={game.id} language={language} onSelect={setSelectedGameId} />
         ))}
       </section>
 
       {filteredGames.length === 0 && (
-        <p className="empty-state">No games match this filter.</p>
+        <p className="empty-state">{t.emptyState}</p>
       )}
 
       <footer>
-        <span>LOCAL EDITION</span>
-        <span>{availableGames.length} GAMES AVAILABLE</span>
+        <span>{t.edition}</span>
+        <span>{availableGames.length} {t.gamesAvailable}</span>
       </footer>
     </main>
+    </I18nContext.Provider>
   );
 }
 
 type GameCardProps = {
   game: Game;
   index: number;
+  language: Language;
   compact?: boolean;
   onSelect: (gameId: string) => void;
 };
 
-function GameCard({ game, index, compact = false, onSelect }: GameCardProps) {
+function GameCard({ game, index, language, compact = false, onSelect }: GameCardProps) {
   const isComingSoon = game.status === "coming-soon";
   const href = game.kind === "internal" ? `?game=${game.id}` : game.href;
+  const t = uiText[language];
+  const gameText = getGameText(game, language);
+  const kindLabel = game.kind === "embedded" ? t.included : game.kind === "internal" ? t.internal : t.external;
 
   return (
     <a
       className={`game-card${isComingSoon ? " is-coming-soon" : ""}${compact ? " is-compact" : ""}`}
       href={href}
       style={{ "--accent": game.accent, "--delay": `${index * 90}ms` } as CSSProperties}
-      aria-label={isComingSoon ? `${game.title} is coming soon` : `Open ${game.title}`}
+      aria-label={isComingSoon ? `${gameText.title} ${t.comingSoon}` : `${t.openGame} ${gameText.title}`}
       onClick={(event) => {
         if (isComingSoon) {
           event.preventDefault();
@@ -250,27 +289,50 @@ function GameCard({ game, index, compact = false, onSelect }: GameCardProps) {
       }}
     >
       <div className="screenshot-frame">
-        <img src={game.screenshot} alt={`${game.title} game screen`} />
+        <img src={game.screenshot} alt={`${gameText.title} game screen`} />
         <span className="play-label">
-          {isComingSoon ? "SOON" : "PLAY"} {!isComingSoon && <ArrowUpRight />}
+          {isComingSoon ? t.soon : t.play} {!isComingSoon && <ArrowUpRight />}
         </span>
       </div>
       <div className="card-body">
         <div className="card-heading">
           <div>
-            <span className="genre">{game.genre}</span>
-            <h2>{game.title}</h2>
+            <span className="genre">{gameText.genre}</span>
+            <h2>{gameText.title}</h2>
           </div>
           {!isComingSoon && <ArrowUpRight className="card-arrow" aria-hidden="true" />}
         </div>
-        <p>{game.description}</p>
+        <p>{gameText.description}</p>
         <div className="card-meta">
-          <span className="english-title">{game.englishTitle}</span>
-          <span className={`kind-badge is-${game.kind}`}>
-            {game.kind === "embedded" ? "included" : game.kind}
-          </span>
+          <span className="english-title">{gameText.alternateTitle}</span>
+          <span className={`kind-badge is-${game.kind}`}>{kindLabel}</span>
         </div>
       </div>
     </a>
   );
+}
+
+function LanguageSwitcher({
+  language,
+  setLanguage
+}: {
+  language: Language;
+  setLanguage: (language: Language) => void;
+}) {
+  const t = uiText[language];
+
+  return (
+    <label className="language-switcher">
+      <Languages aria-hidden="true" />
+      <span>{t.language}</span>
+      <select value={language} onChange={(event) => setLanguage(event.target.value as Language)}>
+        <option value="en">{t.english}</option>
+        <option value="ja">{t.japanese}</option>
+      </select>
+    </label>
+  );
+}
+
+function getLocalizedGenre(genre: string, language: Language) {
+  return genreLabels[language][genre] ?? genre;
 }

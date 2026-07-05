@@ -5,6 +5,7 @@ import { createRandomGame, type NewGame } from './game/positions'
 import { allLegalMoves, applyMove, canPromote, hasAnyLegalMove, isKingInCheck, legalDrops, legalTargets, mustPromote } from './game/rules'
 import { clonePosition, moveToFairyNotation, positionToSfen } from './game/sfen'
 import { opposite, type Difficulty, type Move, type Piece, type PieceKind, type Position, type Side, type Snapshot, type Square } from './game/types'
+import { DomTranslationLayer } from './domTranslations'
 
 const VERSION = '1.6'
 const labels: Record<PieceKind, string> = { K: '玉', R: '飛', B: '角', G: '金', S: '銀', N: '桂', L: '香', P: '歩' }
@@ -246,6 +247,7 @@ function App() {
   if (view === 'home') {
     return (
       <main className="app-shell home-screen">
+        <DomTranslationLayer />
         <header className="brand-row">
           <div>
             <p className="eyebrow">BROWSER SHOGI</p>
@@ -294,6 +296,7 @@ function App() {
 
   return (
     <main className="game-screen">
+      <DomTranslationLayer />
       <header className="game-header">
         <div>
           <p className="eyebrow">{game.seed.category} / {game.seed.phase}</p>

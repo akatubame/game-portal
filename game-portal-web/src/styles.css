@@ -56,6 +56,10 @@ main {
   margin-bottom: 54px;
 }
 
+.hero > div:nth-child(2) {
+  flex: 1 1 auto;
+}
+
 .brand-mark {
   width: 52px;
   height: 52px;
@@ -98,6 +102,45 @@ h1 {
   margin: 20px 0 0;
   color: var(--muted);
   font-size: 1rem;
+}
+
+.language-switcher {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  flex: 0 0 auto;
+  padding: 8px 11px;
+  border: 1px solid rgba(244, 241, 232, 0.14);
+  border-radius: 999px;
+  color: #a8b3b0;
+  background: rgba(25, 32, 33, 0.78);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.language-switcher svg {
+  width: 17px;
+  color: var(--ink);
+}
+
+.language-switcher select {
+  border: 0;
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+
+.language-switcher select:focus {
+  outline: 0;
+}
+
+.language-switcher:focus-within {
+  border-color: rgba(244, 241, 232, 0.34);
+  background: rgba(25, 32, 33, 0.96);
 }
 
 .quick-shelf {
@@ -235,6 +278,14 @@ h1 {
   color: var(--muted);
   background: rgba(25, 32, 33, 0.74);
   text-align: center;
+}
+
+.game-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 20px;
 }
 
 .game-grid {
@@ -5325,8 +5376,24 @@ footer {
   }
 
   .hero {
+    flex-wrap: wrap;
     gap: 14px;
     margin-bottom: 38px;
+  }
+
+  .hero .language-switcher {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .game-topbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .game-topbar .language-switcher {
+    width: 100%;
+    justify-content: space-between;
   }
 
   .brand-mark {

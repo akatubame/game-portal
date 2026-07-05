@@ -11,6 +11,7 @@ import { autoDiscardTriggerKey } from "./autoDiscard";
 import { isRiichiSelectionActive } from "./riichiSelection";
 import { isResumableGame } from "./savedGame";
 import { canAcceptTileInput } from "./tileInputGuard";
+import { DomTranslationLayer } from "./domTranslations";
 
 const difficultyLabel: Record<Difficulty, string> = { beginner: "易", easy: "普通", normal: "難" };
 
@@ -485,9 +486,14 @@ function RulesScreen() {
 
 export function App() {
   const { view, game } = useAppStore();
-  if (view === "yaku") return <YakuScreen />;
-  if (view === "records") return <RecordsScreen />;
-  if (view === "settings") return <SettingsScreen />;
-  if (view === "rules") return <RulesScreen />;
-  return game.phase === "title" ? <TitleScreen /> : <GameBoard />;
+  return (
+    <>
+      <DomTranslationLayer />
+      {view === "yaku" ? <YakuScreen />
+        : view === "records" ? <RecordsScreen />
+        : view === "settings" ? <SettingsScreen />
+        : view === "rules" ? <RulesScreen />
+        : game.phase === "title" ? <TitleScreen /> : <GameBoard />}
+    </>
+  );
 }
