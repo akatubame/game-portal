@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowUpRight, Clock3, Gamepad2, Languages, Search, Shuffle, Star } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Clock3, Gamepad2, Languages, Link2, Search, Shuffle, Star } from "lucide-react";
 import { useEffect, useMemo, useState, type ComponentType, type CSSProperties, type ReactNode } from "react";
 import { detectInitialLanguage, I18nContext, type Language, uiText } from "./i18n";
 import { DomTranslationLayer } from "./domTranslations";
@@ -100,6 +100,7 @@ export function App() {
   const [selectedGenre, setSelectedGenre] = useState(allGenresKey);
   const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readStoredIds(favoriteStorageKey));
   const [recentlyPlayedIds, setRecentlyPlayedIds] = useState<string[]>(() => readStoredIds(recentlyPlayedStorageKey));
+  const [copyNotice, setCopyNotice] = useState("");
   const SelectedGame = selectedGameId ? gameViews[selectedGameId] : undefined;
   const t = uiText[language];
 
@@ -216,6 +217,34 @@ export function App() {
     openGame(nextGame);
   };
 
+  const copyGameLink = async (game: Game) => {
+    const href = game.kind === "internal" ? `${window.location.pathname}?game=${game.id}` : game.href;
+    const url = new URL(href, window.location.origin).href;
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = url;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+
+      const gameText = getGameText(game, language);
+      setCopyNotice(`${t.linkCopied}: ${gameText.title}`);
+      window.setTimeout(() => setCopyNotice(""), 2200);
+    } catch {
+      setCopyNotice(t.linkCopyFailed);
+      window.setTimeout(() => setCopyNotice(""), 2600);
+    }
+  };
+
   useEffect(() => {
     const handleNavigation = () => {
       const nextGameId = getSelectedGameId();
@@ -275,6 +304,11 @@ export function App() {
     <I18nContext.Provider value={{ language, setLanguage }}>
     <main>
       <DomTranslationLayer language={language} />
+      {copyNotice && (
+        <div className="copy-toast" role="status" aria-live="polite">
+          {copyNotice}
+        </div>
+      )}
       <header className="hero">
         <div className="brand-mark" aria-hidden="true">
           <Gamepad2 />
@@ -403,6 +437,7 @@ type GameCardProps = {
   compact?: boolean;
   favorite?: boolean;
   onFavoriteToggle?: (gameId: string) => void;
+  onLinkCopy?: (game: Game) => void;
   onPlayed?: (gameId: string) => void;
   onSelect: (gameId: string) => void;
 };
@@ -414,6 +449,7 @@ function GameCard({
   compact = false,
   favorite = false,
   onFavoriteToggle,
+  onLinkCopy,
   onPlayed,
   onSelect
 }: GameCardProps) {
@@ -448,20 +484,39 @@ function GameCard({
     >
       <div className="screenshot-frame">
         <img src={game.screenshot} alt={`${gameText.title} game screen`} />
-        {onFavoriteToggle && (
-          <button
-            className={`favorite-button${favorite ? " is-active" : ""}`}
-            type="button"
-            aria-label={`${favorite ? t.removeFavorite : t.addFavorite}: ${gameText.title}`}
-            title={favorite ? t.removeFavorite : t.addFavorite}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              onFavoriteToggle(game.id);
-            }}
-          >
-            <Star aria-hidden="true" />
-          </button>
+        {(onFavoriteToggle || onLinkCopy) && (
+          <div className="card-action-row">
+            {onFavoriteToggle && (
+              <button
+                className={`favorite-button${favorite ? " is-active" : ""}`}
+                type="button"
+                aria-label={`${favorite ? t.removeFavorite : t.addFavorite}: ${gameText.title}`}
+                title={favorite ? t.removeFavorite : t.addFavorite}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onFavoriteToggle(game.id);
+                }}
+              >
+                <Star aria-hidden="true" />
+              </button>
+            )}
+            {onLinkCopy && (
+              <button
+                className="share-link-button"
+                type="button"
+                aria-label={`${t.copyLink}: ${gameText.title}`}
+                title={t.copyLink}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onLinkCopy(game);
+                }}
+              >
+                <Link2 aria-hidden="true" />
+              </button>
+            )}
+          </div>
         )}
         <span className="play-label">
           {isComingSoon ? t.soon : t.play} {!isComingSoon && <ArrowUpRight />}
