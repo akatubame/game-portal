@@ -1,0 +1,56 @@
+<svg width="1280" height="800" viewBox="0 0 1280 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="800" fill="#101516"/>
+  <circle cx="1015" cy="120" r="280" fill="#FF7D7D" opacity=".15"/>
+  <rect x="250" y="90" width="780" height="620" rx="18" fill="#192021" stroke="#F4F1E8" stroke-opacity=".16" stroke-width="3"/>
+  <g transform="translate(378 150)">
+    <rect width="524" height="524" rx="10" fill="#0B0F10" stroke="#F4F1E8" stroke-opacity=".42" stroke-width="4"/>
+    <g font-family="Segoe UI, sans-serif" font-weight="800" text-anchor="middle" dominant-baseline="middle">
+      <g>
+        <rect x="16" y="16" width="54" height="54" rx="7" fill="#243030"/>
+        <rect x="76" y="16" width="54" height="54" rx="7" fill="#243030"/>
+        <rect x="136" y="16" width="54" height="54" rx="7" fill="#182020"/>
+        <rect x="196" y="16" width="54" height="54" rx="7" fill="#243030"/>
+        <rect x="256" y="16" width="54" height="54" rx="7" fill="#182020"/>
+        <rect x="316" y="16" width="54" height="54" rx="7" fill="#243030"/>
+        <rect x="376" y="16" width="54" height="54" rx="7" fill="#243030"/>
+        <rect x="436" y="16" width="54" height="54" rx="7" fill="#182020"/>
+        <rect x="16" y="76" width="54" height="54" rx="7" fill="#243030"/>
+        <rect x="76" y="76" width="54" height="54" rx="7" fill="#314141"/>
+        <rect x="136" y="76" width="54" height="54" rx="7" fill="#314141"/>
+        <rect x="196" y="76" width="54" height="54" rx="7" fill="#243030"/>
+        <rect x="256" y="76" width="54" height="54" rx="7" fill="#243030"/>
+        <rect x="316" y="76" width="54" height="54" rx="7" fill="#314141"/>
+        <rect x="376" y="76" width="54" height="54" rx="7" fill="#314141"/>
+        <rect x="436" y="76" width="54" height="54" rx="7" fill="#243030"/>
+        <rect x="16" y="136" width="54" height="54" rx="7" fill="#314141"/>
+        <rect x="76" y="136" width="54" height="54" rx="7" fill="#182020"/>
+        <rect x="136" y="136" width="54" height="54" rx="7" fill="#314141"/>
+        <rect x="196" y="136" width="54" height="54" rx="7" fill="#314141"/>
+        <rect x="256" y="136" width="54" height="54" rx="7" fill="#243030"/>
+        <rect x="316" y="136" width="54" height="54" rx="7" fill="#243030"/>
+        <rect x="376" y="136" width="54" height="54" rx="7" fill="#182020"/>
+        <rect x="436" y="136" width="54" height="54" rx="7" fill="#243030"/>
+        <rect x="16" y="196" width="54" height="54" rx="7" fill="#243030"/>
+        <rect x="76" y="196" width="54" height="54" rx="7" fill="#314141"/>
+        <rect x="136" y="196" width="54" height="54" rx="7" fill="#314141"/>
+        <rect x="196" y="196" width="54" height="54" rx="7" fill="#314141"/>
+        <rect x="256" y="196" width="54" height="54" rx="7" fill="#314141"/>
+        <rect x="316" y="196" width="54" height="54" rx="7" fill="#243030"/>
+        <rect x="376" y="196" width="54" height="54" rx="7" fill="#243030"/>
+        <rect x="436" y="196" width="54" height="54" rx="7" fill="#314141"/>
+      </g>
+      <text x="103" y="103" fill="#8FB7FF" font-size="30">1</text>
+      <text x="163" y="103" fill="#8EE0B1" font-size="30">2</text>
+      <text x="343" y="103" fill="#8FB7FF" font-size="30">1</text>
+      <text x="403" y="103" fill="#FF7D7D" font-size="30">⚑</text>
+      <text x="43" y="163" fill="#8EE0B1" font-size="30">2</text>
+      <text x="163" y="163" fill="#8FB7FF" font-size="30">1</text>
+      <text x="223" y="163" fill="#F2B66D" font-size="30">3</text>
+      <text x="103" y="223" fill="#8FB7FF" font-size="30">1</text>
+      <text x="223" y="223" fill="#8EE0B1" font-size="30">2</text>
+      <text x="283" y="223" fill="#F4F1E8" font-size="30">💣</text>
+      <text x="463" y="223" fill="#8FB7FF" font-size="30">1</text>
+    </g>
+  </g>
+  <text x="640" y="744" fill="#FF7D7D" font-family="Segoe UI, sans-serif" font-size="44" font-weight="800" text-anchor="middle" letter-spacing=".16em">MINESWEEPER / PLAY NOW</text>
+</svg>

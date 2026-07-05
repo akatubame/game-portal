@@ -1,0 +1,60 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" fill="#0c1112"/>
+  <circle cx="1020" cy="142" r="260" fill="#c99cff" opacity="0.12"/>
+  <circle cx="220" cy="610" r="240" fill="#72efff" opacity="0.1"/>
+  <rect x="88" y="76" width="1104" height="568" rx="42" fill="#141a1b" stroke="#f4f1e8" stroke-opacity="0.12"/>
+  <text x="124" y="142" fill="#8f9997" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800" letter-spacing="5">PUZZLE / INTERNAL GAME</text>
+  <text x="124" y="208" fill="#f4f1e8" font-family="Inter, Arial, sans-serif" font-size="68" font-weight="900">Flood Fill</text>
+  <text x="126" y="256" fill="#aab4b0" font-family="Inter, Arial, sans-serif" font-size="24">左上から色を広げ、盤面を1色へ染める</text>
+  <g transform="translate(700 130)">
+    <rect width="360" height="360" rx="30" fill="#080d18" stroke="#f4f1e8" stroke-opacity="0.12"/>
+    <g transform="translate(26 26)">
+      <rect x="0" y="0" width="44" height="44" rx="9" fill="#ff7d7d"/>
+      <rect x="48" y="0" width="44" height="44" rx="9" fill="#ff7d7d"/>
+      <rect x="96" y="0" width="44" height="44" rx="9" fill="#ffcf6d"/>
+      <rect x="144" y="0" width="44" height="44" rx="9" fill="#9df08a"/>
+      <rect x="192" y="0" width="44" height="44" rx="9" fill="#72efff"/>
+      <rect x="240" y="0" width="44" height="44" rx="9" fill="#c99cff"/>
+      <rect x="0" y="48" width="44" height="44" rx="9" fill="#ff7d7d"/>
+      <rect x="48" y="48" width="44" height="44" rx="9" fill="#ffcf6d"/>
+      <rect x="96" y="48" width="44" height="44" rx="9" fill="#ffcf6d"/>
+      <rect x="144" y="48" width="44" height="44" rx="9" fill="#9df08a"/>
+      <rect x="192" y="48" width="44" height="44" rx="9" fill="#72efff"/>
+      <rect x="240" y="48" width="44" height="44" rx="9" fill="#c99cff"/>
+      <rect x="0" y="96" width="44" height="44" rx="9" fill="#ffcf6d"/>
+      <rect x="48" y="96" width="44" height="44" rx="9" fill="#ffcf6d"/>
+      <rect x="96" y="96" width="44" height="44" rx="9" fill="#9df08a"/>
+      <rect x="144" y="96" width="44" height="44" rx="9" fill="#9df08a"/>
+      <rect x="192" y="96" width="44" height="44" rx="9" fill="#72efff"/>
+      <rect x="240" y="96" width="44" height="44" rx="9" fill="#ff8ac7"/>
+      <rect x="0" y="144" width="44" height="44" rx="9" fill="#ffcf6d"/>
+      <rect x="48" y="144" width="44" height="44" rx="9" fill="#9df08a"/>
+      <rect x="96" y="144" width="44" height="44" rx="9" fill="#9df08a"/>
+      <rect x="144" y="144" width="44" height="44" rx="9" fill="#72efff"/>
+      <rect x="192" y="144" width="44" height="44" rx="9" fill="#72efff"/>
+      <rect x="240" y="144" width="44" height="44" rx="9" fill="#ff8ac7"/>
+      <rect x="0" y="192" width="44" height="44" rx="9" fill="#c99cff"/>
+      <rect x="48" y="192" width="44" height="44" rx="9" fill="#9df08a"/>
+      <rect x="96" y="192" width="44" height="44" rx="9" fill="#72efff"/>
+      <rect x="144" y="192" width="44" height="44" rx="9" fill="#72efff"/>
+      <rect x="192" y="192" width="44" height="44" rx="9" fill="#ff8ac7"/>
+      <rect x="240" y="192" width="44" height="44" rx="9" fill="#ff8ac7"/>
+      <rect x="0" y="240" width="44" height="44" rx="9" fill="#c99cff"/>
+      <rect x="48" y="240" width="44" height="44" rx="9" fill="#c99cff"/>
+      <rect x="96" y="240" width="44" height="44" rx="9" fill="#72efff"/>
+      <rect x="144" y="240" width="44" height="44" rx="9" fill="#ff8ac7"/>
+      <rect x="192" y="240" width="44" height="44" rx="9" fill="#ff8ac7"/>
+      <rect x="240" y="240" width="44" height="44" rx="9" fill="#ffcf6d"/>
+    </g>
+  </g>
+  <g transform="translate(126 340)">
+    <circle cx="28" cy="28" r="28" fill="#ff7d7d"/>
+    <circle cx="96" cy="28" r="28" fill="#ffcf6d"/>
+    <circle cx="164" cy="28" r="28" fill="#9df08a"/>
+    <circle cx="232" cy="28" r="28" fill="#72efff"/>
+    <circle cx="300" cy="28" r="28" fill="#c99cff"/>
+    <circle cx="368" cy="28" r="28" fill="#ff8ac7"/>
+  </g>
+  <path d="M128 522h390" stroke="#f4f1e8" stroke-opacity="0.12"/>
+  <text x="128" y="574" fill="#f4f1e8" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800">CHOOSE COLOR, GROW AREA</text>
+</svg>

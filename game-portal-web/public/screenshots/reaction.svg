@@ -1,0 +1,18 @@
+<svg width="1280" height="800" viewBox="0 0 1280 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="800" fill="#101516"/>
+  <circle cx="1010" cy="125" r="285" fill="#FF8AC7" opacity=".17"/>
+  <rect x="235" y="90" width="810" height="620" rx="18" fill="#192021" stroke="#F4F1E8" stroke-opacity=".16" stroke-width="3"/>
+  <g transform="translate(320 150)">
+    <rect width="640" height="460" rx="28" fill="#0B0F10" stroke="#F4F1E8" stroke-opacity=".16" stroke-width="4"/>
+    <circle cx="320" cy="210" r="140" fill="#FF8AC7" opacity=".18"/>
+    <circle cx="320" cy="210" r="102" fill="#FF8AC7" filter="url(#glow)"/>
+    <path d="M335 84L258 233H320L295 338L382 190H318L335 84Z" fill="#101516"/>
+    <text x="320" y="408" fill="#F4F1E8" font-family="Segoe UI, sans-serif" font-size="56" font-weight="900" text-anchor="middle">183ms</text>
+  </g>
+  <text x="640" y="744" fill="#FF8AC7" font-family="Segoe UI, sans-serif" font-size="44" font-weight="800" text-anchor="middle" letter-spacing=".16em">REACTION TEST / PLAY NOW</text>
+  <defs>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="0" stdDeviation="20" flood-color="#FF8AC7" flood-opacity=".7"/>
+    </filter>
+  </defs>
+</svg>
