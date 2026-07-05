@@ -105,6 +105,60 @@ h1 {
   font-size: 1rem;
 }
 
+.hero-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.hero-actions > span {
+  color: #7f8987;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.random-game-button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 17px;
+  border: 1px solid rgba(244, 241, 232, 0.18);
+  border-radius: 999px;
+  color: #101516;
+  background: linear-gradient(135deg, #f4f1e8, #d9a84e);
+  box-shadow: 0 18px 48px rgba(217, 168, 78, 0.14);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+}
+
+.random-game-button svg {
+  width: 18px;
+}
+
+.random-game-button:hover,
+.random-game-button:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 58px rgba(217, 168, 78, 0.22);
+  filter: saturate(1.05);
+  outline: 0;
+}
+
+.random-game-button:disabled {
+  cursor: default;
+  opacity: 0.45;
+  transform: none;
+  box-shadow: none;
+  filter: grayscale(0.5);
+}
+
 .language-switcher {
   min-height: 42px;
   display: inline-flex;

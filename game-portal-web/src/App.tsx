@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowUpRight, Clock3, Gamepad2, Languages, Search, Star } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Clock3, Gamepad2, Languages, Search, Shuffle, Star } from "lucide-react";
 import { useEffect, useMemo, useState, type ComponentType, type CSSProperties, type ReactNode } from "react";
 import { detectInitialLanguage, I18nContext, type Language, uiText } from "./i18n";
 import { DomTranslationLayer } from "./domTranslations";
@@ -159,6 +159,11 @@ export function App() {
     });
   }, [language, query, selectedGenre]);
 
+  const playableFilteredGames = useMemo(
+    () => filteredGames.filter((game) => game.status !== "coming-soon"),
+    [filteredGames]
+  );
+
   const setLanguage = (nextLanguage: Language) => {
     setLanguageState(nextLanguage);
     localStorage.setItem("game-shelf-language", nextLanguage);
@@ -183,6 +188,32 @@ export function App() {
       localStorage.setItem(favoriteStorageKey, JSON.stringify(next));
       return next;
     });
+  };
+
+  const openGame = (game: Game) => {
+    if (game.status === "coming-soon") {
+      return;
+    }
+
+    const href = game.kind === "internal" ? `?game=${game.id}` : game.href;
+    rememberPlayedGame(game.id);
+
+    if (game.kind === "internal") {
+      window.history.pushState({}, "", href);
+      setSelectedGameId(game.id);
+      return;
+    }
+
+    window.location.href = href;
+  };
+
+  const openRandomGame = () => {
+    if (!playableFilteredGames.length) {
+      return;
+    }
+
+    const nextGame = playableFilteredGames[Math.floor(Math.random() * playableFilteredGames.length)];
+    openGame(nextGame);
   };
 
   useEffect(() => {
@@ -252,6 +283,13 @@ export function App() {
           <p className="eyebrow">{t.brandEyebrow}</p>
           <h1>Game Shelf</h1>
           <p className="lead">{t.lead}</p>
+          <div className="hero-actions">
+            <button className="random-game-button" type="button" onClick={openRandomGame} disabled={!playableFilteredGames.length}>
+              <Shuffle aria-hidden="true" />
+              {t.randomGame}
+            </button>
+            <span>{t.randomGameHint}</span>
+          </div>
         </div>
         <LanguageSwitcher language={language} setLanguage={setLanguage} />
       </header>
