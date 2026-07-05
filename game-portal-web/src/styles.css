@@ -3,6 +3,7 @@
   color: #f4f1e8;
   background: #101516;
   font-synthesis: none;
+  color-scheme: dark;
   --ink: #f4f1e8;
   --muted: #929c9a;
   --line: rgba(244, 241, 232, 0.15);
@@ -129,9 +130,15 @@ h1 {
 .language-switcher select {
   border: 0;
   color: var(--ink);
-  background: transparent;
+  background: #192021;
+  color-scheme: dark;
   font: inherit;
   cursor: pointer;
+}
+
+.language-switcher select option {
+  color: var(--ink);
+  background: #192021;
 }
 
 .language-switcher select:focus {
@@ -316,8 +323,15 @@ h1 {
   min-width: 0;
   border: 0;
   color: var(--ink);
-  background: transparent;
+  background: #0d1213;
+  color-scheme: dark;
   font: inherit;
+}
+
+.genre-filter select option,
+.select-label select option {
+  color: var(--ink);
+  background: #0d1213;
 }
 
 .search-box input:focus,
@@ -952,6 +966,7 @@ footer {
   border-radius: 6px;
   color: var(--ink);
   background: #0d1213;
+  color-scheme: dark;
   font: inherit;
 }
 
