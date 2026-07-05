@@ -30,7 +30,15 @@ function storageKey(gameId: string) {
   return `game-shelf-ranking-${gameId}`;
 }
 
-function readEntries(gameId: string): RankingEntry[] {
+function fallbackDisplay(score: number, metricLabel: string) {
+  if (metricLabel.toLowerCase().includes("score")) {
+    return `${score}点`;
+  }
+
+  return String(score);
+}
+
+function readEntries(gameId: string, metricLabel: string): RankingEntry[] {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(storageKey(gameId)) ?? "[]");
     return Array.isArray(parsed)
@@ -39,9 +47,11 @@ function readEntries(gameId: string): RankingEntry[] {
           typeof entry.id === "string" &&
           typeof entry.name === "string" &&
           typeof entry.score === "number" &&
-          typeof entry.display === "string" &&
           typeof entry.recordedAt === "string"
-        )
+        ).map((entry) => ({
+          ...entry,
+          display: typeof entry.display === "string" && entry.display.trim() ? entry.display : fallbackDisplay(entry.score, metricLabel)
+        }))
       : [];
   } catch {
     return [];
@@ -57,11 +67,11 @@ function sortEntries(entries: RankingEntry[], mode: RankingMode) {
 }
 
 export function useRanking({ gameId, metricLabel, mode, limit = 10 }: RankingConfig) {
-  const [entries, setEntries] = useState<RankingEntry[]>(() => sortEntries(readEntries(gameId), mode).slice(0, limit));
+  const [entries, setEntries] = useState<RankingEntry[]>(() => sortEntries(readEntries(gameId, metricLabel), mode).slice(0, limit));
 
   useEffect(() => {
-    setEntries(sortEntries(readEntries(gameId), mode).slice(0, limit));
-  }, [gameId, limit, mode]);
+    setEntries(sortEntries(readEntries(gameId, metricLabel), mode).slice(0, limit));
+  }, [gameId, limit, metricLabel, mode]);
 
   const ranking = useMemo(() => ({
     entries,
@@ -75,7 +85,7 @@ export function useRanking({ gameId, metricLabel, mode, limit = 10 }: RankingCon
         id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
         name: cleanName,
         score: pending.score,
-        display: pending.display,
+        display: pending.display.trim() || fallbackDisplay(pending.score, metricLabel),
         meta: pending.meta,
         recordedAt: new Date().toISOString()
       };
@@ -123,7 +133,7 @@ export function RankingPanel({
       {pendingScore && (
         <div className="ranking-submit">
           <p>
-            今回の記録: <strong>{pendingScore.display}</strong>
+            今回の記録: <strong>{pendingScore.display.trim() || fallbackDisplay(pendingScore.score, ranking.metricLabel)}</strong>
             {pendingScore.meta && <small>{pendingScore.meta}</small>}
           </p>
           <div>

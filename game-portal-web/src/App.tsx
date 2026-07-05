@@ -71,6 +71,7 @@ const gameViews: Record<string, ComponentType<{ onBack: () => void }>> = {
 };
 
 const recentGameIds = ["nonogram", "poker", "waterSort", "oneToFifty"];
+const popularGameIds = ["2048", "sudoku", "minesweeper", "nonogram", "snake", "reversi"];
 const allGenresKey = "__all__";
 const favoriteStorageKey = "game-shelf-favorites";
 const recentlyPlayedStorageKey = "game-shelf-recently-played";
@@ -113,6 +114,13 @@ export function App() {
     () => recentGameIds
       .map((id) => games.find((game) => game.id === id))
       .filter((game): game is Game => Boolean(game)),
+    []
+  );
+
+  const popularGames = useMemo(
+    () => popularGameIds
+      .map((id) => games.find((game) => game.id === id))
+      .filter((game): game is Game => game !== undefined && game.status !== "coming-soon"),
     []
   );
 
@@ -338,6 +346,31 @@ export function App() {
         </div>
         <div className="quick-grid">
           {recentGames.map((game, index) => (
+            <GameCard
+              compact
+              favorite={favoriteIds.includes(game.id)}
+              game={game}
+              index={index}
+              key={game.id}
+              language={language}
+              onFavoriteToggle={toggleFavorite}
+              onPlayed={rememberPlayedGame}
+              onSelect={setSelectedGameId}
+            />
+          ))}
+        </div>
+      </section>
+
+      <section className="quick-shelf" aria-labelledby="popular-games-title">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">{t.popularEyebrow}</p>
+            <h2 id="popular-games-title">{t.popularGames}</h2>
+          </div>
+          <span>{popularGames.length} {t.picks}</span>
+        </div>
+        <div className="quick-grid">
+          {popularGames.map((game, index) => (
             <GameCard
               compact
               favorite={favoriteIds.includes(game.id)}

@@ -1,5 +1,5 @@
 import { Eraser, RotateCcw, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
 import type { CSSProperties } from "react";
 import type { SameGameBest, SameGameCell, SameGameColor, SameGameDifficulty, SameGameStatus } from "./types";
@@ -154,6 +154,7 @@ export function SameGame({ onBack }: SameGameProps) {
   const [board, setBoard] = useState<SameGameCell[]>(() => createBoard(difficultySettings.normal.columns, difficultySettings.normal.rows));
   const [status, setStatus] = useState<SameGameStatus>("idle");
   const [score, setScore] = useState(0);
+  const scoreRef = useRef(0);
   const [lastRemoved, setLastRemoved] = useState(0);
   const [message, setMessage] = useState("同じ色が2個以上つながったブロックをクリックして消しましょう。");
   const [bestByDifficulty, setBestByDifficulty] = useState<Record<SameGameDifficulty, SameGameBest | undefined>>(() => readBest());
@@ -163,6 +164,10 @@ export function SameGame({ onBack }: SameGameProps) {
   const currentBest = bestByDifficulty[difficulty];
   const blocksLeft = remainingBlocks(board);
   const movesAvailable = useMemo(() => hasMoves(board, settings.columns, settings.rows), [board, settings.columns, settings.rows]);
+
+  useEffect(() => {
+    scoreRef.current = score;
+  }, [score]);
 
   const saveBest = (nextScore: number) => {
     if (currentBest && currentBest.score >= nextScore) {
@@ -182,6 +187,7 @@ export function SameGame({ onBack }: SameGameProps) {
   const finishGame = (finalScore: number, nextBoard: SameGameCell[]) => {
     const bonus = remainingBlocks(nextBoard) === 0 ? 500 : 0;
     const total = finalScore + bonus;
+    scoreRef.current = total;
     setScore(total);
     setStatus("finished");
     saveBest(total);
@@ -194,6 +200,7 @@ export function SameGame({ onBack }: SameGameProps) {
     setBoard(createBoard(nextSettings.columns, nextSettings.rows));
     setStatus("playing");
     setScore(0);
+    scoreRef.current = 0;
     setLastRemoved(0);
     setMessage("大きい塊を残すように消すと高得点を狙えます。");
   };
@@ -212,7 +219,8 @@ export function SameGame({ onBack }: SameGameProps) {
 
     const nextBoard = removeGroup(board, group, settings.columns, settings.rows);
     const addScore = scoreForGroup(group.size);
-    const nextScore = score + addScore;
+    const nextScore = scoreRef.current + addScore;
+    scoreRef.current = nextScore;
     setBoard(nextBoard);
     setScore(nextScore);
     setLastRemoved(group.size);

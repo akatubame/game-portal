@@ -41,6 +41,8 @@ export function Puzzle2048({ onBack }: Puzzle2048Props) {
   const [won, setWon] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const scoreRef = useRef(0);
+  const bestScoreRef = useRef(bestScore);
   const ranking = useRanking({ gameId: "2048-score", metricLabel: "Score", mode: "higher" });
 
   const statusText = useMemo(() => {
@@ -58,9 +60,18 @@ export function Puzzle2048({ onBack }: Puzzle2048Props) {
   const resetGame = useCallback(() => {
     setBoard(createInitialBoard());
     setScore(0);
+    scoreRef.current = 0;
     setWon(false);
     setGameOver(false);
   }, []);
+
+  useEffect(() => {
+    scoreRef.current = score;
+  }, [score]);
+
+  useEffect(() => {
+    bestScoreRef.current = bestScore;
+  }, [bestScore]);
 
   const makeMove = useCallback(
     (direction: Direction) => {
@@ -76,11 +87,13 @@ export function Puzzle2048({ onBack }: Puzzle2048Props) {
         }
 
         const nextBoard = addRandomTile(moved.board);
-        const nextScore = score + moved.scoreGain;
+        const nextScore = scoreRef.current + moved.scoreGain;
 
+        scoreRef.current = nextScore;
         setScore(nextScore);
 
-        if (nextScore > bestScore) {
+        if (nextScore > bestScoreRef.current) {
+          bestScoreRef.current = nextScore;
           setBestScore(nextScore);
           window.localStorage.setItem(BEST_SCORE_KEY, String(nextScore));
         }
@@ -96,7 +109,7 @@ export function Puzzle2048({ onBack }: Puzzle2048Props) {
         return nextBoard;
       });
     },
-    [bestScore, gameOver, score]
+    [gameOver]
   );
 
   useEffect(() => {
