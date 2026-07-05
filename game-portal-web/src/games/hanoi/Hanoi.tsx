@@ -1,5 +1,5 @@
 import { RotateCcw, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties } from "react";
 import type { HanoiBest, HanoiPeg, HanoiStatus } from "./types";
 
@@ -8,6 +8,7 @@ type HanoiProps = {
 };
 
 const BEST_KEY = "game-shelf-hanoi-best";
+const BEST_TIME_KEY = "game-shelf-hanoi-best-times";
 const DISK_OPTIONS = [3, 4, 5, 6];
 
 function createPegs(disks: number): HanoiPeg[] {
@@ -21,6 +22,21 @@ function minimumMoves(disks: number) {
 function readBest(): Record<string, HanoiBest> {
   const stored = window.localStorage.getItem(BEST_KEY);
   return stored ? (JSON.parse(stored) as Record<string, HanoiBest>) : {};
+}
+
+function readBestTimes(): Record<string, number> {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(BEST_TIME_KEY) ?? "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function formatTime(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return `${minutes}:${String(rest).padStart(2, "0")}`;
 }
 
 function canMove(from: HanoiPeg, to: HanoiPeg) {
@@ -39,12 +55,27 @@ export function Hanoi({ onBack }: HanoiProps) {
   const [status, setStatus] = useState<HanoiStatus>("idle");
   const [selectedPeg, setSelectedPeg] = useState<number | null>(null);
   const [moves, setMoves] = useState(0);
+  const [seconds, setSeconds] = useState(0);
   const [message, setMessage] = useState("円盤を1枚ずつ動かして、すべて右端の柱へ移しましょう。");
   const [bestByDisk, setBestByDisk] = useState<Record<string, HanoiBest>>(() => readBest());
+  const [bestTimes, setBestTimes] = useState<Record<string, number>>(() => readBestTimes());
 
   const minMoves = minimumMoves(diskCount);
   const currentBest = bestByDisk[String(diskCount)];
+  const currentBestTime = bestTimes[String(diskCount)] ?? null;
   const isSolved = useMemo(() => pegs[2].length === diskCount, [diskCount, pegs]);
+
+  useEffect(() => {
+    if (status !== "playing") {
+      return;
+    }
+
+    const timerId = window.setInterval(() => {
+      setSeconds((current) => current + 1);
+    }, 1000);
+
+    return () => window.clearInterval(timerId);
+  }, [status]);
 
   const startGame = (nextDiskCount = diskCount) => {
     setDiskCount(nextDiskCount);
@@ -52,6 +83,7 @@ export function Hanoi({ onBack }: HanoiProps) {
     setStatus("playing");
     setSelectedPeg(null);
     setMoves(0);
+    setSeconds(0);
     setMessage("動かしたい円盤がある柱を選び、次に移動先の柱を選びます。");
   };
 
@@ -66,6 +98,7 @@ export function Hanoi({ onBack }: HanoiProps) {
       recordedAt: new Date().toISOString()
     };
     const key = String(diskCount);
+    const clearSeconds = Math.max(1, seconds);
 
     if (!bestByDisk[key] || nextMoves < bestByDisk[key].moves) {
       const nextBest = { ...bestByDisk, [key]: result };
@@ -75,6 +108,17 @@ export function Hanoi({ onBack }: HanoiProps) {
     } else {
       setMessage(`完成！${nextMoves}手でした。最短は${minMoves}手です。`);
     }
+
+    setBestTimes((current) => {
+      const currentBestSeconds = current[key];
+      if (currentBestSeconds !== undefined && currentBestSeconds <= clearSeconds) {
+        return current;
+      }
+
+      const next = { ...current, [key]: clearSeconds };
+      window.localStorage.setItem(BEST_TIME_KEY, JSON.stringify(next));
+      return next;
+    });
 
     setStatus("solved");
     setSelectedPeg(null);
@@ -125,7 +169,9 @@ export function Hanoi({ onBack }: HanoiProps) {
 
   const resetBest = () => {
     window.localStorage.removeItem(BEST_KEY);
+    window.localStorage.removeItem(BEST_TIME_KEY);
     setBestByDisk({});
+    setBestTimes({});
   };
 
   return (
@@ -148,6 +194,10 @@ export function Hanoi({ onBack }: HanoiProps) {
           <div>
             <span>Disks</span>
             <strong>{diskCount}</strong>
+          </div>
+          <div>
+            <span>Time</span>
+            <strong>{formatTime(seconds)}</strong>
           </div>
         </div>
       </div>
@@ -214,6 +264,7 @@ export function Hanoi({ onBack }: HanoiProps) {
             <span>現在: {status === "playing" ? "挑戦中" : status === "solved" ? "完成" : "待機中"}</span>
             <span>最短手数: {minMoves}</span>
             <span>ベスト: {currentBest ? `${currentBest.moves}手` : "まだ記録なし"}</span>
+            <span>ベストタイム: {currentBestTime === null ? "未記録" : formatTime(currentBestTime)}</span>
           </div>
 
           <div className="control-row">

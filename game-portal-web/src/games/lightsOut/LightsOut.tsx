@@ -25,15 +25,22 @@ export function LightsOut({ onBack }: LightsOutProps) {
   const [seconds, setSeconds] = useState(0);
   const [status, setStatus] = useState<LightsOutStatus>("ready");
   const bestScoreKey = `game-shelf-lights-out-best-${difficulty.id}`;
+  const bestTimeKey = `game-shelf-lights-out-best-time-${difficulty.id}`;
   const [bestMoves, setBestMoves] = useState<number | null>(() => {
     const stored = window.localStorage.getItem(bestScoreKey);
+    return stored ? Number(stored) || null : null;
+  });
+  const [bestTime, setBestTime] = useState<number | null>(() => {
+    const stored = window.localStorage.getItem(bestTimeKey);
     return stored ? Number(stored) || null : null;
   });
 
   useEffect(() => {
     const stored = window.localStorage.getItem(bestScoreKey);
     setBestMoves(stored ? Number(stored) || null : null);
-  }, [bestScoreKey]);
+    const storedTime = window.localStorage.getItem(bestTimeKey);
+    setBestTime(storedTime ? Number(storedTime) || null : null);
+  }, [bestScoreKey, bestTimeKey]);
 
   useEffect(() => {
     if (status !== "playing") {
@@ -75,6 +82,7 @@ export function LightsOut({ onBack }: LightsOutProps) {
 
     if (isCleared(nextBoard)) {
       setStatus("cleared");
+      const clearSeconds = Math.max(1, seconds);
       setBestMoves((currentBest) => {
         if (currentBest !== null && currentBest <= nextMoves) {
           return currentBest;
@@ -82,6 +90,14 @@ export function LightsOut({ onBack }: LightsOutProps) {
 
         window.localStorage.setItem(bestScoreKey, String(nextMoves));
         return nextMoves;
+      });
+      setBestTime((currentBest) => {
+        if (currentBest !== null && currentBest <= clearSeconds) {
+          return currentBest;
+        }
+
+        window.localStorage.setItem(bestTimeKey, String(clearSeconds));
+        return clearSeconds;
       });
     }
   };
@@ -110,6 +126,10 @@ export function LightsOut({ onBack }: LightsOutProps) {
           <div>
             <span>Lights</span>
             <strong>{litCells}</strong>
+          </div>
+          <div>
+            <span>Best</span>
+            <strong>{bestTime === null ? "--" : formatTime(bestTime)}</strong>
           </div>
         </div>
       </div>
@@ -161,6 +181,7 @@ export function LightsOut({ onBack }: LightsOutProps) {
             </span>
             <span>時間: {formatTime(seconds)}</span>
             <span>ベスト手数: {bestMoves ?? "未記録"}</span>
+            <span>ベストタイム: {bestTime === null ? "未記録" : formatTime(bestTime)}</span>
           </div>
 
           <div className="control-row">

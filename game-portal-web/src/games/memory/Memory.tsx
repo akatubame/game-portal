@@ -29,15 +29,22 @@ export function Memory({ onBack }: MemoryProps) {
 
   const matchedPairs = useMemo(() => countMatchedPairs(cards), [cards]);
   const bestScoreKey = `game-shelf-memory-best-${difficulty.id}`;
+  const bestTimeKey = `game-shelf-memory-best-time-${difficulty.id}`;
   const [bestMoves, setBestMoves] = useState<number | null>(() => {
     const stored = window.localStorage.getItem(bestScoreKey);
+    return stored ? Number(stored) || null : null;
+  });
+  const [bestTime, setBestTime] = useState<number | null>(() => {
+    const stored = window.localStorage.getItem(bestTimeKey);
     return stored ? Number(stored) || null : null;
   });
 
   useEffect(() => {
     const stored = window.localStorage.getItem(bestScoreKey);
     setBestMoves(stored ? Number(stored) || null : null);
-  }, [bestScoreKey]);
+    const storedTime = window.localStorage.getItem(bestTimeKey);
+    setBestTime(storedTime ? Number(storedTime) || null : null);
+  }, [bestScoreKey, bestTimeKey]);
 
   useEffect(() => {
     if (status !== "playing") {
@@ -113,6 +120,7 @@ export function Memory({ onBack }: MemoryProps) {
 
           if (pairMatched && isCleared(judgedCards)) {
             setStatus("cleared");
+            const clearSeconds = Math.max(1, seconds);
             setBestMoves((currentBest) => {
               if (currentBest !== null && currentBest <= nextMoves) {
                 return currentBest;
@@ -120,6 +128,14 @@ export function Memory({ onBack }: MemoryProps) {
 
               window.localStorage.setItem(bestScoreKey, String(nextMoves));
               return nextMoves;
+            });
+            setBestTime((currentBest) => {
+              if (currentBest !== null && currentBest <= clearSeconds) {
+                return currentBest;
+              }
+
+              window.localStorage.setItem(bestTimeKey, String(clearSeconds));
+              return clearSeconds;
             });
           }
 
@@ -154,6 +170,10 @@ export function Memory({ onBack }: MemoryProps) {
           <div>
             <span>Time</span>
             <strong>{formatTime(seconds)}</strong>
+          </div>
+          <div>
+            <span>Best</span>
+            <strong>{bestTime === null ? "--" : formatTime(bestTime)}</strong>
           </div>
         </div>
       </div>
@@ -204,6 +224,7 @@ export function Memory({ onBack }: MemoryProps) {
               ペア: {matchedPairs}/{difficulty.pairs}
             </span>
             <span>ベスト手数: {bestMoves ?? "未記録"}</span>
+            <span>ベストタイム: {bestTime === null ? "未記録" : formatTime(bestTime)}</span>
           </div>
 
           <div className="control-row">

@@ -1,5 +1,5 @@
 import { Eraser, Lightbulb, RotateCcw } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cloneGrid, countFilledCells, countMistakes, hasConflict, isComplete, isGivenCell, isSolved } from "./logic";
 import { sudokuPuzzles } from "./puzzles";
 import type { SudokuGrid } from "./types";
@@ -13,8 +13,25 @@ type SelectedCell = {
   column: number;
 };
 
+const SUDOKU_BEST_TIME_KEY = "game-shelf-sudoku-best-times";
+
 function getCellLabel(row: number, column: number) {
   return `${row + 1}行${column + 1}列`;
+}
+
+function formatTime(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const rest = seconds % 60;
+  return `${minutes}:${String(rest).padStart(2, "0")}`;
+}
+
+function readBestTimes(): Record<string, number> {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(SUDOKU_BEST_TIME_KEY) ?? "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 export function Sudoku({ onBack }: SudokuProps) {
@@ -23,15 +40,56 @@ export function Sudoku({ onBack }: SudokuProps) {
   const [grid, setGrid] = useState<SudokuGrid>(() => cloneGrid(puzzle.puzzle));
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const [showMistakes, setShowMistakes] = useState(true);
+  const [seconds, setSeconds] = useState(0);
+  const [started, setStarted] = useState(false);
+  const [recordedSolve, setRecordedSolve] = useState(false);
+  const [bestTimes, setBestTimes] = useState<Record<string, number>>(() => readBestTimes());
 
   const mistakes = useMemo(() => countMistakes(grid, puzzle.solution), [grid, puzzle.solution]);
   const filledCells = useMemo(() => countFilledCells(grid), [grid]);
   const solved = useMemo(() => isSolved(grid, puzzle.solution), [grid, puzzle.solution]);
   const complete = useMemo(() => isComplete(grid), [grid]);
+  const bestTime = bestTimes[puzzle.id] ?? null;
+
+  useEffect(() => {
+    if (!started || solved) {
+      return;
+    }
+
+    const timerId = window.setInterval(() => {
+      setSeconds((current) => current + 1);
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timerId);
+    };
+  }, [solved, started]);
+
+  useEffect(() => {
+    if (!solved || recordedSolve) {
+      return;
+    }
+
+    const clearSeconds = Math.max(1, seconds);
+    setBestTimes((current) => {
+      const currentBest = current[puzzle.id];
+      if (currentBest !== undefined && currentBest <= clearSeconds) {
+        return current;
+      }
+
+      const next = { ...current, [puzzle.id]: clearSeconds };
+      window.localStorage.setItem(SUDOKU_BEST_TIME_KEY, JSON.stringify(next));
+      return next;
+    });
+    setRecordedSolve(true);
+  }, [puzzle.id, recordedSolve, seconds, solved]);
 
   const resetPuzzle = () => {
     setGrid(cloneGrid(puzzle.puzzle));
     setSelectedCell(null);
+    setSeconds(0);
+    setStarted(false);
+    setRecordedSolve(false);
   };
 
   const changePuzzle = (nextIndex: number) => {
@@ -39,11 +97,18 @@ export function Sudoku({ onBack }: SudokuProps) {
     setPuzzleIndex(nextIndex);
     setGrid(cloneGrid(nextPuzzle.puzzle));
     setSelectedCell(null);
+    setSeconds(0);
+    setStarted(false);
+    setRecordedSolve(false);
   };
 
   const setCellValue = (value: number) => {
     if (!selectedCell || isGivenCell(puzzle, selectedCell.row, selectedCell.column)) {
       return;
+    }
+
+    if (!started) {
+      setStarted(true);
     }
 
     setGrid((currentGrid) => {
@@ -74,6 +139,9 @@ export function Sudoku({ onBack }: SudokuProps) {
       nextGrid[target.row][target.column] = puzzle.solution[target.row][target.column];
       return nextGrid;
     });
+    if (!started) {
+      setStarted(true);
+    }
     setSelectedCell({ row: target.row, column: target.column });
   };
 
@@ -99,6 +167,10 @@ export function Sudoku({ onBack }: SudokuProps) {
           <div>
             <span>Filled</span>
             <strong>{filledCells}/81</strong>
+          </div>
+          <div>
+            <span>Time</span>
+            <strong>{formatTime(seconds)}</strong>
           </div>
         </div>
       </div>
@@ -190,6 +262,10 @@ export function Sudoku({ onBack }: SudokuProps) {
 
           <p className="sudoku-note">
             現在のミス数: <strong>{mistakes}</strong>
+          </p>
+
+          <p className="sudoku-note">
+            ベストタイム: <strong>{bestTime === null ? "未記録" : formatTime(bestTime)}</strong>
           </p>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>

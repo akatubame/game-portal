@@ -19,8 +19,13 @@ export function Slide15({ onBack }: Slide15Props) {
   const [seconds, setSeconds] = useState(0);
   const [status, setStatus] = useState<SlideStatus>("ready");
   const bestScoreKey = "game-shelf-slide15-best-moves";
+  const bestTimeKey = "game-shelf-slide15-best-time";
   const [bestMoves, setBestMoves] = useState<number | null>(() => {
     const stored = window.localStorage.getItem(bestScoreKey);
+    return stored ? Number(stored) || null : null;
+  });
+  const [bestTime, setBestTime] = useState<number | null>(() => {
+    const stored = window.localStorage.getItem(bestTimeKey);
     return stored ? Number(stored) || null : null;
   });
 
@@ -64,6 +69,7 @@ export function Slide15({ onBack }: Slide15Props) {
 
     if (isSolved(nextBoard)) {
       setStatus("cleared");
+      const clearSeconds = Math.max(1, seconds);
       setBestMoves((currentBest) => {
         if (currentBest !== null && currentBest <= nextMoves) {
           return currentBest;
@@ -71,6 +77,14 @@ export function Slide15({ onBack }: Slide15Props) {
 
         window.localStorage.setItem(bestScoreKey, String(nextMoves));
         return nextMoves;
+      });
+      setBestTime((currentBest) => {
+        if (currentBest !== null && currentBest <= clearSeconds) {
+          return currentBest;
+        }
+
+        window.localStorage.setItem(bestTimeKey, String(clearSeconds));
+        return clearSeconds;
       });
     }
   };
@@ -97,6 +111,10 @@ export function Slide15({ onBack }: Slide15Props) {
           <div>
             <span>Time</span>
             <strong>{formatTime(seconds)}</strong>
+          </div>
+          <div>
+            <span>Best</span>
+            <strong>{bestTime === null ? "--" : formatTime(bestTime)}</strong>
           </div>
         </div>
       </div>
@@ -132,6 +150,7 @@ export function Slide15({ onBack }: Slide15Props) {
 
           <div className="slide15-progress">
             <span>ベスト手数: {bestMoves ?? "未記録"}</span>
+            <span>ベストタイム: {bestTime === null ? "未記録" : formatTime(bestTime)}</span>
             <span>状態: {status === "ready" ? "開始前" : status === "playing" ? "挑戦中" : "クリア"}</span>
           </div>
 

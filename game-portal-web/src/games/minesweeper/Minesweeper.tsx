@@ -17,12 +17,23 @@ type MinesweeperProps = {
   onBack: () => void;
 };
 
+const MINESWEEPER_BEST_KEY = "game-shelf-minesweeper-best-times";
+
 function getDifficulty(id: DifficultyId) {
   return difficulties.find((difficulty) => difficulty.id === id) ?? difficulties[0];
 }
 
 function formatTime(seconds: number) {
   return String(seconds).padStart(3, "0");
+}
+
+function readBestTimes(): Partial<Record<DifficultyId, number>> {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(MINESWEEPER_BEST_KEY) ?? "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
 }
 
 export function Minesweeper({ onBack }: MinesweeperProps) {
@@ -32,11 +43,26 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
   const [status, setStatus] = useState<GameStatus>("ready");
   const [flagMode, setFlagMode] = useState(false);
   const [seconds, setSeconds] = useState(0);
+  const [bestTimes, setBestTimes] = useState<Partial<Record<DifficultyId, number>>>(() => readBestTimes());
 
   const flagCount = useMemo(() => countFlags(board), [board]);
   const revealedSafeCells = useMemo(() => countRevealedSafeCells(board), [board]);
   const safeCells = difficulty.rows * difficulty.columns - difficulty.mines;
   const remainingMines = difficulty.mines - flagCount;
+  const bestTime = bestTimes[difficulty.id] ?? null;
+
+  const recordBestTime = (clearSeconds: number) => {
+    setBestTimes((current) => {
+      const currentBest = current[difficulty.id];
+      if (currentBest !== undefined && currentBest <= clearSeconds) {
+        return current;
+      }
+
+      const next = { ...current, [difficulty.id]: clearSeconds };
+      window.localStorage.setItem(MINESWEEPER_BEST_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (status !== "playing") {
@@ -94,6 +120,7 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
 
       if (hasWon(revealedBoard)) {
         setStatus("won");
+        recordBestTime(Math.max(1, seconds));
       }
 
       return revealedBoard;
@@ -137,6 +164,10 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
           <div>
             <span>Time</span>
             <strong>{formatTime(seconds)}</strong>
+          </div>
+          <div>
+            <span>Best</span>
+            <strong>{bestTime === null ? "--" : formatTime(bestTime)}</strong>
           </div>
         </div>
       </div>
@@ -209,6 +240,7 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
             <span>
               状態: {status === "ready" ? "開始前" : status === "playing" ? "探索中" : status === "won" ? "クリア" : "失敗"}
             </span>
+            <span>ベストタイム: {bestTime === null ? "未記録" : formatTime(bestTime)}</span>
           </div>
 
           <div className="control-row">
