@@ -1,5 +1,6 @@
 import { Eraser, Lightbulb, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import { cloneGrid, countFilledCells, countMistakes, hasConflict, isComplete, isGivenCell, isSolved } from "./logic";
 import { sudokuPuzzles } from "./puzzles";
@@ -26,6 +27,42 @@ function formatTime(seconds: number) {
   return `${minutes}:${String(rest).padStart(2, "0")}`;
 }
 
+const sudokuDifficultyLabels: Record<string, string> = {
+  easy: "Beginner",
+  medium: "Intermediate",
+  hard: "Advanced"
+};
+
+const sudokuTitleLabels: Record<string, string> = {
+  "easy-01": "Warm-up Grid",
+  "easy-02": "Lunch Break Puzzle",
+  "easy-03": "Weekend Stretch",
+  "easy-04": "Small Spark",
+  "medium-01": "Evening Challenge",
+  "medium-02": "Rainy Logic",
+  "medium-03": "Cafe Focus",
+  "medium-04": "Moonlit Board",
+  "hard-01": "Night Watch"
+};
+
+function getSudokuDifficultyLabel(id: string) {
+  if (id.startsWith("easy")) {
+    return sudokuDifficultyLabels.easy;
+  }
+  if (id.startsWith("medium")) {
+    return sudokuDifficultyLabels.medium;
+  }
+  return sudokuDifficultyLabels.hard;
+}
+
+function getSudokuTitleLabel(id: string) {
+  return sudokuTitleLabels[id] ?? id;
+}
+
+function getLocalizedCellLabel(row: number, column: number, isEnglish: boolean) {
+  return isEnglish ? `row ${row + 1}, column ${column + 1}` : getCellLabel(row, column);
+}
+
 function readBestTimes(): Record<string, number> {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(SUDOKU_BEST_TIME_KEY) ?? "{}");
@@ -36,6 +73,8 @@ function readBestTimes(): Record<string, number> {
 }
 
 export function Sudoku({ onBack }: SudokuProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
   const [puzzleIndex, setPuzzleIndex] = useState(0);
   const puzzle = sudokuPuzzles[puzzleIndex];
   const [grid, setGrid] = useState<SudokuGrid>(() => cloneGrid(puzzle.puzzle));
@@ -53,6 +92,8 @@ export function Sudoku({ onBack }: SudokuProps) {
   const ranking = useRanking({ gameId: `sudoku-${puzzle.id}`, metricLabel: "Time", mode: "lower" });
   const bestTime = bestTimes[puzzle.id] ?? null;
   const clearSeconds = Math.max(1, seconds);
+  const visiblePuzzleTitle = isEnglish ? getSudokuTitleLabel(puzzle.id) : puzzle.title;
+  const visibleDifficulty = isEnglish ? getSudokuDifficultyLabel(puzzle.id) : puzzle.difficulty;
 
   useEffect(() => {
     if (!started || solved) {
@@ -157,32 +198,40 @@ export function Sudoku({ onBack }: SudokuProps) {
       ? "すべて埋まりました。赤いマスがあれば見直してみてください。"
       : "空いているマスを選んで、下の数字ボタンで入力してください。";
 
+  const visibleStatusText = isEnglish
+    ? solved
+      ? `Complete! Solved "${visiblePuzzleTitle}" in ${formatTime(clearSeconds)}.`
+      : complete
+        ? "Every cell is filled. Check the highlighted mistakes and fix the grid."
+        : "Select an empty cell, then enter a number with the buttons below."
+    : statusText;
+
   return (
     <section className="puzzle-shell sudoku-shell" aria-labelledby="sudoku-title">
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">PUZZLE / INTERNAL GAME</p>
-          <h1 id="sudoku-title">数独</h1>
-          <p className="lead">{statusText}</p>
+          <h1 id="sudoku-title">{isEnglish ? "Sudoku" : "数独"}</h1>
+          <p className="lead">{visibleStatusText}</p>
         </div>
-        <div className="score-panel sudoku-stats" aria-label="数独の状態">
+        <div className="score-panel sudoku-stats" aria-label={isEnglish ? "Sudoku status" : "数独の状態"}>
           <div>
-            <span>難易度</span>
-            <strong>{puzzle.difficulty}</strong>
+            <span>{isEnglish ? "Difficulty" : "難易度"}</span>
+            <strong>{visibleDifficulty}</strong>
           </div>
           <div>
-            <span>入力済み</span>
+            <span>{isEnglish ? "Filled" : "入力済み"}</span>
             <strong>{filledCells}/81</strong>
           </div>
           <div>
-            <span>時間</span>
+            <span>{isEnglish ? "Time" : "時間"}</span>
             <strong>{formatTime(seconds)}</strong>
           </div>
         </div>
       </div>
 
       <div className="puzzle-layout sudoku-layout">
-        <div className="sudoku-board" aria-label={`${puzzle.title}の盤面`}>
+        <div className="sudoku-board" aria-label={isEnglish ? `${visiblePuzzleTitle} board` : `${puzzle.title}の盤面`}>
           {grid.map((row, rowIndex) =>
             row.map((value, columnIndex) => {
               const given = isGivenCell(puzzle, rowIndex, columnIndex);
@@ -205,7 +254,7 @@ export function Sudoku({ onBack }: SudokuProps) {
                   type="button"
                   key={`${rowIndex}-${columnIndex}`}
                   onClick={() => setSelectedCell({ row: rowIndex, column: columnIndex })}
-                  aria-label={`${getCellLabel(rowIndex, columnIndex)}${value ? `、${value}` : "、空欄"}`}
+                  aria-label={`${getLocalizedCellLabel(rowIndex, columnIndex, isEnglish)}${value ? (isEnglish ? `, ${value}` : `、${value}`) : (isEnglish ? ", empty" : "、空欄")}`}
                 >
                   {value || ""}
                 </button>
@@ -216,25 +265,26 @@ export function Sudoku({ onBack }: SudokuProps) {
 
         <aside className="puzzle-side sudoku-side">
           <div className="rule-card">
-            <h2>{puzzle.title}</h2>
+            <h2>{isEnglish ? "How to play" : puzzle.title}</h2>
             <p>
-              各行・各列・3x3ブロックに、1から9までの数字が一度ずつ入るように埋めます。
-              最初から表示されている数字は変更できません。
+              {isEnglish
+                ? "Fill the grid so every row, column, and 3x3 box contains the numbers 1 through 9 exactly once. Given numbers cannot be changed."
+                : "各行・各列・3x3ブロックに、1から9までの数字が一度ずつ入るように埋めます。最初から表示されている数字は変更できません。"}
             </p>
           </div>
 
           <label className="select-label">
-            問題
+            {isEnglish ? "Puzzle" : "問題"}
             <select value={puzzleIndex} onChange={(event) => changePuzzle(Number(event.target.value))}>
               {sudokuPuzzles.map((item, index) => (
                 <option value={index} key={item.id}>
-                  {item.difficulty} - {item.title}
+                  {isEnglish ? `${getSudokuDifficultyLabel(item.id)} - ${getSudokuTitleLabel(item.id)}` : `${item.difficulty} - ${item.title}`}
                 </option>
               ))}
             </select>
           </label>
 
-          <div className="number-pad" aria-label="数字入力">
+          <div className="number-pad" aria-label={isEnglish ? "number input" : "数字入力"}>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((value) => (
               <button type="button" key={value} onClick={() => setCellValue(value)} disabled={solved}>
                 {value}
@@ -245,15 +295,15 @@ export function Sudoku({ onBack }: SudokuProps) {
           <div className="control-row">
             <button className="primary-button" type="button" onClick={resetPuzzle}>
               <RotateCcw aria-hidden="true" />
-              リセット
+              {isEnglish ? "Reset" : "リセット"}
             </button>
             <button className="ghost-button" type="button" onClick={eraseCell} disabled={solved}>
               <Eraser aria-hidden="true" />
-              消す
+              {isEnglish ? "Erase" : "消す"}
             </button>
             <button className="ghost-button" type="button" onClick={fillHint} disabled={solved}>
               <Lightbulb aria-hidden="true" />
-              ヒント
+              {isEnglish ? "Hint" : "ヒント"}
             </button>
           </div>
 
@@ -263,24 +313,24 @@ export function Sudoku({ onBack }: SudokuProps) {
               checked={showMistakes}
               onChange={(event) => setShowMistakes(event.target.checked)}
             />
-            ミスを赤で表示する
+            {isEnglish ? "Highlight mistakes in red" : "ミスを赤で表示する"}
           </label>
 
           <p className="sudoku-note">
-            現在のミス数: <strong>{mistakes}</strong>
+            {isEnglish ? "Current mistakes" : "現在のミス数"}: <strong>{mistakes}</strong>
           </p>
 
           <p className="sudoku-note">
-            ベストタイム: <strong>{bestTime === null ? "未記録" : formatTime(bestTime)}</strong>
+            {isEnglish ? "Best time" : "ベストタイム"}: <strong>{bestTime === null ? (isEnglish ? "No record" : "未記録") : formatTime(bestTime)}</strong>
           </p>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={solved ? { score: clearSeconds, display: formatTime(clearSeconds), meta: `${puzzle.difficulty} - ${puzzle.title}` } : null}
+            pendingScore={solved ? { score: clearSeconds, display: formatTime(clearSeconds), meta: `${visibleDifficulty} - ${visiblePuzzleTitle}` } : null}
           />
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {isEnglish ? "Back to shelf" : "棚へ戻る"}
           </button>
         </aside>
       </div>

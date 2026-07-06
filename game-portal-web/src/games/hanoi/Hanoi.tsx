@@ -1,5 +1,6 @@
 import { RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import type { CSSProperties } from "react";
 import type { HanoiBest, HanoiPeg, HanoiStatus } from "./types";
@@ -51,6 +52,8 @@ function canMove(from: HanoiPeg, to: HanoiPeg) {
 }
 
 export function Hanoi({ onBack }: HanoiProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
   const [diskCount, setDiskCount] = useState(4);
   const [pegs, setPegs] = useState<HanoiPeg[]>(() => createPegs(4));
   const [status, setStatus] = useState<HanoiStatus>("idle");
@@ -66,6 +69,13 @@ export function Hanoi({ onBack }: HanoiProps) {
   const currentBestTime = bestTimes[String(diskCount)] ?? null;
   const isSolved = useMemo(() => pegs[2].length === diskCount, [diskCount, pegs]);
   const ranking = useRanking({ gameId: `hanoi-${diskCount}`, metricLabel: "Moves", mode: "lower" });
+  const visibleMessage = isEnglish
+    ? status === "idle"
+      ? "Move one disk at a time and transfer every disk to the rightmost peg."
+      : status === "playing"
+        ? "Select a peg with a disk, then select the destination peg."
+        : message
+    : message;
 
   useEffect(() => {
     if (status !== "playing") {
@@ -181,10 +191,10 @@ export function Hanoi({ onBack }: HanoiProps) {
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">PUZZLE / INTERNAL GAME</p>
-          <h1 id="hanoi-title">タワー・オブ・ハノイ</h1>
-          <p className="lead">{message}</p>
+          <h1 id="hanoi-title">{isEnglish ? "Tower of Hanoi" : "タワー・オブ・ハノイ"}</h1>
+          <p className="lead">{visibleMessage}</p>
         </div>
-        <div className="score-panel hanoi-score" aria-label="ハノイの塔の状態">
+        <div className="score-panel hanoi-score" aria-label={isEnglish ? "Tower of Hanoi status" : "ハノイの塔の状態"}>
           <div>
             <span>Moves</span>
             <strong>{moves}</strong>
@@ -205,7 +215,7 @@ export function Hanoi({ onBack }: HanoiProps) {
       </div>
 
       <div className="puzzle-layout hanoi-layout">
-        <div className="hanoi-board" aria-label="ハノイの塔 盤面">
+        <div className="hanoi-board" aria-label={isEnglish ? "Tower of Hanoi board" : "ハノイの塔 盤面"}>
           {pegs.map((peg, pegIndex) => {
             const selectable = selectedPeg !== null && selectedPeg !== pegIndex && canMove(pegs[selectedPeg], peg);
 
@@ -215,7 +225,7 @@ export function Hanoi({ onBack }: HanoiProps) {
                 key={pegIndex}
                 type="button"
                 onClick={() => selectPeg(pegIndex)}
-                aria-label={`${pegIndex + 1}番の柱 ${peg.length}枚`}
+                aria-label={isEnglish ? `Peg ${pegIndex + 1}, ${peg.length} disks` : `${pegIndex + 1}番の柱 ${peg.length}枚`}
               >
                 <span className="hanoi-post" />
                 <span className="hanoi-base" />
@@ -242,14 +252,15 @@ export function Hanoi({ onBack }: HanoiProps) {
 
         <aside className="puzzle-side hanoi-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{isEnglish ? "How to play" : "遊び方"}</h2>
             <p>
-              一度に動かせる円盤は一番上の1枚だけです。大きい円盤を小さい円盤の上に置くことはできません。
-              すべての円盤を右端の柱へ移せばクリアです。
+              {isEnglish
+                ? "You can move only the top disk. You cannot place a larger disk on a smaller disk. Move every disk to the rightmost peg to clear the puzzle."
+                : "一度に動かせる円盤は一番上の1枚だけです。大きい円盤を小さい円盤の上に置くことはできません。すべての円盤を右端の柱へ移せばクリアです。"}
             </p>
           </div>
 
-          <div className="hanoi-options" aria-label="円盤数">
+          <div className="hanoi-options" aria-label={isEnglish ? "disk count" : "円盤数"}>
             {DISK_OPTIONS.map((count) => (
               <button
                 className={diskCount === count ? "is-selected" : ""}
@@ -257,36 +268,36 @@ export function Hanoi({ onBack }: HanoiProps) {
                 type="button"
                 onClick={() => startGame(count)}
               >
-                {count}枚
+                {isEnglish ? `${count} disks` : `${count}枚`}
               </button>
             ))}
           </div>
 
           <div className="hanoi-progress">
-            <span>現在: {status === "playing" ? "挑戦中" : status === "solved" ? "完成" : "待機中"}</span>
-            <span>最短手数: {minMoves}</span>
-            <span>ベスト: {currentBest ? `${currentBest.moves}手` : "まだ記録なし"}</span>
-            <span>ベストタイム: {currentBestTime === null ? "未記録" : formatTime(currentBestTime)}</span>
+            <span>{isEnglish ? "Current" : "現在"}: {status === "playing" ? (isEnglish ? "Playing" : "挑戦中") : status === "solved" ? (isEnglish ? "Complete" : "完成") : (isEnglish ? "Idle" : "待機中")}</span>
+            <span>{isEnglish ? "Minimum moves" : "最短手数"}: {minMoves}</span>
+            <span>{isEnglish ? "Best" : "ベスト"}: {currentBest ? (isEnglish ? `${currentBest.moves} moves` : `${currentBest.moves}手`) : (isEnglish ? "No record yet" : "まだ記録なし")}</span>
+            <span>{isEnglish ? "Best time" : "ベストタイム"}: {currentBestTime === null ? (isEnglish ? "No record" : "未記録") : formatTime(currentBestTime)}</span>
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "solved" ? { score: moves, display: `${moves}手`, meta: `${diskCount}枚 / ${formatTime(seconds)}` } : null}
+            pendingScore={status === "solved" ? { score: moves, display: isEnglish ? `${moves} moves` : `${moves}手`, meta: isEnglish ? `${diskCount} disks / ${formatTime(seconds)}` : `${diskCount}枚 / ${formatTime(seconds)}` } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => startGame()}>
               <Sparkles aria-hidden="true" />
-              新しく始める
+              {isEnglish ? "New game" : "新しく始める"}
             </button>
             <button className="ghost-button" type="button" onClick={resetBest}>
               <RotateCcw aria-hidden="true" />
-              ベスト削除
+              {isEnglish ? "Clear best" : "ベスト削除"}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {isEnglish ? "Back to shelf" : "棚へ戻る"}
           </button>
         </aside>
       </div>

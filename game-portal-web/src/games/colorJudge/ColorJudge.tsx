@@ -1,5 +1,6 @@
 import { Check, RotateCcw, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import type { ColorChoice, ColorJudgeBest, ColorJudgeStatus, ColorQuestion } from "./types";
 
@@ -18,6 +19,15 @@ const COLORS: ColorChoice[] = [
   { name: "purple", label: "紫", value: "#c99cff" },
   { name: "pink", label: "桃", value: "#ff8ac7" }
 ];
+
+const colorLabelsEn: Record<string, string> = {
+  red: "Red",
+  blue: "Blue",
+  green: "Green",
+  yellow: "Yellow",
+  purple: "Purple",
+  pink: "Pink"
+};
 
 function readBest(): ColorJudgeBest | null {
   const stored = window.localStorage.getItem(BEST_KEY);
@@ -41,6 +51,8 @@ function calculateScore(correct: number, mistakes: number, bestCombo: number) {
 }
 
 export function ColorJudge({ onBack }: ColorJudgeProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
   const [status, setStatus] = useState<ColorJudgeStatus>("idle");
   const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS);
   const [question, setQuestion] = useState<ColorQuestion>(() => createQuestion());
@@ -55,6 +67,17 @@ export function ColorJudge({ onBack }: ColorJudgeProps) {
   const score = useMemo(() => calculateScore(correct, mistakes, bestCombo), [bestCombo, correct, mistakes]);
   const ranking = useRanking({ gameId: "color-judge-score", metricLabel: "Score", mode: "higher" });
   const isMatch = question.textColor.name === question.wordColor.name;
+  const visibleMessage = isEnglish
+    ? status === "idle"
+      ? "Quickly judge whether the word meaning matches its text color."
+      : status === "playing"
+        ? "Ignore the word meaning and focus on the text color."
+        : message.includes("更新")
+          ? "Finished! You set a new best score."
+          : message.includes("終了")
+            ? "Finished! Try again and aim for a new best score."
+            : message
+    : message;
 
   useEffect(() => {
     if (status !== "playing") {
@@ -137,10 +160,10 @@ export function ColorJudge({ onBack }: ColorJudgeProps) {
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">BRAIN TRAINING / INTERNAL GAME</p>
-          <h1 id="color-title">カラー判定ゲーム</h1>
-          <p className="lead">{message}</p>
+          <h1 id="color-title">{isEnglish ? "Color Judge" : "カラー判定ゲーム"}</h1>
+          <p className="lead">{visibleMessage}</p>
         </div>
-        <div className="score-panel color-score" aria-label="カラー判定ゲームの状態">
+        <div className="score-panel color-score" aria-label={isEnglish ? "Color Judge status" : "カラー判定ゲームの状態"}>
           <div>
             <span>Score</span>
             <strong>{score}</strong>
@@ -153,72 +176,73 @@ export function ColorJudge({ onBack }: ColorJudgeProps) {
       </div>
 
       <div className="puzzle-layout color-layout">
-        <div className="color-stage" aria-label="現在の問題">
-          <p className="color-instruction">この文字は、意味と色が一致していますか？</p>
+        <div className="color-stage" aria-label={isEnglish ? "current question" : "現在の問題"}>
+          <p className="color-instruction">{isEnglish ? "Does this word match its text color?" : "この文字は、意味と色が一致していますか？"}</p>
           <div className="color-word-card">
             <span className="color-word" style={{ color: question.textColor.value }}>
-              {question.wordColor.label}
+              {isEnglish ? colorLabelsEn[question.wordColor.name] : question.wordColor.label}
             </span>
-            <span className="color-reading">文字色: {question.textColor.label}</span>
+            <span className="color-reading">{isEnglish ? "Text color" : "文字色"}: {isEnglish ? colorLabelsEn[question.textColor.name] : question.textColor.label}</span>
           </div>
 
           <div className="color-answer-row">
             <button className="color-answer is-match" type="button" onClick={() => answer(true)} disabled={status !== "playing"}>
               <Check aria-hidden="true" />
-              一致
+              {isEnglish ? "Match" : "一致"}
             </button>
             <button className="color-answer is-different" type="button" onClick={() => answer(false)} disabled={status !== "playing"}>
               <X aria-hidden="true" />
-              違う
+              {isEnglish ? "Different" : "違う"}
             </button>
           </div>
         </div>
 
         <aside className="puzzle-side color-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{isEnglish ? "How to play" : "遊び方"}</h2>
             <p>
-              例: 「赤」という文字が赤色で表示されていれば「一致」、青色で表示されていれば「違う」です。
-              30秒間で正答数とコンボを伸ばしましょう。
+              {isEnglish
+                ? "Example: if the word “Red” is shown in red, choose Match; if it is shown in blue, choose Different. Get as many correct answers and combos as you can in 30 seconds."
+                : "例: 「赤」という文字が赤色で表示されていれば「一致」、青色で表示されていれば「違う」です。30秒間で正答数とコンボを伸ばしましょう。"}
             </p>
           </div>
 
           <div className="color-progress">
-            <span>正解: {correct}</span>
-            <span>ミス: {mistakes}</span>
-            <span>コンボ: {combo}</span>
-            <span>最高コンボ: {bestCombo}</span>
+            <span>{isEnglish ? "Correct" : "正解"}: {correct}</span>
+            <span>{isEnglish ? "Misses" : "ミス"}: {mistakes}</span>
+            <span>{isEnglish ? "Combo" : "コンボ"}: {combo}</span>
+            <span>{isEnglish ? "Best combo" : "最高コンボ"}: {bestCombo}</span>
           </div>
 
           <div className="color-best">
-            <h2>ベスト</h2>
+            <h2>{isEnglish ? "Best" : "ベスト"}</h2>
             {best ? (
               <p>
-                {best.score}点 / 正解 {best.correct} / 最高 {best.bestCombo}コンボ
+                {isEnglish ? `${best.score} pts / Correct ${best.correct} / Best combo ${best.bestCombo}` : `${best.score}点 / 正解 ${best.correct} / 最高 ${best.bestCombo}コンボ`}
               </p>
             ) : (
-              <p>まだ記録がありません。</p>
+              <p>{isEnglish ? "No record yet." : "まだ記録がありません。"}</p>
             )}
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "finished" ? { score, display: `${score}点`, meta: `正解 ${correct} / 最高 ${bestCombo}コンボ` } : null}
+            pendingScore={status === "finished" ? { score, display: isEnglish ? `${score} pts` : `${score}点`, meta: isEnglish ? `Correct ${correct} / Best combo ${bestCombo}` : `正解 ${correct} / 最高 ${bestCombo}コンボ` } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startRound}>
               <Check aria-hidden="true" />
-              挑戦
+              {isEnglish ? "Challenge" : "挑戦"}
             </button>
             <button className="ghost-button" type="button" onClick={resetBest}>
               <RotateCcw aria-hidden="true" />
-              ベスト削除
+              {isEnglish ? "Clear best" : "ベスト削除"}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {isEnglish ? "Back to shelf" : "棚へ戻る"}
           </button>
         </aside>
       </div>

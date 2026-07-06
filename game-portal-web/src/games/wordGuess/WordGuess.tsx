@@ -369,11 +369,11 @@ export function WordGuess({ onBack }: WordGuessProps) {
           <div className="wordguess-actions">
             <button className="ghost-button" type="button" onClick={deleteLetter} disabled={status !== "playing" || input.length === 0}>
               <Delete aria-hidden="true" />
-              1文字削除
+              {isEnglish ? "Delete letter" : "1文字削除"}
             </button>
             <button className="primary-button" type="button" onClick={submitGuess} disabled={status !== "playing"}>
               <Keyboard aria-hidden="true" />
-              判定
+              {isEnglish ? "Submit" : "判定"}
             </button>
           </div>
         </div>
@@ -406,7 +406,7 @@ export function WordGuess({ onBack }: WordGuessProps) {
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "won" ? { score: attempts.length, display: `${attempts.length}回`, meta: `連勝${record.streak} / ${answer}` } : null}
+            pendingScore={status === "won" ? { score: attempts.length, display: isEnglish ? `${attempts.length} tries` : `${attempts.length}回`, meta: isEnglish ? `Streak ${record.streak} / ${answer}` : `連勝${record.streak} / ${answer}` } : null}
           />
 
           <div className="control-row">

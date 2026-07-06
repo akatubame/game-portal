@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import type { CSSProperties } from "react";
 import type { MazeBest, MazeCell, MazeDifficulty, MazeStatus } from "./types";
@@ -93,6 +94,8 @@ function formatTime(seconds: number) {
 }
 
 export function MazeEscape({ onBack }: MazeEscapeProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
   const [difficulty, setDifficulty] = useState<MazeDifficulty>("normal");
   const [maze, setMaze] = useState<MazeCell[]>(() => generateMaze(difficultySettings.normal.size));
   const [playerIndex, setPlayerIndex] = useState(0);
@@ -284,13 +287,13 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
           </div>
 
           <div className="maze-progress">
-            <span>現在: {status === "playing" ? "探索中" : status === "cleared" ? "脱出成功" : "待機中"}</span>
-            <span>ベスト: {currentBest ? `${currentBest.moves}手 / ${formatTime(currentBest.seconds)}` : "まだ記録なし"}</span>
+            <span>{isEnglish ? "Current" : "現在"}: {status === "playing" ? (isEnglish ? "Exploring" : "探索中") : status === "cleared" ? (isEnglish ? "Escaped" : "脱出成功") : (isEnglish ? "Idle" : "待機中")}</span>
+            <span>{isEnglish ? "Best" : "ベスト"}: {currentBest ? (isEnglish ? `${currentBest.moves} moves / ${formatTime(currentBest.seconds)}` : `${currentBest.moves}手 / ${formatTime(currentBest.seconds)}`) : (isEnglish ? "No record yet" : "まだ記録なし")}</span>
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "cleared" ? { score: seconds, display: formatTime(seconds), meta: `${size}×${size} / ${moves}手` } : null}
+            pendingScore={status === "cleared" ? { score: seconds, display: formatTime(seconds), meta: isEnglish ? `${size}×${size} / ${moves} moves` : `${size}×${size} / ${moves}手` } : null}
           />
 
           <div className="control-row">

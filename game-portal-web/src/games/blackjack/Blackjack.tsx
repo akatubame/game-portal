@@ -1,5 +1,6 @@
 import { Club, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import type { BlackjackCard, BlackjackOutcome, BlackjackRecord, BlackjackStatus, BlackjackSuit } from "./types";
 
@@ -104,6 +105,8 @@ function outcomeMessage(outcome: BlackjackOutcome, playerHand: BlackjackCard[], 
 }
 
 export function Blackjack({ onBack }: BlackjackProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
   const [deck, setDeck] = useState<BlackjackCard[]>(() => createDeck());
   const [playerHand, setPlayerHand] = useState<BlackjackCard[]>([]);
   const [dealerHand, setDealerHand] = useState<BlackjackCard[]>([]);
@@ -116,6 +119,13 @@ export function Blackjack({ onBack }: BlackjackProps) {
   const dealerTotal = useMemo(() => handValue(dealerHand), [dealerHand]);
   const ranking = useRanking({ gameId: "blackjack-chips", metricLabel: "Chips", mode: "higher" });
   const visibleDealerTotal = status === "playing" && dealerHand.length > 1 ? handValue([dealerHand[0]]) : dealerTotal;
+  const visibleMessage = isEnglish
+    ? status === "idle"
+      ? "Deal the cards and try to get as close to 21 as possible."
+      : status === "playing"
+        ? "Hit to draw a card, or Stand to settle the round."
+        : message
+    : message;
 
   const finishRound = (nextPlayerHand: BlackjackCard[], nextDealerHand: BlackjackCard[]) => {
     const nextOutcome = decideOutcome(nextPlayerHand, nextDealerHand);
@@ -214,10 +224,10 @@ export function Blackjack({ onBack }: BlackjackProps) {
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">CARD GAME / INTERNAL GAME</p>
-          <h1 id="blackjack-title">ブラックジャック</h1>
-          <p className="lead">{message}</p>
+          <h1 id="blackjack-title">{isEnglish ? "Blackjack" : "ブラックジャック"}</h1>
+          <p className="lead">{visibleMessage}</p>
         </div>
-        <div className="score-panel blackjack-score" aria-label="ブラックジャックの戦績">
+        <div className="score-panel blackjack-score" aria-label={isEnglish ? "Blackjack record" : "ブラックジャックの戦績"}>
           <div>
             <span>Win</span>
             <strong>{record.wins}</strong>
@@ -234,14 +244,14 @@ export function Blackjack({ onBack }: BlackjackProps) {
       </div>
 
       <div className="puzzle-layout blackjack-layout">
-        <div className="blackjack-table" aria-label="ブラックジャックテーブル">
+        <div className="blackjack-table" aria-label={isEnglish ? "Blackjack table" : "ブラックジャックテーブル"}>
           <div className="blackjack-hand">
             <div>
               <span className="blackjack-label">Dealer</span>
               <strong>{visibleDealerTotal}</strong>
             </div>
             <div className="blackjack-cards">
-              {dealerHand.length === 0 ? <span className="blackjack-empty">カード待ち</span> : dealerHand.map((card, index) => renderCard(card, index, status === "playing" && index === 1))}
+              {dealerHand.length === 0 ? <span className="blackjack-empty">{isEnglish ? "Waiting for cards" : "カード待ち"}</span> : dealerHand.map((card, index) => renderCard(card, index, status === "playing" && index === 1))}
             </div>
           </div>
 
@@ -255,52 +265,53 @@ export function Blackjack({ onBack }: BlackjackProps) {
               <strong>{playerTotal}</strong>
             </div>
             <div className="blackjack-cards">
-              {playerHand.length === 0 ? <span className="blackjack-empty">カード待ち</span> : playerHand.map((card, index) => renderCard(card, index))}
+              {playerHand.length === 0 ? <span className="blackjack-empty">{isEnglish ? "Waiting for cards" : "カード待ち"}</span> : playerHand.map((card, index) => renderCard(card, index))}
             </div>
           </div>
         </div>
 
         <aside className="puzzle-side blackjack-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{isEnglish ? "How to play" : "遊び方"}</h2>
             <p>
-              手札の合計を21に近づけます。21を超えるとバーストで負け。ディーラーは17以上になるまで引きます。
-              Aは自動で1または11として計算します。
+              {isEnglish
+                ? "Get your hand as close to 21 as possible. Going over 21 is a bust. The dealer draws until reaching 17 or more. Aces are automatically counted as 1 or 11."
+                : "手札の合計を21に近づけます。21を超えるとバーストで負け。ディーラーは17以上になるまで引きます。Aは自動で1または11として計算します。"}
             </p>
           </div>
 
           <div className="blackjack-stats">
-            <span>引き分け: {record.pushes}</span>
-            <span>山札: {deck.length}枚</span>
-            <span>状態: {status === "playing" ? "あなたの番" : status === "finished" ? "勝負終了" : "待機中"}</span>
+            <span>{isEnglish ? "Pushes" : "引き分け"}: {record.pushes}</span>
+            <span>{isEnglish ? "Deck" : "山札"}: {deck.length}{isEnglish ? " cards" : "枚"}</span>
+            <span>{isEnglish ? "Status" : "状態"}: {status === "playing" ? (isEnglish ? "Your turn" : "あなたの番") : status === "finished" ? (isEnglish ? "Round over" : "勝負終了") : (isEnglish ? "Idle" : "待機中")}</span>
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "finished" ? { score: record.chips, display: `${record.chips}枚`, meta: outcome ? outcome.toUpperCase() : "ROUND END" } : null}
+            pendingScore={status === "finished" ? { score: record.chips, display: isEnglish ? `${record.chips} chips` : `${record.chips}枚`, meta: outcome ? outcome.toUpperCase() : "ROUND END" } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={deal}>
               <Sparkles aria-hidden="true" />
-              配る
+              {isEnglish ? "Deal" : "配る"}
             </button>
             <button className="ghost-button" type="button" onClick={hit} disabled={status !== "playing"}>
               <Club aria-hidden="true" />
-              ヒット
+              {isEnglish ? "Hit" : "ヒット"}
             </button>
             <button className="ghost-button" type="button" onClick={stand} disabled={status !== "playing"}>
-              スタンド
+              {isEnglish ? "Stand" : "スタンド"}
             </button>
           </div>
 
           <button className="ghost-button" type="button" onClick={resetRecord}>
             <RotateCcw aria-hidden="true" />
-            戦績リセット
+            {isEnglish ? "Reset record" : "戦績リセット"}
           </button>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {isEnglish ? "Back to shelf" : "棚へ戻る"}
           </button>
         </aside>
       </div>

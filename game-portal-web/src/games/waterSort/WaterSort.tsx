@@ -1,5 +1,6 @@
 import { RotateCcw, Sparkles, Trophy, Undo2 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import type { WaterBottle, WaterColor, WaterSortHistory, WaterSortRecord, WaterSortStatus } from "./types";
 
@@ -23,6 +24,15 @@ const colorLabels: Record<WaterColor, string> = {
   yellow: "黄",
   purple: "紫",
   orange: "橙"
+};
+
+const colorLabelsEn: Record<WaterColor, string> = {
+  red: "red",
+  blue: "blue",
+  green: "green",
+  yellow: "yellow",
+  purple: "purple",
+  orange: "orange"
 };
 
 const levels: WaterSortLevel[] = [
@@ -128,7 +138,38 @@ function isSolved(bottles: WaterBottle[]) {
   return bottles.every((bottle) => bottle.length === 0 || (bottle.length === CAPACITY && bottle.every((color) => color === bottle[0])));
 }
 
+function translateWaterSortMessage(message: string) {
+  const startMatch = message.match(/^(.+)を開始しました。/);
+  if (startMatch) {
+    return `Started ${startMatch[1]}. Consecutive water of the same color pours together.`;
+  }
+
+  const clearedMatch = message.match(/^クリア！\s*(\d+)手で全ボトルを整理できました。$/);
+  if (clearedMatch) {
+    return `Clear! You sorted every bottle in ${clearedMatch[1]} moves.`;
+  }
+
+  const selectedMatch = message.match(/^(\d+)番のボトルを選択中。/);
+  if (selectedMatch) {
+    return `Bottle ${selectedMatch[1]} selected. Choose a bottle to pour into.`;
+  }
+
+  const exact: Record<string, string> = {
+    "同じ色の水だけを重ねられます。ボトルを選んで、注ぎ先を選びましょう。": "Only matching colors can be stacked. Choose a bottle, then choose where to pour.",
+    "空のボトルからは注げません。水が入っているボトルを選びましょう。": "You cannot pour from an empty bottle. Choose a bottle that contains water.",
+    "選択を解除しました。": "Selection cleared.",
+    "そのボトルには注げません。選択を切り替えました。": "You cannot pour into that bottle. Selection switched.",
+    "そのボトルには注げません。色か空き容量を確認してください。": "You cannot pour into that bottle. Check the color or free space.",
+    "いい注ぎ方です。単色のボトルを増やしていきましょう。": "Nice pour. Keep building bottles with a single color.",
+    "1手戻しました。": "Undid one move."
+  };
+
+  return exact[message] ?? message;
+}
+
 export function WaterSort({ onBack }: WaterSortProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
   const [levelIndex, setLevelIndex] = useState(0);
   const [bottles, setBottles] = useState<WaterBottle[]>(() => cloneBottles(levels[0].bottles));
   const [selectedBottle, setSelectedBottle] = useState<number | null>(null);
@@ -142,6 +183,7 @@ export function WaterSort({ onBack }: WaterSortProps) {
   const ranking = useRanking({ gameId: `water-sort-${level.id}`, metricLabel: "Moves", mode: "lower" });
   const bestMoves = record[level.id] ?? null;
   const filledBottleCount = useMemo(() => bottles.filter((bottle) => bottle.length === CAPACITY && bottle.every((color) => color === bottle[0])).length, [bottles]);
+  const visibleMessage = isEnglish ? translateWaterSortMessage(message) : message;
 
   const startLevel = (nextLevelIndex = levelIndex) => {
     const nextLevel = levels[nextLevelIndex];
@@ -250,15 +292,15 @@ export function WaterSort({ onBack }: WaterSortProps) {
         <div>
           <p className="eyebrow">SORT PUZZLE / INTERNAL GAME</p>
           <h1 id="watersort-title">Water Sort Puzzle</h1>
-          <p className="lead">{message}</p>
+          <p className="lead">{visibleMessage}</p>
         </div>
-        <div className="score-panel watersort-score" aria-label="Water Sort Puzzleのスコア">
+        <div className="score-panel watersort-score" aria-label={isEnglish ? "Water Sort Puzzle score" : "Water Sort Puzzleのスコア"}>
           <div>
             <span>Level</span>
             <strong>{level.name}</strong>
           </div>
           <div>
-            <span>Move</span>
+            <span>{isEnglish ? "Moves" : "Move"}</span>
             <strong>{moves}</strong>
           </div>
           <div>
@@ -270,14 +312,14 @@ export function WaterSort({ onBack }: WaterSortProps) {
 
       <div className="puzzle-layout watersort-layout">
         <div className="watersort-play-area">
-          <div className="watersort-bottles" aria-label="色水ボトル">
+          <div className="watersort-bottles" aria-label={isEnglish ? "colored water bottles" : "色水ボトル"}>
             {bottles.map((bottle, bottleIndex) => (
               <button
                 className={`watersort-bottle${selectedBottle === bottleIndex ? " is-selected" : ""}${bottle.length === 0 ? " is-empty" : ""}`}
                 key={bottleIndex}
                 type="button"
                 onClick={() => handleBottleClick(bottleIndex)}
-                aria-label={`${bottleIndex + 1}番のボトル ${bottle.map((color) => colorLabels[color]).join("、") || "空"}`}
+                aria-label={isEnglish ? `Bottle ${bottleIndex + 1}: ${bottle.map((color) => colorLabelsEn[color]).join(", ") || "empty"}` : `${bottleIndex + 1}番のボトル ${bottle.map((color) => colorLabels[color]).join("、") || "空"}`}
               >
                 <span className="watersort-neck" />
                 <span className="watersort-glass">
@@ -295,14 +337,15 @@ export function WaterSort({ onBack }: WaterSortProps) {
 
         <aside className="puzzle-side watersort-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{isEnglish ? "How to play" : "遊び方"}</h2>
             <p>
-              水が入ったボトルを選び、注ぎ先のボトルを選びます。空のボトル、または一番上が同じ色のボトルにだけ注げます。
-              すべてのボトルを単色、または空にできればクリアです。
+              {isEnglish
+                ? "Choose a bottle that contains water, then choose a destination bottle. You can pour only into an empty bottle or onto a bottle whose top color matches. Clear the puzzle by making every bottle either empty or filled with a single color."
+                : "水が入ったボトルを選び、注ぎ先のボトルを選びます。空のボトル、または一番上が同じ色のボトルにだけ注げます。すべてのボトルを単色、または空にできればクリアです。"}
             </p>
           </div>
 
-          <div className="watersort-levels" aria-label="ステージ選択">
+          <div className="watersort-levels" aria-label={isEnglish ? "stage select" : "ステージ選択"}>
             {levels.map((item, index) => (
               <button className={index === levelIndex ? "is-active" : ""} key={item.id} type="button" onClick={() => selectLevel(index)}>
                 {item.name}
@@ -313,37 +356,37 @@ export function WaterSort({ onBack }: WaterSortProps) {
           <div className="watersort-status">
             <div>
               <Trophy aria-hidden="true" />
-              <span>完成ボトル</span>
+              <span>{isEnglish ? "Completed bottles" : "完成ボトル"}</span>
               <strong>{filledBottleCount}</strong>
             </div>
             <div>
-              <span>状態</span>
-              <strong>{status === "cleared" ? "クリア" : "挑戦中"}</strong>
+              <span>{isEnglish ? "Status" : "状態"}</span>
+              <strong>{status === "cleared" ? (isEnglish ? "Cleared" : "クリア") : (isEnglish ? "Playing" : "挑戦中")}</strong>
             </div>
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "cleared" ? { score: moves, display: `${moves}手`, meta: level.name } : null}
+            pendingScore={status === "cleared" ? { score: moves, display: isEnglish ? `${moves} moves` : `${moves}手`, meta: level.name } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => startLevel()}>
               <Sparkles aria-hidden="true" />
-              やり直し
+              {isEnglish ? "Restart" : "やり直し"}
             </button>
             <button className="ghost-button" type="button" onClick={undo} disabled={history.length === 0 || status !== "playing"}>
               <Undo2 aria-hidden="true" />
-              1手戻す
+              {isEnglish ? "Undo" : "1手戻す"}
             </button>
             <button className="ghost-button" type="button" onClick={resetRecord}>
               <RotateCcw aria-hidden="true" />
-              記録リセット
+              {isEnglish ? "Reset record" : "記録リセット"}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {isEnglish ? "Back to shelf" : "棚へ戻る"}
           </button>
         </aside>
       </div>

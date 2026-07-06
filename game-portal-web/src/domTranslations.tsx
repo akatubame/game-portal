@@ -1043,7 +1043,28 @@ function normalizeTranslatedText(value: string): string {
     "5blocksすべてSame目で50pts。": "Five dice showing the same face scores 50 points.",
     "全DiceのTotal。": "Total of all dice.",
     "各Roundで最大3timesDiceを振れます。残したいDiceをホールドし、最後に1つのHandへScoreを記録します。 すべてのHandを埋めたTotalptsが記録です。": "In each round, roll the dice up to three times. Hold dice you want to keep, then record the score in one category. Your final record is the total after all categories are filled.",
-    "高得ptsHandを狙いすぎるとEmpty振りもYesます。ChanceやUp段Handで堅く拾う判断も大事です。": "Chasing only high-scoring hands can leave you empty-handed. Sometimes it is smarter to safely score Chance or upper-section categories."
+    "高得ptsHandを狙いすぎるとEmpty振りもYesます。ChanceやUp段Handで堅く拾う判断も大事です。": "Chasing only high-scoring hands can leave you empty-handed. Sometimes it is smarter to safely score Chance or upper-section categories.",
+    "Startを押したら60sec勝負です。表示されたローマ字を入力してください。": "Press Start for a 60-second round. Type the displayed romaji.",
+    "明るい画面で遊ぶ": "Play on a bright screen",
+    "表示された日本wordsに対応するローマ字を入力します。60secでどれだけ正確に打てるかを競います。": "Type the romaji for the displayed Japanese phrase. Compete for accuracy and speed in 60 seconds.",
+    "COMはWins筋と止め筋を見ますが、たまに甘い手を打ちます。": "The CPU looks for winning and blocking moves, but sometimes plays softly.",
+    "COMが最善手を選びます。理論UpはPushes以Upを狙います。": "The CPU chooses the best move. In theory, you should aim for at least a draw.",
+    "角を少し意識しつつ、ほどよく手を選びます。": "The CPU watches corners a little and plays reasonably.",
+    "角・端・返せる枚数を見て堅めに打ちます。": "The CPU plays more solidly, considering corners, edges, and flip count.",
+    "例: 「Red」という文字がRed色で表示されていれば「Match」、Blue色で表示されていれば「Different」です。 Get as many correct answers and combos as you can in 30 seconds.": "Example: if the word \"Red\" is shown in red, choose Match; if it is shown in blue, choose Different. Get as many correct answers and combos as you can in 30 seconds.",
+    "円盤を1枚ずつ動かして、すべてRight端の柱へ移しましょう。": "Move one disk at a time and transfer every disk to the rightmost peg.",
+    "一度に動かせる円盤は一番Upの1枚だけです。大きい円盤を小さい円盤のUpに置くことはできません。 すべての円盤をRight端の柱へ移せばClearedです。": "You can move only the top disk. You cannot place a larger disk on a smaller disk. Move every disk to the rightmost peg to clear the puzzle.",
+    "Startすると4色のボタンが順番に光ります。Same順番で押して記憶力を試しましょう。": "Press Start and the four colored buttons will light up in order. Repeat the same sequence to test your memory.",
+    "光った色の順番を覚えて、Same順番で4色のボタンを押します。1Roundごとにパターンが1つずつ増え、 12手まで到達するとClearedです。": "Remember the color sequence and press the four buttons in the same order. The pattern grows by one each round; reach 12 steps to clear the game.",
+    "Showing sequenceはボタンが自動で光ります。入力中になってから押してください。": "During Showing sequence, the buttons light up automatically. Press them after the game switches to input mode.",
+    "8×8の軽いBoard。まずは感触をつかめます。": "A light 8×8 board, good for getting a feel for the game.",
+    "10×10の標準Board。連鎖を考えやすい広さです。": "A standard 10×10 board with enough space to plan chains.",
+    "12×10のLargeBoard。高得pts狙い向けです。": "A large 12×10 board for chasing high scores.",
+    "ペグを選び、隣のペグを飛び越えてempty squareへ移動します。飛び越えたペグは取り除かれます。": "Select a peg and jump over an adjacent peg into an empty square. The jumped peg is removed.",
+    "ペグはup, down, left, and rightに2マス先のempty squareへジャンプできます。間にあるペグは取り除かれます。 これを繰り返して、One peg leftを目指しましょう。": "A peg can jump up, down, left, or right into an empty square two spaces away. The peg in between is removed. Keep going and aim to leave only one peg.",
+    "端から適当にEraseと詰まりやすいです。中央へ戻す道を残すと、ちょっと見通しが良くなります。": "Removing pegs from the edges at random can trap you quickly. Keep routes back toward the center for a clearer plan.",
+    "ローマ字を入力してください。間違えても、そのまま打ち直せます。": "Type the romaji. If you make a mistake, just keep typing and correct it.",
+    "ペグをクリックしてSelectし、光った移動先をクリックしましょう。": "Click a peg to select it, then click a highlighted destination."
   };
 
   if (exact[value]) {
@@ -1056,7 +1077,13 @@ function normalizeTranslatedText(value: string): string {
     [/^(\d+)blocks$/, (match) => `${match[1]} stones`],
     [/^pts灯:\s*(\d+)\/(\d+)$/, (match) => `Lit: ${match[1]}/${match[2]}`],
     [/^記録済み:\s*(\d+)\/(\d+)$/, (match) => `Scored: ${match[1]}/${match[2]}`],
-    [/^Candidate list（(\d+)語）$/, (match) => `Candidate list (${match[1]} words)`]
+    [/^Candidate list（(\d+)語）$/, (match) => `Candidate list (${match[1]} words)`],
+    [/^(\d+)pts \/ Accuracy(\d+)% \/ (\d+)フレーズ$/, (match) => `${match[1]} pts / Accuracy ${match[2]}% / ${match[3]} phrases`],
+    [/^Deck:\s*(\d+)枚$/, (match) => `Deck: ${match[1]} cards`],
+    [/^(\d+)枚$/, (match) => `${match[1]} disks`],
+    [/^最短Moves:\s*(\d+)$/, (match) => `Minimum moves: ${match[1]}`],
+    [/^Best:\s*(\d+)手 \/ (.+)$/, (match) => `Best: ${match[1]} moves / ${match[2].replace(/:\\s+/, ":")}`],
+    [/^直近Score:\s*(\d+)$/, (match) => `Last score: ${match[1]}`]
   ];
 
   for (const [pattern, replacer] of patterns) {

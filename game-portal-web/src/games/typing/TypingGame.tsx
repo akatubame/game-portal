@@ -1,5 +1,6 @@
 import { Keyboard, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import { typingPhrases } from "./phrases";
 import type { TypingPhrase, TypingResult, TypingStatus } from "./types";
@@ -33,6 +34,8 @@ function calculateScore(correctChars: number, completedPhrases: number, accuracy
 }
 
 export function TypingGame({ onBack }: TypingGameProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
   const [status, setStatus] = useState<TypingStatus>("idle");
   const [phrase, setPhrase] = useState<TypingPhrase>(() => getNextPhrase());
   const [input, setInput] = useState("");
@@ -226,7 +229,9 @@ export function TypingGame({ onBack }: TypingGameProps) {
             <h2>ベスト</h2>
             {bestResult ? (
               <p>
-                {bestResult.score}点 / 正確率{bestResult.accuracy}% / {bestResult.completedPhrases}フレーズ
+                {isEnglish
+                  ? `${bestResult.score} pts / Accuracy ${bestResult.accuracy}% / ${bestResult.completedPhrases} phrases`
+                  : `${bestResult.score}点 / 正確率${bestResult.accuracy}% / ${bestResult.completedPhrases}フレーズ`}
               </p>
             ) : (
               <p>まだ記録がありません。</p>
@@ -235,7 +240,7 @@ export function TypingGame({ onBack }: TypingGameProps) {
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "finished" ? { score, display: `${score}点`, meta: `正確率${accuracy}% / ${completedPhrases}フレーズ` } : null}
+            pendingScore={status === "finished" ? { score, display: isEnglish ? `${score} pts` : `${score}点`, meta: isEnglish ? `Accuracy ${accuracy}% / ${completedPhrases} phrases` : `正確率${accuracy}% / ${completedPhrases}フレーズ` } : null}
           />
 
           <div className="control-row">

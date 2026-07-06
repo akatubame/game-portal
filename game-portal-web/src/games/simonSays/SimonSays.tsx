@@ -1,5 +1,6 @@
 import { Brain, Play, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import type { SimonBest, SimonColor, SimonStatus } from "./types";
 
@@ -52,6 +53,8 @@ function getMessage(status: SimonStatus, level: number, inputIndex: number) {
 }
 
 export function SimonSays({ onBack }: SimonSaysProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
   const [status, setStatus] = useState<SimonStatus>("idle");
   const [sequence, setSequence] = useState<SimonColor[]>([]);
   const [inputIndex, setInputIndex] = useState(0);
@@ -64,6 +67,17 @@ export function SimonSays({ onBack }: SimonSaysProps) {
   const ranking = useRanking({ gameId: "simon-says-score", metricLabel: "Score", mode: "higher" });
   const score = useMemo(() => Math.max(0, level - (status === "idle" ? 0 : 1)) * 10 + inputIndex, [inputIndex, level, status]);
   const message = getMessage(status, level, inputIndex);
+  const visibleMessage = isEnglish
+    ? status === "watching"
+      ? "Watch the sequence carefully. Wait a moment before entering."
+      : status === "input"
+        ? `Repeat the ${level}-step pattern. Press item ${inputIndex + 1}.`
+        : status === "failed"
+          ? "So close! The pattern broke. Try again."
+          : status === "cleared"
+            ? "All rounds cleared! Nice memory workout."
+            : "Press Start and the four colored buttons will light up in order. Repeat the same sequence to test your memory."
+    : message;
 
   const clearTimers = () => {
     timeoutRefs.current.forEach((timerId) => window.clearTimeout(timerId));
@@ -174,9 +188,9 @@ export function SimonSays({ onBack }: SimonSaysProps) {
         <div>
           <p className="eyebrow">MEMORY / INTERNAL GAME</p>
           <h1 id="simon-title">Simon Says</h1>
-          <p className="lead">{message}</p>
+          <p className="lead">{visibleMessage}</p>
         </div>
-        <div className="score-panel simon-score" aria-label="Simon Saysの状態">
+        <div className="score-panel simon-score" aria-label={isEnglish ? "Simon Says status" : "Simon Saysの状態"}>
           <div>
             <span>Level</span>
             <strong>{level}</strong>
@@ -193,7 +207,7 @@ export function SimonSays({ onBack }: SimonSaysProps) {
       </div>
 
       <div className="puzzle-layout simon-layout">
-        <div className="simon-stage" aria-label="Simon Saysの4色ボタン">
+        <div className="simon-stage" aria-label={isEnglish ? "Simon Says four color buttons" : "Simon Saysの4色ボタン"}>
           <div className="simon-board">
             {PADS.map((pad) => (
               <button
@@ -202,7 +216,7 @@ export function SimonSays({ onBack }: SimonSaysProps) {
                 type="button"
                 onClick={() => handlePadPress(pad.id)}
                 disabled={status !== "input"}
-                aria-label={`${pad.tone}のボタン`}
+                aria-label={isEnglish ? `${pad.label.toLowerCase()} button` : `${pad.tone}のボタン`}
               >
                 <span>{pad.label}</span>
               </button>
@@ -215,43 +229,44 @@ export function SimonSays({ onBack }: SimonSaysProps) {
 
         <aside className="puzzle-side simon-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{isEnglish ? "How to play" : "遊び方"}</h2>
             <p>
-              光った色の順番を覚えて、同じ順番で4色のボタンを押します。1ラウンドごとにパターンが1つずつ増え、
-              12手まで到達するとクリアです。
+              {isEnglish
+                ? "Remember the order of the flashing colors, then press the four buttons in the same order. The pattern grows by one each round. Reach 12 steps to clear the game."
+                : "光った色の順番を覚えて、同じ順番で4色のボタンを押します。1ラウンドごとにパターンが1つずつ増え、12手まで到達するとクリアです。"}
             </p>
           </div>
 
           <div className="simon-progress">
-            <span>現在: {status === "watching" ? "出題中" : status === "input" ? "入力中" : status === "cleared" ? "クリア" : status === "failed" ? "失敗" : "待機中"}</span>
-            <span>直近スコア: {lastScore}</span>
-            <span>ベスト: {best ? `Lv.${best.level} / ${best.score}点` : "まだ記録なし"}</span>
+            <span>{isEnglish ? "Current" : "現在"}: {status === "watching" ? (isEnglish ? "Showing sequence" : "出題中") : status === "input" ? (isEnglish ? "Input" : "入力中") : status === "cleared" ? (isEnglish ? "Cleared" : "クリア") : status === "failed" ? (isEnglish ? "Failed" : "失敗") : (isEnglish ? "Idle" : "待機中")}</span>
+            <span>{isEnglish ? "Last score" : "直近スコア"}: {lastScore}</span>
+            <span>{isEnglish ? "Best" : "ベスト"}: {best ? (isEnglish ? `Lv.${best.level} / ${best.score} pts` : `Lv.${best.level} / ${best.score}点`) : (isEnglish ? "No record yet" : "まだ記録なし")}</span>
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={(status === "failed" || status === "cleared") && lastScore > 0 ? { score: lastScore, display: `${lastScore}点`, meta: status === "cleared" ? `Lv.${ROUND_CLEAR_LEVEL} クリア` : `Lv.${Math.max(0, level - 1)}` } : null}
+            pendingScore={(status === "failed" || status === "cleared") && lastScore > 0 ? { score: lastScore, display: isEnglish ? `${lastScore} pts` : `${lastScore}点`, meta: status === "cleared" ? (isEnglish ? `Lv.${ROUND_CLEAR_LEVEL} cleared` : `Lv.${ROUND_CLEAR_LEVEL} クリア`) : `Lv.${Math.max(0, level - 1)}` } : null}
           />
 
-          <div className="simon-sequence-preview" aria-label="現在のラウンド情報">
+          <div className="simon-sequence-preview" aria-label={isEnglish ? "current round information" : "現在のラウンド情報"}>
             <span>Pattern Length</span>
             <strong>{level || "-"}</strong>
-            <small>出題中はボタンが自動で光ります。入力中になってから押してください。</small>
+            <small>{isEnglish ? "During Showing sequence, the buttons light up automatically. Press them after the game switches to input mode." : "出題中はボタンが自動で光ります。入力中になってから押してください。"}</small>
           </div>
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startGame}>
               <Play aria-hidden="true" />
-              スタート
+              {isEnglish ? "Start" : "スタート"}
             </button>
             <button className="ghost-button" type="button" onClick={resetBest}>
               <RotateCcw aria-hidden="true" />
-              ベスト削除
+              {isEnglish ? "Clear best" : "ベスト削除"}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {isEnglish ? "Back to shelf" : "棚へ戻る"}
           </button>
         </aside>
       </div>

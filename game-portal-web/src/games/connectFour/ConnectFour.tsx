@@ -1,5 +1,6 @@
 import { CircleDot, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import type {
   ConnectFourCell,
@@ -29,6 +30,18 @@ const difficultyDescriptions: Record<ConnectFourDifficulty, string> = {
   easy: "COMはかなり気まぐれに列を選びます。",
   normal: "勝ち筋と止め筋を見つつ、中央を少し好みます。",
   hard: "2手先の形も少し見て、中央と連結を重視します。"
+};
+
+const difficultyLabelsEn: Record<ConnectFourDifficulty, string> = {
+  easy: "Easy",
+  normal: "Normal",
+  hard: "Hard"
+};
+
+const difficultyDescriptionsEn: Record<ConnectFourDifficulty, string> = {
+  easy: "The CPU chooses columns very casually.",
+  normal: "The CPU looks for winning and blocking moves, and slightly prefers the center.",
+  hard: "The CPU looks a little ahead and values center control and connected lines."
 };
 
 function createBoard(): ConnectFourCell[] {
@@ -228,6 +241,8 @@ function updateRecord(record: ConnectFourRecord, outcome: ConnectFourOutcome): C
 }
 
 export function ConnectFour({ onBack }: ConnectFourProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
   const [board, setBoard] = useState<ConnectFourCell[]>(() => createBoard());
   const [status, setStatus] = useState<ConnectFourStatus>("idle");
   const [turn, setTurn] = useState<ConnectFourPlayer>("red");
@@ -239,6 +254,7 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
   const outcome = getOutcome(result, board);
   const ranking = useRanking({ gameId: `connect-four-${difficulty}`, metricLabel: "Wins", mode: "higher" });
   const legalColumns = getLegalColumns(board);
+  const visibleDifficultyLabel = isEnglish ? difficultyLabelsEn[difficulty] : difficultyLabels[difficulty];
 
   useEffect(() => {
     if (status !== "playing" || !outcome) {
@@ -314,10 +330,10 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">BOARD GAME / INTERNAL GAME</p>
-          <h1 id="connect-title">コネクトフォー</h1>
+          <h1 id="connect-title">{isEnglish ? "Connect Four" : "コネクトフォー"}</h1>
           <p className="lead">{message}</p>
         </div>
-        <div className="score-panel connect-score" aria-label="コネクトフォーの戦績">
+        <div className="score-panel connect-score" aria-label={isEnglish ? "Connect Four record" : "コネクトフォーの戦績"}>
           <div>
             <span>Win</span>
             <strong>{record.wins}</strong>
@@ -335,26 +351,26 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
 
       <div className="puzzle-layout connect-layout">
         <div className="connect-play-area">
-          <div className="connect-drop-row" aria-label="列選択">
+          <div className="connect-drop-row" aria-label={isEnglish ? "column select" : "列選択"}>
             {Array.from({ length: COLUMNS }, (_, column) => (
               <button
                 disabled={status !== "playing" || turn !== "red" || !legalColumns.includes(column)}
                 key={column}
                 type="button"
                 onClick={() => playColumn(column)}
-                aria-label={`${column + 1}列目に置く`}
+                aria-label={isEnglish ? `Drop in column ${column + 1}` : `${column + 1}列目に置く`}
               >
                 ↓
               </button>
             ))}
           </div>
 
-          <div className="connect-board" aria-label="コネクトフォー盤面">
+          <div className="connect-board" aria-label={isEnglish ? "Connect Four board" : "コネクトフォー盤面"}>
             {board.map((cell, index) => (
               <span
                 className={`connect-cell${cell ? ` is-${cell}` : ""}${result?.line.includes(index) ? " is-winning" : ""}`}
                 key={index}
-                aria-label={cell ? (cell === "red" ? "赤" : "黄") : "空き"}
+                aria-label={cell ? (cell === "red" ? (isEnglish ? "red" : "赤") : (isEnglish ? "yellow" : "黄")) : (isEnglish ? "empty" : "空き")}
               />
             ))}
           </div>
@@ -362,13 +378,15 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
 
         <aside className="puzzle-side connect-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{isEnglish ? "How to play" : "遊び方"}</h2>
             <p>
-              列を選ぶとチップが下から積み上がります。縦・横・斜めのどれかに自分の色を4つ並べると勝ちです。
+              {isEnglish
+                ? "Choose a column to drop your disc from the bottom. Connect four of your color vertically, horizontally, or diagonally to win."
+                : "列を選ぶとチップが下から積み上がります。縦・横・斜めのどれかに自分の色を4つ並べると勝ちです。"}
             </p>
           </div>
 
-          <div className="connect-difficulty" aria-label="難易度">
+          <div className="connect-difficulty" aria-label={isEnglish ? "difficulty" : "難易度"}>
             {(Object.keys(difficultyLabels) as ConnectFourDifficulty[]).map((level) => (
               <button
                 className={difficulty === level ? "is-selected" : ""}
@@ -377,41 +395,41 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
                 type="button"
                 onClick={() => setDifficulty(level)}
               >
-                <span>{difficultyLabels[level]}</span>
-                <small>{difficultyDescriptions[level]}</small>
+                <span>{isEnglish ? difficultyLabelsEn[level] : difficultyLabels[level]}</span>
+                <small>{isEnglish ? difficultyDescriptionsEn[level] : difficultyDescriptions[level]}</small>
               </button>
             ))}
           </div>
 
           <div className="connect-record">
-            <span>連勝: {record.streak}</span>
-            <span>現在: {status === "playing" ? (turn === "red" ? "あなたの番" : "COMの番") : "待機中"}</span>
-            <span>難易度: {difficultyLabels[difficulty]}</span>
+            <span>{isEnglish ? "Streak" : "連勝"}: {record.streak}</span>
+            <span>{isEnglish ? "Current" : "現在"}: {status === "playing" ? (turn === "red" ? (isEnglish ? "Your turn" : "あなたの番") : (isEnglish ? "CPU turn" : "COMの番")) : (isEnglish ? "Idle" : "待機中")}</span>
+            <span>{isEnglish ? "Difficulty" : "難易度"}: {visibleDifficultyLabel}</span>
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "finished" && outcome === "win" ? { score: record.streak, display: `${record.streak}連勝`, meta: difficultyLabels[difficulty] } : null}
+            pendingScore={status === "finished" && outcome === "win" ? { score: record.streak, display: isEnglish ? `${record.streak}-win streak` : `${record.streak}連勝`, meta: visibleDifficultyLabel } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startGame}>
               <Sparkles aria-hidden="true" />
-              新しく始める
+              {isEnglish ? "New game" : "新しく始める"}
             </button>
             <button className="ghost-button" type="button" onClick={resetRecord}>
               <RotateCcw aria-hidden="true" />
-              戦績リセット
+              {isEnglish ? "Reset record" : "戦績リセット"}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {isEnglish ? "Back to shelf" : "棚へ戻る"}
           </button>
 
           <div className="connect-hint">
             <CircleDot aria-hidden="true" />
-            中央の列は攻めにも守りにも使いやすい、ちょっとおいしい場所です。
+            {isEnglish ? "Center columns are useful for both attack and defense." : "中央の列は攻めにも守りにも使いやすい、ちょっとおいしい場所です。"}
           </div>
         </aside>
       </div>

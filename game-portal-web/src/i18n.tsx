@@ -113,7 +113,7 @@ export const uiText = {
     internal: "internal",
     external: "external",
     language: "Language",
-    japanese: "日本語",
+    japanese: "Japanese",
     english: "English",
     metaDescription: "A portal site collecting small browser games you can play instantly"
   }
