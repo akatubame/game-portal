@@ -5216,6 +5216,46 @@ footer {
   line-height: 1.6;
 }
 
+.wordguess-word-list {
+  padding: 16px;
+  border: 1px solid rgba(244, 241, 232, 0.12);
+  border-radius: 18px;
+  background: rgba(8, 13, 24, 0.38);
+  color: var(--muted);
+}
+
+.wordguess-word-list summary {
+  color: var(--text);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.wordguess-word-list p {
+  margin: 10px 0 12px;
+  line-height: 1.6;
+}
+
+.wordguess-word-list div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  max-height: 190px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.wordguess-word-list code {
+  padding: 5px 8px;
+  border: 1px solid rgba(244, 241, 232, 0.12);
+  border-radius: 999px;
+  background: rgba(244, 241, 232, 0.08);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
 .one50-layout {
   grid-template-columns: minmax(320px, 0.95fr) minmax(280px, 0.72fr);
 }

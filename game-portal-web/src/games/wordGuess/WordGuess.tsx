@@ -182,7 +182,7 @@ export function WordGuess({ onBack }: WordGuessProps) {
     setStatus("playing");
     setInput("");
     setAttempts([]);
-    setMessage("キーボードまたは画面のキーで5文字を入力して、判定しましょう。");
+    setMessage("キーボードまたは画面のキーで5文字を入力して、判定しましょう。候補リストは右側にあります。");
   }, []);
 
   const finish = useCallback((result: "win" | "loss", nextAttempts: WordGuessAttempt[]) => {
@@ -220,7 +220,7 @@ export function WordGuess({ onBack }: WordGuessProps) {
     }
 
     if (!WORDS.includes(input)) {
-      setMessage("候補リストにある英単語を入力してください。");
+      setMessage("候補リストにある英単語を入力してください。候補リストは右側の「候補リスト」を開くと確認できます。");
       return;
     }
 
@@ -360,6 +360,16 @@ export function WordGuess({ onBack }: WordGuessProps) {
               6回以内に答えを絞り込みましょう。
             </p>
           </div>
+
+          <details className="wordguess-word-list">
+            <summary>候補リスト（{WORDS.length}語）</summary>
+            <p>この一覧にある5文字英単語だけが入力できます。</p>
+            <div>
+              {WORDS.map((word) => (
+                <code key={word}>{word}</code>
+              ))}
+            </div>
+          </details>
 
           <div className="wordguess-progress">
             <span>現在: {status === "playing" ? "推理中" : status === "won" ? "正解" : status === "lost" ? "失敗" : "待機中"}</span>

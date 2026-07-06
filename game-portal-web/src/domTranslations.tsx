@@ -5,8 +5,10 @@ const textTranslations: Record<string, string> = {
   "Wordle風ゲーム": "Word Guess",
   "5文字の英単語を6回以内に当てましょう。緑は位置も一致、黄は文字だけ一致です。": "Guess the five-letter English word in six tries. Green means the right letter in the right place; yellow means the letter exists elsewhere.",
   "キーボードまたは画面のキーで5文字を入力して、判定しましょう。": "Enter five letters with your keyboard or the on-screen keys, then submit your guess.",
+  "キーボードまたは画面のキーで5文字を入力して、判定しましょう。候補リストは右側にあります。": "Enter five letters with your keyboard or the on-screen keys, then submit your guess. The candidate list is on the right.",
   "5文字そろえてから判定しましょう。": "Enter all five letters before submitting.",
   "候補リストにある英単語を入力してください。": "Enter an English word from the candidate list.",
+  "候補リストにある英単語を入力してください。候補リストは右側の「候補リスト」を開くと確認できます。": "Enter an English word from the candidate list. Open Candidate list on the right to check available words.",
   "判定しました。残り": "Guess checked. Tries left: ",
   "残念。答えは": "So close. The answer was ",
   "5文字の英単語を入力します。緑は文字と位置が一致、黄は文字は含まれるが位置が違う、黒は含まれない文字です。6回以内に答えを絞り込みましょう。": "Enter a five-letter English word. Green means correct letter and position, yellow means the letter is in the word but elsewhere, and dark means the letter is not included. Narrow down the answer within six tries.",
@@ -22,6 +24,17 @@ const textTranslations: Record<string, string> = {
   "待機中": "Idle",
   "最高連勝": "Best streak",
   "単語数": "Word count",
+  "候補リスト": "Candidate list",
+  "この一覧にある5文字英単語だけが入力できます。": "Only the five-letter English words in this list can be entered.",
+  "数独の状態": "Sudoku status",
+  "入力済み": "Filled",
+  "数字入力": "Number input",
+  "消す": "Erase",
+  "ミスを赤で表示する": "Show mistakes in red",
+  "現在のミス数": "Current mistakes",
+  "空いているマスを選んで、下の数字ボタンで入力してください。": "Select an empty cell and enter a number with the buttons below.",
+  "すべて埋まりました。赤いマスがあれば見直してみてください。": "All cells are filled. If any cells are red, check them again.",
+  "各行・各列・3x3ブロックに、1から9までの数字が一度ずつ入るように埋めます。最初から表示されている数字は変更できません。": "Fill the grid so each row, column, and 3x3 box contains the numbers 1 through 9 exactly once. Given numbers cannot be changed.",
   "新しく始める": "New game",
   "戦績リセット": "Reset record",
   "遊び方": "How to play",
@@ -534,6 +547,10 @@ const regexTranslations: Array<[RegExp, (match: RegExpMatchArray) => string]> = 
   [/^勝利！\s*(\d+)\s*対\s*(\d+)\s*で黒の勝ちです。$/, (match) => `Victory! Black wins ${match[1]} to ${match[2]}.`],
   [/^COMの勝ちです。\s*(\d+)\s*対\s*(\d+)。角を取らせないのが大事です。$/, (match) => `CPU wins ${match[1]} to ${match[2]}. Try not to give up the corners.`],
   [/^引き分けです。\s*(\d+)\s*対\s*(\d+)\s*の接戦でした。$/, (match) => `Draw. A close ${match[1]} to ${match[2]} game.`],
+  [/^(\d+)枚を交換予定$/, (match) => `${match[1]} ${match[1] === "1" ? "card" : "cards"} selected for exchange`],
+  [/^候補リスト（(\d+)語）$/, (match) => `Candidate list (${match[1]} words)`],
+  [/^完成！\s*(\d+)手で「(.+)」を解きました。$/, (match) => `Complete! Solved "${translateDynamicText(match[2])}" in ${match[1]} moves.`],
+  [/^完成！\s*(.+)で「(.+)」を解きました。$/, (match) => `Complete! Solved "${translateDynamicText(match[2])}" in ${match[1]}.`],
   [/^交換なしで勝負。役は「(.+)」です。$/, (match) => `No exchange. Your hand is ${translateDynamicText(match[1])}.`],
   [/^(\d+)枚交換しました。役は「(.+)」です。$/, (match) => `Exchanged ${match[1]} cards. Your hand is ${translateDynamicText(match[2])}.`],
   [/^(.+)でプレイします。スタートを押して開始してください。$/, (match) => `Playing on ${translateDynamicText(match[1])}. Press Start to begin.`],
@@ -629,7 +646,20 @@ function translateDocument() {
       continue;
     }
 
-    const source = originalText.get(node) ?? node.nodeValue ?? "";
+    let source = originalText.get(node) ?? node.nodeValue ?? "";
+    const currentValue = node.nodeValue ?? "";
+
+    if (originalText.has(node)) {
+      const storedTrimmed = source.trim();
+      const storedTranslated = translateDynamicText(storedTrimmed);
+      const storedTranslatedValue = source.replace(storedTrimmed, storedTranslated);
+
+      if (currentValue !== source && currentValue !== storedTranslatedValue) {
+        source = currentValue;
+        originalText.set(node, currentValue);
+      }
+    }
+
     const trimmed = source.trim();
     const translated = translateDynamicText(trimmed);
 

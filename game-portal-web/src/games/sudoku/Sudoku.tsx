@@ -52,6 +52,7 @@ export function Sudoku({ onBack }: SudokuProps) {
   const complete = useMemo(() => isComplete(grid), [grid]);
   const ranking = useRanking({ gameId: `sudoku-${puzzle.id}`, metricLabel: "Time", mode: "lower" });
   const bestTime = bestTimes[puzzle.id] ?? null;
+  const clearSeconds = Math.max(1, seconds);
 
   useEffect(() => {
     if (!started || solved) {
@@ -72,7 +73,6 @@ export function Sudoku({ onBack }: SudokuProps) {
       return;
     }
 
-    const clearSeconds = Math.max(1, seconds);
     setBestTimes((current) => {
       const currentBest = current[puzzle.id];
       if (currentBest !== undefined && currentBest <= clearSeconds) {
@@ -84,7 +84,7 @@ export function Sudoku({ onBack }: SudokuProps) {
       return next;
     });
     setRecordedSolve(true);
-  }, [puzzle.id, recordedSolve, seconds, solved]);
+  }, [clearSeconds, puzzle.id, recordedSolve, solved]);
 
   const resetPuzzle = () => {
     setGrid(cloneGrid(puzzle.puzzle));
@@ -105,7 +105,7 @@ export function Sudoku({ onBack }: SudokuProps) {
   };
 
   const setCellValue = (value: number) => {
-    if (!selectedCell || isGivenCell(puzzle, selectedCell.row, selectedCell.column)) {
+    if (!selectedCell || isGivenCell(puzzle, selectedCell.row, selectedCell.column) || solved) {
       return;
     }
 
@@ -125,6 +125,10 @@ export function Sudoku({ onBack }: SudokuProps) {
   };
 
   const fillHint = () => {
+    if (solved) {
+      return;
+    }
+
     const target =
       selectedCell && !isGivenCell(puzzle, selectedCell.row, selectedCell.column)
         ? selectedCell
@@ -148,7 +152,7 @@ export function Sudoku({ onBack }: SudokuProps) {
   };
 
   const statusText = solved
-    ? "完成！すべて正しく埋まりました。良い手筋です。"
+    ? `完成！ ${formatTime(clearSeconds)}で「${puzzle.title}」を解きました。`
     : complete
       ? "すべて埋まりました。赤いマスがあれば見直してみてください。"
       : "空いているマスを選んで、下の数字ボタンで入力してください。";
@@ -163,15 +167,15 @@ export function Sudoku({ onBack }: SudokuProps) {
         </div>
         <div className="score-panel sudoku-stats" aria-label="数独の状態">
           <div>
-            <span>Difficulty</span>
+            <span>難易度</span>
             <strong>{puzzle.difficulty}</strong>
           </div>
           <div>
-            <span>Filled</span>
+            <span>入力済み</span>
             <strong>{filledCells}/81</strong>
           </div>
           <div>
-            <span>Time</span>
+            <span>時間</span>
             <strong>{formatTime(seconds)}</strong>
           </div>
         </div>
@@ -232,7 +236,7 @@ export function Sudoku({ onBack }: SudokuProps) {
 
           <div className="number-pad" aria-label="数字入力">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((value) => (
-              <button type="button" key={value} onClick={() => setCellValue(value)}>
+              <button type="button" key={value} onClick={() => setCellValue(value)} disabled={solved}>
                 {value}
               </button>
             ))}
@@ -243,11 +247,11 @@ export function Sudoku({ onBack }: SudokuProps) {
               <RotateCcw aria-hidden="true" />
               リセット
             </button>
-            <button className="ghost-button" type="button" onClick={eraseCell}>
+            <button className="ghost-button" type="button" onClick={eraseCell} disabled={solved}>
               <Eraser aria-hidden="true" />
               消す
             </button>
-            <button className="ghost-button" type="button" onClick={fillHint}>
+            <button className="ghost-button" type="button" onClick={fillHint} disabled={solved}>
               <Lightbulb aria-hidden="true" />
               ヒント
             </button>
@@ -259,7 +263,7 @@ export function Sudoku({ onBack }: SudokuProps) {
               checked={showMistakes}
               onChange={(event) => setShowMistakes(event.target.checked)}
             />
-            ミスを赤く表示する
+            ミスを赤で表示する
           </label>
 
           <p className="sudoku-note">
@@ -272,7 +276,7 @@ export function Sudoku({ onBack }: SudokuProps) {
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={solved ? { score: Math.max(1, seconds), display: formatTime(Math.max(1, seconds)), meta: `${puzzle.difficulty} - ${puzzle.title}` } : null}
+            pendingScore={solved ? { score: clearSeconds, display: formatTime(clearSeconds), meta: `${puzzle.difficulty} - ${puzzle.title}` } : null}
           />
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
