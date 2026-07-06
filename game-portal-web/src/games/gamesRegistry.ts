@@ -395,8 +395,7 @@ export const games: Game[] = [
     accent: "#d9a84e",
     kind: "internal",
     status: "available"
-  }
-,
+  },
   {
     id: "nonogram",
     title: "イラストロジック",
@@ -406,6 +405,18 @@ export const games: Game[] = [
     href: "?game=nonogram",
     screenshot: "/screenshots/nonogram.svg",
     accent: "#9df08a",
+    kind: "internal",
+    status: "available"
+  },
+  {
+    id: "wordGuess",
+    title: "Wordle風ゲーム",
+    englishTitle: "WORD GUESS",
+    description: "5文字の英単語を6回以内に当てる、色ヒント付きの単語推理ゲーム。",
+    genre: "WORD GAME",
+    href: "?game=wordGuess",
+    screenshot: "/screenshots/word-guess.svg",
+    accent: "#8fb7ff",
     kind: "internal",
     status: "available"
   }

@@ -20,9 +20,12 @@ export const genreLabels: Record<Language, Record<string, string>> = {
     "SORT PUZZLE": "ソートパズル",
     "SPEED PUZZLE": "スピードパズル",
     STRATEGY: "ストラテジー",
-    "TABLE GAME": "テーブルゲーム"
+    "TABLE GAME": "テーブルゲーム",
+    "WORD GAME": "単語ゲーム"
   },
-  en: {}
+  en: {
+    "WORD GAME": "Word Game"
+  }
 };
 
 export const gameTranslations: Record<string, Record<Language, GameTranslation>> = {
@@ -173,6 +176,10 @@ export const gameTranslations: Record<string, Record<Language, GameTranslation>>
   nonogram: {
     ja: { title: "イラストロジック", description: "行と列の数字ヒントを読み、塗るマスを推理して絵柄を完成させる定番ロジックパズル。" },
     en: { title: "Nonogram", description: "Use row and column number clues to deduce filled cells and reveal a hidden picture." }
+  },
+  wordGuess: {
+    ja: { title: "Wordle風ゲーム", description: "5文字の英単語を6回以内に当てる、色ヒント付きの単語推理ゲーム。" },
+    en: { title: "Word Guess", description: "Guess a five-letter English word in six tries using color clues." }
   }
 };
 

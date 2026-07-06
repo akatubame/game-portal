@@ -1,5 +1,5 @@
 import { Delete, Keyboard, RotateCcw, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
 import type { LetterState, WordGuessAttempt, WordGuessRecord, WordGuessStatus } from "./types";
 
@@ -11,37 +11,87 @@ const RECORD_KEY = "game-shelf-word-guess-record";
 const WORD_LENGTH = 5;
 const MAX_ATTEMPTS = 6;
 const WORDS = [
+  "ABOUT",
+  "ABOVE",
+  "ALERT",
   "APPLE",
+  "BEACH",
   "BRAIN",
+  "BRAVE",
+  "BREAD",
+  "BRICK",
   "CHAIR",
+  "CHARM",
+  "CLOUD",
+  "COAST",
+  "CRANE",
+  "DANCE",
   "DREAM",
+  "DRINK",
   "EARTH",
+  "FIELD",
   "FLAME",
+  "FLASH",
+  "FLOOD",
+  "FRAME",
+  "FRUIT",
+  "GHOST",
   "GRAPE",
+  "GREEN",
   "HEART",
+  "HONEY",
+  "HOUSE",
   "IMAGE",
+  "JELLY",
   "JOKER",
   "KNIFE",
+  "LAUGH",
+  "LEMON",
   "LIGHT",
+  "MAGIC",
+  "MONEY",
   "MOUSE",
+  "MUSIC",
   "NIGHT",
+  "NORTH",
   "OCEAN",
+  "PAINT",
+  "PAPER",
+  "PEACH",
+  "PIZZA",
   "PLANT",
+  "PRIZE",
   "QUEEN",
+  "QUICK",
   "RIVER",
+  "ROUND",
+  "SHAPE",
+  "SHEEP",
+  "SMILE",
+  "SOUND",
+  "SPACE",
+  "SPICE",
   "STONE",
+  "STORM",
+  "TABLE",
+  "TIGER",
   "TRAIN",
   "UNITY",
   "VOICE",
   "WATER",
+  "WORLD",
   "YOUTH"
 ];
 
 const keyboardRows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
 
 function readRecord(): WordGuessRecord {
-  const stored = window.localStorage.getItem(RECORD_KEY);
-  return stored ? (JSON.parse(stored) as WordGuessRecord) : { wins: 0, losses: 0, streak: 0, bestStreak: 0 };
+  try {
+    const stored = window.localStorage.getItem(RECORD_KEY);
+    return stored ? (JSON.parse(stored) as WordGuessRecord) : { wins: 0, losses: 0, streak: 0, bestStreak: 0 };
+  } catch {
+    return { wins: 0, losses: 0, streak: 0, bestStreak: 0 };
+  }
 }
 
 function pickWord() {
@@ -121,45 +171,45 @@ export function WordGuess({ onBack }: WordGuessProps) {
   const [input, setInput] = useState("");
   const [attempts, setAttempts] = useState<WordGuessAttempt[]>([]);
   const [record, setRecord] = useState<WordGuessRecord>(() => readRecord());
-  const [message, setMessage] = useState("5文字の英単語を6回以内に当てましょう。緑は位置一致、黄は文字だけ一致です。");
+  const [message, setMessage] = useState("5文字の英単語を6回以内に当てましょう。緑は位置も一致、黄は文字だけ一致です。");
 
   const keyStates = useMemo(() => getKeyStates(attempts), [attempts]);
   const attemptsLeft = MAX_ATTEMPTS - attempts.length;
   const ranking = useRanking({ gameId: "word-guess-attempts", metricLabel: "Attempts", mode: "lower" });
 
-  const startGame = () => {
+  const startGame = useCallback(() => {
     setAnswer(pickWord());
     setStatus("playing");
     setInput("");
     setAttempts([]);
-    setMessage("キーボードで5文字を入力して、判定しましょう。");
-  };
+    setMessage("キーボードまたは画面のキーで5文字を入力して、判定しましょう。");
+  }, []);
 
-  const finish = (result: "win" | "loss", nextAttempts: WordGuessAttempt[]) => {
+  const finish = useCallback((result: "win" | "loss", nextAttempts: WordGuessAttempt[]) => {
     const nextRecord = updateRecord(record, result);
     setRecord(nextRecord);
     window.localStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus(result === "win" ? "won" : "lost");
     setMessage(result === "win" ? `${nextAttempts.length}回で正解！` : `残念。答えは ${answer} でした。`);
-  };
+  }, [answer, record]);
 
-  const addLetter = (letter: string) => {
-    if (status !== "playing" || input.length >= WORD_LENGTH) {
-      return;
-    }
-
-    setInput(`${input}${letter}`);
-  };
-
-  const deleteLetter = () => {
+  const addLetter = useCallback((letter: string) => {
     if (status !== "playing") {
       return;
     }
 
-    setInput(input.slice(0, -1));
-  };
+    setInput((current) => current.length >= WORD_LENGTH ? current : `${current}${letter}`);
+  }, [status]);
 
-  const submitGuess = () => {
+  const deleteLetter = useCallback(() => {
+    if (status !== "playing") {
+      return;
+    }
+
+    setInput((current) => current.slice(0, -1));
+  }, [status]);
+
+  const submitGuess = useCallback(() => {
     if (status !== "playing") {
       return;
     }
@@ -170,7 +220,7 @@ export function WordGuess({ onBack }: WordGuessProps) {
     }
 
     if (!WORDS.includes(input)) {
-      setMessage("辞書にある単語を入力してください。");
+      setMessage("候補リストにある英単語を入力してください。");
       return;
     }
 
@@ -193,7 +243,35 @@ export function WordGuess({ onBack }: WordGuessProps) {
     }
 
     setMessage(`判定しました。残り${MAX_ATTEMPTS - nextAttempts.length}回です。`);
-  };
+  }, [answer, attempts, finish, input, status]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (status !== "playing") {
+        return;
+      }
+
+      if (/^[a-zA-Z]$/.test(event.key)) {
+        event.preventDefault();
+        addLetter(event.key.toUpperCase());
+        return;
+      }
+
+      if (event.key === "Backspace") {
+        event.preventDefault();
+        deleteLetter();
+        return;
+      }
+
+      if (event.key === "Enter") {
+        event.preventDefault();
+        submitGuess();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [addLetter, deleteLetter, status, submitGuess]);
 
   const resetRecord = () => {
     const emptyRecord = { wins: 0, losses: 0, streak: 0, bestStreak: 0 };
@@ -213,20 +291,20 @@ export function WordGuess({ onBack }: WordGuessProps) {
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">WORD GAME / INTERNAL GAME</p>
-          <h1 id="wordguess-title">Word Guess</h1>
+          <h1 id="wordguess-title">Wordle風ゲーム</h1>
           <p className="lead">{message}</p>
         </div>
-        <div className="score-panel wordguess-score" aria-label="Word Guessの状態">
+        <div className="score-panel wordguess-score" aria-label="Wordle風ゲームの状態">
           <div>
-            <span>Win</span>
+            <span>勝利</span>
             <strong>{record.wins}</strong>
           </div>
           <div>
-            <span>Left</span>
+            <span>残り</span>
             <strong>{attemptsLeft}</strong>
           </div>
           <div>
-            <span>Streak</span>
+            <span>連勝</span>
             <strong>{record.streak}</strong>
           </div>
         </div>
@@ -278,7 +356,7 @@ export function WordGuess({ onBack }: WordGuessProps) {
           <div className="rule-card">
             <h2>遊び方</h2>
             <p>
-              5文字の英単語を入力します。緑は文字と位置が一致、黄は文字は含まれるが位置が違う、灰色は含まれない文字です。
+              5文字の英単語を入力します。緑は文字と位置が一致、黄は文字は含まれるが位置が違う、黒は含まれない文字です。
               6回以内に答えを絞り込みましょう。
             </p>
           </div>
