@@ -397,6 +397,18 @@ export const games: Game[] = [
     status: "available"
   },
   {
+    id: "yachtDice",
+    title: "ヨットダイス",
+    englishTitle: "YACHT DICE",
+    description: "5つのサイコロを振り直しながら役を作り、スコア表を埋めて高得点を狙うダイスゲーム。",
+    genre: "CARD GAME",
+    href: "?game=yachtDice",
+    screenshot: "/screenshots/yacht-dice.svg",
+    accent: "#f2b66d",
+    kind: "internal",
+    status: "available"
+  },
+  {
     id: "nonogram",
     title: "イラストロジック",
     englishTitle: "NONOGRAM",

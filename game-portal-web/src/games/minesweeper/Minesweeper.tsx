@@ -1,5 +1,6 @@
 import { Bomb, Flag, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState, type CSSProperties, type MouseEvent } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import {
   countFlags,
@@ -38,6 +39,8 @@ function readBestTimes(): Partial<Record<DifficultyId, number>> {
 }
 
 export function Minesweeper({ onBack }: MinesweeperProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
   const [difficultyId, setDifficultyId] = useState<DifficultyId>("easy");
   const difficulty = getDifficulty(difficultyId);
   const [board, setBoard] = useState<MineBoard>(() => createEmptyBoard(difficulty));
@@ -150,13 +153,23 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
     lost: "地雷を踏みました。もう一度、慎重にいきましょう。"
   }[status];
 
+  const visibleStatusText = isEnglish ? {
+    ready: "Your first move is always safe. Reveal cells and avoid the mines.",
+    playing: "Numbers show how many mines are in the eight surrounding cells. Flag suspicious cells.",
+    won: "Cleared! You revealed every safe cell.",
+    lost: "You hit a mine. Try again carefully."
+  }[status] : statusText;
+  const visibleStatusLabel = isEnglish
+    ? status === "ready" ? "Not started" : status === "playing" ? "Exploring" : status === "won" ? "Cleared" : "Failed"
+    : status === "ready" ? "開始前" : status === "playing" ? "探索中" : status === "won" ? "クリア" : "失敗";
+
   return (
     <section className="puzzle-shell minesweeper-shell" aria-labelledby="minesweeper-title">
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">PUZZLE / INTERNAL GAME</p>
           <h1 id="minesweeper-title">マインスイーパー</h1>
-          <p className="lead">{statusText}</p>
+          <p className="lead">{visibleStatusText}</p>
         </div>
         <div className="score-panel minesweeper-stats" aria-label="マインスイーパーの状態">
           <div>
@@ -218,18 +231,20 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
 
         <aside className="puzzle-side minesweeper-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{isEnglish ? "How to play" : "遊び方"}</h2>
             <p>
-              地雷ではないマスをすべて開けばクリアです。PCでは右クリックで旗、スマホでは旗モードを使うと遊びやすいです。
+              {isEnglish
+                ? "Reveal every non-mine cell to clear the board. On PC, right-click to flag; on phones, use Flag Mode."
+                : "地雷ではないマスをすべて開けばクリアです。PCでは右クリックで旗、スマホでは旗モードを使うと遊びやすいです。"}
             </p>
           </div>
 
           <label className="select-label">
-            難易度
+            {isEnglish ? "Difficulty" : "難易度"}
             <select value={difficultyId} onChange={(event) => resetGame(event.target.value as DifficultyId)}>
               {difficulties.map((item) => (
                 <option value={item.id} key={item.id}>
-                  {item.label} - {item.rows}x{item.columns} / 地雷{item.mines}
+                  {item.label} - {item.rows}x{item.columns} / {isEnglish ? `${item.mines} mines` : `地雷${item.mines}`}
                 </option>
               ))}
             </select>
@@ -237,10 +252,10 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
 
           <div className="mine-progress">
             <span>
-              安全マス: {revealedSafeCells}/{safeCells}
+              {isEnglish ? "Safe cells" : "安全マス"}: {revealedSafeCells}/{safeCells}
             </span>
             <span>
-              状態: {status === "ready" ? "開始前" : status === "playing" ? "探索中" : status === "won" ? "クリア" : "失敗"}
+              {isEnglish ? "Status" : "状態"}: {visibleStatusLabel}
             </span>
             <span>ベストタイム: {bestTime === null ? "未記録" : formatTime(bestTime)}</span>
           </div>
@@ -248,7 +263,7 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => resetGame()}>
               <RotateCcw aria-hidden="true" />
-              リセット
+              {isEnglish ? "Reset" : "リセット"}
             </button>
             <button
               className={`ghost-button${flagMode ? " is-active" : ""}`}
@@ -257,22 +272,22 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
               aria-pressed={flagMode}
             >
               <Flag aria-hidden="true" />
-              旗モード
+              {isEnglish ? "Flag Mode" : "旗モード"}
             </button>
           </div>
 
           <div className="mine-status-card">
             <Bomb aria-hidden="true" />
-            <p>残り地雷数は「地雷数 - 旗の数」です。旗の置きすぎにはご注意を。</p>
+            <p>{isEnglish ? "Mines left is calculated as mines minus flags. Be careful not to place too many flags." : "残り地雷数は「地雷数 - 旗の数」です。旗の置きすぎにはご注意を。"}</p>
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "won" ? { score: seconds, display: `${formatTime(seconds)}秒`, meta: difficulty.label } : null}
+            pendingScore={status === "won" ? { score: seconds, display: isEnglish ? `${formatTime(seconds)} sec` : `${formatTime(seconds)}秒`, meta: difficulty.label } : null}
           />
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {isEnglish ? "Back to shelf" : "棚へ戻る"}
           </button>
         </aside>
       </div>

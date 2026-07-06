@@ -1,5 +1,6 @@
 import { Lightbulb, RotateCcw, Shuffle } from "lucide-react";
 import { useEffect, useState, type CSSProperties } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import { countLitCells, createPuzzle, isCleared, lightsOutDifficulties, toggleAt } from "./logic";
 import type { LightsOutBoard, LightsOutDifficultyId, LightsOutStatus } from "./types";
@@ -19,6 +20,8 @@ function formatTime(seconds: number) {
 }
 
 export function LightsOut({ onBack }: LightsOutProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
   const [difficultyId, setDifficultyId] = useState<LightsOutDifficultyId>("easy");
   const difficulty = getDifficulty(difficultyId);
   const [board, setBoard] = useState<LightsOutBoard>(() => createPuzzle(difficulty));
@@ -111,16 +114,21 @@ export function LightsOut({ onBack }: LightsOutProps) {
     playing: "あと少しのようで、盤面全体がふっと変わるのがこのパズルの味です。",
     cleared: "クリア！すべてのライトが消えました。"
   }[status];
+  const visibleStatusText = isEnglish ? {
+    ready: "Turn off every lit light. Pressing a cell toggles it and its up, down, left, and right neighbors.",
+    playing: "The whole board can change in one move. Keep nudging the pattern into shape.",
+    cleared: "Cleared! Every light is off."
+  }[status] : statusText;
 
   return (
     <section className="puzzle-shell lights-out-shell" aria-labelledby="lights-out-title">
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">PUZZLE / INTERNAL GAME</p>
-          <h1 id="lights-out-title">ライツアウト</h1>
-          <p className="lead">{statusText}</p>
+          <h1 id="lights-out-title">{isEnglish ? "Lights Out" : "ライツアウト"}</h1>
+          <p className="lead">{visibleStatusText}</p>
         </div>
-        <div className="score-panel lights-out-stats" aria-label="ライツアウトの状態">
+        <div className="score-panel lights-out-stats" aria-label={isEnglish ? "Lights Out status" : "ライツアウトの状態"}>
           <div>
             <span>Moves</span>
             <strong>{moves}</strong>
@@ -150,7 +158,7 @@ export function LightsOut({ onBack }: LightsOutProps) {
                 key={`${rowIndex}-${columnIndex}`}
                 onClick={() => pressLight(rowIndex, columnIndex)}
                 disabled={status === "cleared"}
-                aria-label={`${rowIndex + 1}行${columnIndex + 1}列、${lit ? "点灯" : "消灯"}`}
+                aria-label={isEnglish ? `row ${rowIndex + 1}, column ${columnIndex + 1}, ${lit ? "lit" : "off"}` : `${rowIndex + 1}行${columnIndex + 1}列、${lit ? "点灯" : "消灯"}`}
               >
                 <span aria-hidden="true" />
               </button>
@@ -160,14 +168,16 @@ export function LightsOut({ onBack }: LightsOutProps) {
 
         <aside className="puzzle-side lights-out-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{isEnglish ? "How to play" : "遊び方"}</h2>
             <p>
-              マスを押すと、そのマスと上下左右のライトが反転します。すべてのライトを消せばクリアです。
+              {isEnglish
+                ? "Pressing a cell toggles it and its up, down, left, and right neighbors. Turn all lights off to clear the puzzle."
+                : "マスを押すと、そのマスと上下左右のライトが反転します。すべてのライトを消せばクリアです。"}
             </p>
           </div>
 
           <label className="select-label">
-            難易度
+            {isEnglish ? "Difficulty" : "難易度"}
             <select value={difficultyId} onChange={(event) => resetGame(event.target.value as LightsOutDifficultyId)}>
               {lightsOutDifficulties.map((item) => (
                 <option value={item.id} key={item.id}>
@@ -179,36 +189,36 @@ export function LightsOut({ onBack }: LightsOutProps) {
 
           <div className="lights-out-progress">
             <span>
-              点灯: {litCells}/{totalCells}
+              {isEnglish ? "Lit" : "点灯"}: {litCells}/{totalCells}
             </span>
-            <span>時間: {formatTime(seconds)}</span>
-            <span>ベスト手数: {bestMoves ?? "未記録"}</span>
-            <span>ベストタイム: {bestTime === null ? "未記録" : formatTime(bestTime)}</span>
+            <span>{isEnglish ? "Time" : "時間"}: {formatTime(seconds)}</span>
+            <span>{isEnglish ? "Best moves" : "ベスト手数"}: {bestMoves ?? (isEnglish ? "No record" : "未記録")}</span>
+            <span>{isEnglish ? "Best time" : "ベストタイム"}: {bestTime === null ? (isEnglish ? "No record" : "未記録") : formatTime(bestTime)}</span>
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "cleared" ? { score: moves, display: `${moves}手`, meta: `${difficulty.label} / ${formatTime(seconds)}` } : null}
+            pendingScore={status === "cleared" ? { score: moves, display: isEnglish ? `${moves} moves` : `${moves}手`, meta: `${difficulty.label} / ${formatTime(seconds)}` } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => resetGame()}>
               <Shuffle aria-hidden="true" />
-              新しい盤面
+              {isEnglish ? "New board" : "新しい盤面"}
             </button>
             <button className="ghost-button" type="button" onClick={() => resetGame()}>
               <RotateCcw aria-hidden="true" />
-              リセット
+              {isEnglish ? "Reset" : "リセット"}
             </button>
           </div>
 
           <div className="lights-out-tip">
             <Lightbulb aria-hidden="true" />
-            <p>同じマスを2回押すと元に戻ります。迷ったら端から少しずつ整えるのがコツです。</p>
+            <p>{isEnglish ? "Pressing the same cell twice restores it. If you get stuck, work from the edges inward." : "同じマスを2回押すと元に戻ります。迷ったら端から少しずつ整えるのがコツです。"}</p>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {isEnglish ? "Back to shelf" : "棚へ戻る"}
           </button>
         </aside>
       </div>

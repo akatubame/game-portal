@@ -1,5 +1,6 @@
 import { Calculator, RotateCcw, Send } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import type { MathOperator, MathProblem, MentalMathResult, MentalMathStatus } from "./types";
 
@@ -40,7 +41,31 @@ function calculateScore(solved: number, mistakes: number, bestStreak: number) {
   return Math.max(0, solved * 120 + bestStreak * 40 - mistakes * 35);
 }
 
+function translateMentalMathMessage(message: string) {
+  const streakMatch = message.match(/(\d+).*?(連続|騾｣邯|streak)/);
+  if (streakMatch && (message.includes("正解") || message.includes("豁｣隗｣"))) {
+    return `Correct! ${streakMatch[1]} in a row. Nice streak.`;
+  }
+
+  if (message.includes("スタート") || message.includes("繧ｹ繧ｿ繝ｼ繝・")) {
+    return "Press Start to begin a 60-second mental math challenge.";
+  }
+  if (message.includes("Enter") || message.includes("入力") || message.includes("蜈･蜉・")) {
+    return "Enter your answer and press Enter, or use the answer button.";
+  }
+  if (message.includes("次の問題") || message.includes("蝠城｡後")) {
+    return "Correct. On to the next problem!";
+  }
+  if (message.includes("終了") || message.includes("邨ゆｺ・")) {
+    return "Finished. Try again and aim for a new best score.";
+  }
+
+  return message;
+}
+
 export function MentalMath({ onBack }: MentalMathProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
   const [status, setStatus] = useState<MentalMathStatus>("idle");
   const [problem, setProblem] = useState<MathProblem>(() => createProblem());
   const [answer, setAnswer] = useState("");
@@ -55,6 +80,7 @@ export function MentalMath({ onBack }: MentalMathProps) {
 
   const score = useMemo(() => calculateScore(solved, mistakes, bestStreak), [bestStreak, mistakes, solved]);
   const ranking = useRanking({ gameId: "mental-math-score", metricLabel: "Score", mode: "higher" });
+  const visibleMessage = isEnglish ? translateMentalMathMessage(message) : message;
 
   useEffect(() => {
     if (status !== "playing") {
@@ -145,8 +171,8 @@ export function MentalMath({ onBack }: MentalMathProps) {
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">SCORE ATTACK / INTERNAL GAME</p>
-          <h1 id="mental-math-title">計算ゲーム</h1>
-          <p className="lead">{message}</p>
+          <h1 id="mental-math-title">{isEnglish ? "Mental Math" : "計算ゲーム"}</h1>
+          <p className="lead">{visibleMessage}</p>
         </div>
         <div className="score-panel mental-math-stats" aria-label="計算ゲームの状態">
           <div>
@@ -184,41 +210,45 @@ export function MentalMath({ onBack }: MentalMathProps) {
                 }
               }}
               disabled={status !== "playing"}
-              aria-label="答え"
-              placeholder={status === "playing" ? "答え" : "スタート後に入力"}
+              aria-label={isEnglish ? "Answer" : "答え"}
+              placeholder={status === "playing" ? (isEnglish ? "Answer" : "答え") : (isEnglish ? "Type after starting" : "スタート後に入力")}
             />
             <button className="mental-math-submit" type="button" onClick={submitAnswer} disabled={status !== "playing"}>
               <Send aria-hidden="true" />
-              回答
+              {isEnglish ? "Answer" : "回答"}
             </button>
           </div>
 
           <button className="mental-math-start-button" type="button" onClick={startRound}>
             <Calculator aria-hidden="true" />
-            {status === "playing" ? "最初から" : "スタート"}
+            {status === "playing" ? (isEnglish ? "Restart" : "最初から") : (isEnglish ? "Start" : "スタート")}
           </button>
         </div>
 
         <aside className="puzzle-side mental-math-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{isEnglish ? "How to play" : "遊び方"}</h2>
             <p>
-              60秒以内に表示された計算問題をできるだけ多く解きます。足し算・引き算・掛け算がランダムに出題され、連続正解がスコアを伸ばす鍵です。
+              {isEnglish
+                ? "Solve as many displayed math problems as you can in 60 seconds. Addition, subtraction, and multiplication appear randomly; correct streaks are the key to higher scores."
+                : "60秒以内に表示された計算問題をできるだけ多く解きます。足し算・引き算・掛け算がランダムに出題され、連続正解がスコアを伸ばす鍵です。"}
             </p>
           </div>
 
           <div className="mental-math-progress">
-            <span>正解数: {solved}</span>
-            <span>ミス: {mistakes}</span>
-            <span>連続正解: {streak}</span>
-            <span>最高連続: {bestStreak}</span>
+            <span>{isEnglish ? "Correct" : "正解数"}: {solved}</span>
+            <span>{isEnglish ? "Misses" : "ミス"}: {mistakes}</span>
+            <span>{isEnglish ? "Streak" : "連続正解"}: {streak}</span>
+            <span>{isEnglish ? "Best streak" : "最高連続"}: {bestStreak}</span>
           </div>
 
           <div className="mental-math-best">
-            <h2>ベスト</h2>
+            <h2>{isEnglish ? "Best" : "ベスト"}</h2>
             {bestResult ? (
               <p>
-                {bestResult.score}点 / {bestResult.solved}問正解 / 最高{bestResult.bestStreak}連続
+                {isEnglish
+                  ? `${bestResult.score} pts / ${bestResult.solved} solved / best ${bestResult.bestStreak} streak`
+                  : `${bestResult.score}点 / ${bestResult.solved}問正解 / 最高${bestResult.bestStreak}連続`}
               </p>
             ) : (
               <p>まだ記録がありません。</p>
@@ -227,22 +257,22 @@ export function MentalMath({ onBack }: MentalMathProps) {
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "finished" ? { score, display: `${score}点`, meta: `${solved}問正解 / 最高${bestStreak}連続` } : null}
+            pendingScore={status === "finished" ? { score, display: isEnglish ? `${score} pts` : `${score}点`, meta: isEnglish ? `${solved} solved / best ${bestStreak} streak` : `${solved}問正解 / 最高${bestStreak}連続` } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startRound}>
               <Calculator aria-hidden="true" />
-              挑戦
+              {isEnglish ? "Challenge" : "挑戦"}
             </button>
             <button className="ghost-button" type="button" onClick={resetBest}>
               <RotateCcw aria-hidden="true" />
-              ベスト削除
+              {isEnglish ? "Clear best" : "ベスト削除"}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {isEnglish ? "Back to shelf" : "棚へ戻る"}
           </button>
         </aside>
       </div>

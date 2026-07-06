@@ -1,5 +1,6 @@
 import { Dice5, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import type { YachtBest, YachtCategoryId, YachtScoreSheet, YachtStatus } from "./types";
 
@@ -127,6 +128,40 @@ const categories: YachtCategory[] = [
   }
 ];
 
+const categoryEnglishText: Record<YachtCategoryId, { label: string; description: string }> = {
+  ones: { label: "Aces", description: "Total of ones." },
+  twos: { label: "Twos", description: "Total of twos." },
+  threes: { label: "Threes", description: "Total of threes." },
+  fours: { label: "Fours", description: "Total of fours." },
+  fives: { label: "Fives", description: "Total of fives." },
+  sixes: { label: "Sixes", description: "Total of sixes." },
+  threeKind: { label: "Three of a Kind", description: "If at least three dice show the same face, score the total of all dice." },
+  fourKind: { label: "Four of a Kind", description: "If at least four dice show the same face, score the total of all dice." },
+  fullHouse: { label: "Full House", description: "Three of one face and two of another scores 25 points." },
+  smallStraight: { label: "Small Straight", description: "Four in sequence scores 30 points." },
+  largeStraight: { label: "Large Straight", description: "Five in sequence scores 40 points." },
+  yacht: { label: "Yacht", description: "Five dice showing the same face scores 50 points." },
+  chance: { label: "Chance", description: "Total of all dice." }
+};
+
+function translateYachtMessage(message: string) {
+  const scoredMatch = message.match(/^(.+)に(\d+)点を記録しました。次のラウンドです。$/);
+  if (scoredMatch) {
+    return `Scored ${scoredMatch[2]} points in ${scoredMatch[1]}. Next round.`;
+  }
+  const finishedMatch = message.match(/^ゲーム終了！合計(\d+)点でした。$/);
+  if (finishedMatch) {
+    return `Game over! Total score: ${finishedMatch[1]} points.`;
+  }
+  const exact: Record<string, string> = {
+    "サイコロを最大3回振り、狙う役にスコアを記録していきましょう。": "Roll the dice up to three times and record scores in the categories you aim for.",
+    "まずはロール。残したいサイコロはクリックでホールドできます。": "Roll first. Click dice you want to hold.",
+    "残したい目をホールドして、もう一度振るか役を選びましょう。": "Hold the dice you want to keep, then roll again or choose a category.",
+    "ロール終了です。スコアを入れる役を選んでください。": "No rolls left. Choose a category to score."
+  };
+  return exact[message] ?? message;
+}
+
 function readBest(): YachtBest | null {
   const stored = window.localStorage.getItem(BEST_KEY);
   return stored ? (JSON.parse(stored) as YachtBest) : null;
@@ -141,6 +176,8 @@ function formatDie(value: number) {
 }
 
 export function YachtDice({ onBack }: YachtDiceProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
   const [status, setStatus] = useState<YachtStatus>("idle");
   const [dice, setDice] = useState<number[]>(() => createDice());
   const [held, setHeld] = useState<boolean[]>(() => Array.from({ length: DICE_COUNT }, () => false));
@@ -154,6 +191,7 @@ export function YachtDice({ onBack }: YachtDiceProps) {
   const round = Object.keys(scores).length + 1;
   const hasRolled = status === "playing" && rollsLeft < MAX_ROLLS;
   const isComplete = Object.keys(scores).length >= categories.length;
+  const visibleMessage = isEnglish ? translateYachtMessage(message) : message;
 
   const startGame = () => {
     setStatus("playing");
@@ -222,10 +260,10 @@ export function YachtDice({ onBack }: YachtDiceProps) {
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">DICE / INTERNAL GAME</p>
-          <h1 id="yacht-title">ヨットダイス</h1>
-          <p className="lead">{message}</p>
+          <h1 id="yacht-title">{isEnglish ? "Yacht Dice" : "ヨットダイス"}</h1>
+          <p className="lead">{visibleMessage}</p>
         </div>
-        <div className="score-panel yacht-score" aria-label="ヨットダイスの状態">
+        <div className="score-panel yacht-score" aria-label={isEnglish ? "Yacht Dice status" : "ヨットダイスの状態"}>
           <div>
             <span>Total</span>
             <strong>{total}</strong>
@@ -243,7 +281,7 @@ export function YachtDice({ onBack }: YachtDiceProps) {
 
       <div className="puzzle-layout yacht-layout">
         <div className="yacht-play-area">
-          <div className="yacht-dice-row" aria-label="サイコロ">
+          <div className="yacht-dice-row" aria-label={isEnglish ? "Dice" : "サイコロ"}>
             {dice.map((value, index) => (
               <button
                 className={held[index] ? "is-held" : ""}
@@ -251,7 +289,7 @@ export function YachtDice({ onBack }: YachtDiceProps) {
                 key={index}
                 type="button"
                 onClick={() => toggleHold(index)}
-                aria-label={`${index + 1}番目のサイコロ ${value}${held[index] ? " ホールド中" : ""}`}
+                aria-label={isEnglish ? `die ${index + 1}: ${value}${held[index] ? " held" : ""}` : `${index + 1}番目のサイコロ ${value}${held[index] ? " ホールド中" : ""}`}
               >
                 <span>{formatDie(value)}</span>
                 <small>{held[index] ? "HOLD" : "FREE"}</small>
@@ -262,7 +300,7 @@ export function YachtDice({ onBack }: YachtDiceProps) {
           <div className="yacht-controls">
             <button className="primary-button" type="button" onClick={rollDice} disabled={status !== "playing" || rollsLeft <= 0}>
               <Dice5 aria-hidden="true" />
-              ロール
+              {isEnglish ? "Roll" : "ロール"}
             </button>
             <button className="ghost-button" type="button" onClick={startGame}>
               <Sparkles aria-hidden="true" />
@@ -270,7 +308,7 @@ export function YachtDice({ onBack }: YachtDiceProps) {
             </button>
           </div>
 
-          <div className="yacht-sheet" aria-label="スコアシート">
+          <div className="yacht-sheet" aria-label={isEnglish ? "Score sheet" : "スコアシート"}>
             {categories.map((category) => {
               const usedScore = scores[category.id];
               const preview = category.score(dice);
@@ -284,8 +322,8 @@ export function YachtDice({ onBack }: YachtDiceProps) {
                   onClick={() => chooseCategory(category)}
                 >
                   <span>
-                    <strong>{category.label}</strong>
-                    <small>{category.description}</small>
+                    <strong>{isEnglish ? categoryEnglishText[category.id].label : category.label}</strong>
+                    <small>{isEnglish ? categoryEnglishText[category.id].description : category.description}</small>
                   </span>
                   <b>{usedScore !== undefined ? usedScore : preview}</b>
                 </button>
@@ -296,38 +334,39 @@ export function YachtDice({ onBack }: YachtDiceProps) {
 
         <aside className="puzzle-side yacht-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{isEnglish ? "How to play" : "遊び方"}</h2>
             <p>
-              各ラウンドで最大3回サイコロを振れます。残したいサイコロをホールドし、最後に1つの役へスコアを記録します。
-              すべての役を埋めた合計点が記録です。
+              {isEnglish
+                ? "In each round, roll the dice up to three times. Hold dice you want to keep, then record the score in one category. Your final record is the total after all categories are filled."
+                : "各ラウンドで最大3回サイコロを振れます。残したいサイコロをホールドし、最後に1つの役へスコアを記録します。すべての役を埋めた合計点が記録です。"}
             </p>
           </div>
 
           <div className="yacht-progress">
-            <span>現在: {status === "playing" ? "プレイ中" : status === "finished" ? "終了" : "待機中"}</span>
-            <span>記録済み: {Object.keys(scores).length}/{categories.length}</span>
-            <span>ベスト: {best ? `${best.score}点` : "まだ記録なし"}</span>
+            <span>{isEnglish ? "Current" : "現在"}: {isEnglish ? (status === "playing" ? "Playing" : status === "finished" ? "Finished" : "Idle") : (status === "playing" ? "プレイ中" : status === "finished" ? "終了" : "待機中")}</span>
+            <span>{isEnglish ? "Scored" : "記録済み"}: {Object.keys(scores).length}/{categories.length}</span>
+            <span>{isEnglish ? "Best" : "ベスト"}: {best ? (isEnglish ? `${best.score} pts` : `${best.score}点`) : (isEnglish ? "No record yet" : "まだ記録なし")}</span>
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "finished" ? { score: total, display: `${total}点`, meta: `記録済み ${Object.keys(scores).length}/${categories.length}` } : null}
+            pendingScore={status === "finished" ? { score: total, display: isEnglish ? `${total} pts` : `${total}点`, meta: isEnglish ? `Scored ${Object.keys(scores).length}/${categories.length}` : `記録済み ${Object.keys(scores).length}/${categories.length}` } : null}
           />
 
           <div className="yacht-hint">
             <Dice5 aria-hidden="true" />
-            高得点役を狙いすぎると空振りもあります。チャンスや上段役で堅く拾う判断も大事です。
+            {isEnglish ? "Chasing only high-scoring hands can leave you empty-handed. Sometimes it is smarter to safely score Chance or upper-section categories." : "高得点役を狙いすぎると空振りもあります。チャンスや上段役で堅く拾う判断も大事です。"}
           </div>
 
           <div className="control-row">
             <button className="ghost-button" type="button" onClick={resetBest}>
               <RotateCcw aria-hidden="true" />
-              ベスト削除
+              {isEnglish ? "Clear best" : "ベスト削除"}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {isEnglish ? "Back to shelf" : "棚へ戻る"}
           </button>
         </aside>
       </div>

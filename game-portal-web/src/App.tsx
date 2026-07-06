@@ -36,6 +36,7 @@ import { TypingGame } from "./games/typing/TypingGame";
 import { WhackMole } from "./games/whackMole/WhackMole";
 import { WaterSort } from "./games/waterSort/WaterSort";
 import { WordGuess } from "./games/wordGuess/WordGuess";
+import { YachtDice } from "./games/yachtDice/YachtDice";
 
 const gameViews: Record<string, ComponentType<{ onBack: () => void }>> = {
   "2048": Puzzle2048,
@@ -68,11 +69,12 @@ const gameViews: Record<string, ComponentType<{ onBack: () => void }>> = {
   oneToFifty: OneToFifty,
   waterSort: WaterSort,
   poker: Poker,
+  yachtDice: YachtDice,
   nonogram: Nonogram,
   wordGuess: WordGuess
 };
 
-const recentGameIds = ["wordGuess", "nonogram", "poker", "waterSort"];
+const recentGameIds = ["wordGuess", "nonogram", "poker", "yachtDice"];
 const popularGameIds = ["2048", "sudoku", "minesweeper", "nonogram", "snake", "reversi"];
 const allGenresKey = "__all__";
 const favoriteStorageKey = "game-shelf-favorites";

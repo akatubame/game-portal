@@ -1,5 +1,6 @@
 import { Delete, Keyboard, RotateCcw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import type { LetterState, WordGuessAttempt, WordGuessRecord, WordGuessStatus } from "./types";
 
@@ -165,7 +166,31 @@ function updateRecord(record: WordGuessRecord, result: "win" | "loss"): WordGues
   };
 }
 
+function translateWordGuessMessage(message: string) {
+  const winMatch = message.match(/^(\d+)回で正解！$/);
+  if (winMatch) {
+    return `Correct! Solved in ${winMatch[1]} tries.`;
+  }
+  const lostMatch = message.match(/^残念。答えは (.+) でした。$/);
+  if (lostMatch) {
+    return `So close. The answer was ${lostMatch[1]}.`;
+  }
+  const leftMatch = message.match(/^判定しました。残り(\d+)回です。$/);
+  if (leftMatch) {
+    return `Guess checked. ${leftMatch[1]} tries left.`;
+  }
+  const exact: Record<string, string> = {
+    "5文字の英単語を6回以内に当てましょう。緑は位置も一致、黄は文字だけ一致です。": "Guess the five-letter English word in six tries. Green means the right letter in the right place; yellow means the letter exists elsewhere.",
+    "キーボードまたは画面のキーで5文字を入力して、判定しましょう。候補リストは右側にあります。": "Enter five letters with your keyboard or the on-screen keys, then submit your guess. The candidate list is on the right.",
+    "5文字そろえてから判定しましょう。": "Enter all five letters before submitting.",
+    "候補リストにある英単語を入力してください。候補リストは右側の「候補リスト」を開くと確認できます。": "Enter an English word from the candidate list. Open Candidate list on the right to check available words."
+  };
+  return exact[message] ?? message;
+}
+
 export function WordGuess({ onBack }: WordGuessProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
   const [answer, setAnswer] = useState(() => pickWord());
   const [status, setStatus] = useState<WordGuessStatus>("idle");
   const [input, setInput] = useState("");
@@ -176,6 +201,7 @@ export function WordGuess({ onBack }: WordGuessProps) {
   const keyStates = useMemo(() => getKeyStates(attempts), [attempts]);
   const attemptsLeft = MAX_ATTEMPTS - attempts.length;
   const ranking = useRanking({ gameId: "word-guess-attempts", metricLabel: "Attempts", mode: "lower" });
+  const visibleMessage = isEnglish ? translateWordGuessMessage(message) : message;
 
   const startGame = useCallback(() => {
     setAnswer(pickWord());
@@ -291,20 +317,20 @@ export function WordGuess({ onBack }: WordGuessProps) {
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">WORD GAME / INTERNAL GAME</p>
-          <h1 id="wordguess-title">Wordle風ゲーム</h1>
-          <p className="lead">{message}</p>
+          <h1 id="wordguess-title">{isEnglish ? "Word Guess" : "Wordle風ゲーム"}</h1>
+          <p className="lead">{visibleMessage}</p>
         </div>
-        <div className="score-panel wordguess-score" aria-label="Wordle風ゲームの状態">
+        <div className="score-panel wordguess-score" aria-label={isEnglish ? "Word Guess status" : "Wordle風ゲームの状態"}>
           <div>
-            <span>勝利</span>
+            <span>{isEnglish ? "Win" : "勝利"}</span>
             <strong>{record.wins}</strong>
           </div>
           <div>
-            <span>残り</span>
+            <span>{isEnglish ? "Left" : "残り"}</span>
             <strong>{attemptsLeft}</strong>
           </div>
           <div>
-            <span>連勝</span>
+            <span>{isEnglish ? "Win streak" : "連勝"}</span>
             <strong>{record.streak}</strong>
           </div>
         </div>
@@ -312,7 +338,7 @@ export function WordGuess({ onBack }: WordGuessProps) {
 
       <div className="puzzle-layout wordguess-layout">
         <div className="wordguess-play-area">
-          <div className="wordguess-grid" aria-label="推理盤面">
+          <div className="wordguess-grid" aria-label={isEnglish ? "guess board" : "推理盤面"}>
             {rows.map((row, rowIndex) =>
               row.letters.map((letter, columnIndex) => (
                 <span className={`wordguess-tile${row.attempt ? ` is-${row.attempt.result[columnIndex]}` : ""}${letter.trim() ? " is-filled" : ""}`} key={`${rowIndex}-${columnIndex}`}>
@@ -322,7 +348,7 @@ export function WordGuess({ onBack }: WordGuessProps) {
             )}
           </div>
 
-          <div className="wordguess-keyboard" aria-label="文字入力">
+          <div className="wordguess-keyboard" aria-label={isEnglish ? "letter input" : "文字入力"}>
             {keyboardRows.map((row) => (
               <div key={row}>
                 {row.split("").map((letter) => (
@@ -354,16 +380,17 @@ export function WordGuess({ onBack }: WordGuessProps) {
 
         <aside className="puzzle-side wordguess-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{isEnglish ? "How to play" : "遊び方"}</h2>
             <p>
-              5文字の英単語を入力します。緑は文字と位置が一致、黄は文字は含まれるが位置が違う、黒は含まれない文字です。
-              6回以内に答えを絞り込みましょう。
+              {isEnglish
+                ? "Enter a five-letter English word. Green means the letter and position match, yellow means the letter is in the word elsewhere, and black means the letter is not included. Narrow down the answer within six tries."
+                : "5文字の英単語を入力します。緑は文字と位置が一致、黄は文字は含まれるが位置が違う、黒は含まれない文字です。6回以内に答えを絞り込みましょう。"}
             </p>
           </div>
 
           <details className="wordguess-word-list">
-            <summary>候補リスト（{WORDS.length}語）</summary>
-            <p>この一覧にある5文字英単語だけが入力できます。</p>
+            <summary>{isEnglish ? `Candidate list (${WORDS.length} words)` : `候補リスト（${WORDS.length}語）`}</summary>
+            <p>{isEnglish ? "Only the five-letter English words in this list can be entered." : "この一覧にある5文字英単語だけが入力できます。"}</p>
             <div>
               {WORDS.map((word) => (
                 <code key={word}>{word}</code>
@@ -372,9 +399,9 @@ export function WordGuess({ onBack }: WordGuessProps) {
           </details>
 
           <div className="wordguess-progress">
-            <span>現在: {status === "playing" ? "推理中" : status === "won" ? "正解" : status === "lost" ? "失敗" : "待機中"}</span>
-            <span>最高連勝: {record.bestStreak}</span>
-            <span>単語数: {WORDS.length}</span>
+            <span>{isEnglish ? "Current" : "現在"}: {isEnglish ? (status === "playing" ? "Guessing" : status === "won" ? "Correct" : status === "lost" ? "Failed" : "Idle") : (status === "playing" ? "推理中" : status === "won" ? "正解" : status === "lost" ? "失敗" : "待機中")}</span>
+            <span>{isEnglish ? "Best streak" : "最高連勝"}: {record.bestStreak}</span>
+            <span>{isEnglish ? "Word count" : "単語数"}: {WORDS.length}</span>
           </div>
 
           <RankingPanel
@@ -385,16 +412,16 @@ export function WordGuess({ onBack }: WordGuessProps) {
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startGame}>
               <Sparkles aria-hidden="true" />
-              新しく始める
+              {isEnglish ? "New game" : "新しく始める"}
             </button>
             <button className="ghost-button" type="button" onClick={resetRecord}>
               <RotateCcw aria-hidden="true" />
-              戦績リセット
+              {isEnglish ? "Reset record" : "戦績リセット"}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {isEnglish ? "Back to shelf" : "棚へ戻る"}
           </button>
         </aside>
       </div>

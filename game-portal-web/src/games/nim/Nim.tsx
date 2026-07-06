@@ -1,5 +1,6 @@
 import { Hand, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import type { NimDifficulty, NimRecord, NimSetup, NimStatus, NimTurn } from "./types";
 
@@ -39,6 +40,28 @@ const difficultyDescriptions: Record<NimDifficulty, string> = {
   easy: "COMはかなり気まぐれに石を取ります。",
   normal: "COMは時々、勝ち筋を読んできます。",
   hard: "COMはNim和を見て、かなり正確に打ちます。"
+};
+
+const setupEnglishLabels: Record<NimSetup, string> = {
+  classic: "Classic",
+  long: "Long"
+};
+
+const setupEnglishDescriptions: Record<NimSetup, string> = {
+  classic: "A quick standard setup with three piles.",
+  long: "A four-pile setup with a little more strategy."
+};
+
+const difficultyEnglishLabels: Record<NimDifficulty, string> = {
+  easy: "Easy",
+  normal: "Normal",
+  hard: "Hard"
+};
+
+const difficultyEnglishDescriptions: Record<NimDifficulty, string> = {
+  easy: "The CPU takes stones rather randomly.",
+  normal: "The CPU sometimes looks for winning lines.",
+  hard: "The CPU checks the nim-sum and plays quite accurately."
 };
 
 function readRecord(): NimRecord {
@@ -119,6 +142,8 @@ function updateRecord(record: NimRecord, status: "won" | "lost"): NimRecord {
 }
 
 export function Nim({ onBack }: NimProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
   const [setup, setSetup] = useState<NimSetup>("classic");
   const [difficulty, setDifficulty] = useState<NimDifficulty>("normal");
   const [piles, setPiles] = useState<number[]>(() => setupPiles.classic);
@@ -131,6 +156,17 @@ export function Nim({ onBack }: NimProps) {
   const nimSum = useMemo(() => getNimSum(piles), [piles]);
   const ranking = useRanking({ gameId: `nim-${setup}-${difficulty}`, metricLabel: "Streak", mode: "higher" });
   const canPlay = status === "playing" && turn === "player";
+  const visibleMessage = isEnglish
+    ? status === "won"
+      ? "Victory! You took the last stone."
+      : status === "lost"
+        ? "CPU took the last stone. Try leaving a more awkward pile shape next time."
+        : status === "playing" && turn === "cpu"
+          ? "CPU is thinking..."
+          : status === "playing"
+            ? "Your turn. Choose one pile and take any positive number of stones."
+            : "Choose one pile and take one or more stones. The player who takes the last stone wins."
+    : message;
 
   const finishGame = (nextStatus: "won" | "lost") => {
     const nextRecord = updateRecord(record, nextStatus);
@@ -200,7 +236,7 @@ export function Nim({ onBack }: NimProps) {
         <div>
           <p className="eyebrow">STRATEGY / INTERNAL GAME</p>
           <h1 id="nim-title">Nim</h1>
-          <p className="lead">{message}</p>
+          <p className="lead">{visibleMessage}</p>
         </div>
         <div className="score-panel nim-score" aria-label="Nimの戦績">
           <div>
@@ -224,15 +260,15 @@ export function Nim({ onBack }: NimProps) {
             {piles.map((pile, pileIndex) => (
               <div className="nim-pile" key={pileIndex}>
                 <div className="nim-pile-header">
-                  <span>{pileIndex + 1}番目の山</span>
-                  <strong>{pile}個</strong>
+                  <span>{isEnglish ? `Pile ${pileIndex + 1}` : `${pileIndex + 1}番目の山`}</span>
+                  <strong>{isEnglish ? `${pile} stones` : `${pile}個`}</strong>
                 </div>
                 <div className="nim-stones" aria-hidden="true">
                   {Array.from({ length: pile }, (_, stoneIndex) => (
                     <span className="nim-stone" key={stoneIndex} />
                   ))}
                 </div>
-                <div className="nim-take-row" aria-label={`${pileIndex + 1}番目の山から取る数`}>
+                <div className="nim-take-row" aria-label={isEnglish ? `take from pile ${pileIndex + 1}` : `${pileIndex + 1}番目の山から取る数`}>
                   {Array.from({ length: Math.max(pile, 1) }, (_, index) => {
                     const count = index + 1;
                     return (
@@ -241,7 +277,7 @@ export function Nim({ onBack }: NimProps) {
                         key={count}
                         type="button"
                         onClick={() => takeStones(pileIndex, count)}
-                        aria-label={`${pileIndex + 1}番目の山から${count}個取る`}
+                        aria-label={isEnglish ? `take ${count} from pile ${pileIndex + 1}` : `${pileIndex + 1}番目の山から${count}個取る`}
                       >
                         {count}
                       </button>
@@ -255,10 +291,11 @@ export function Nim({ onBack }: NimProps) {
 
         <aside className="puzzle-side nim-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{isEnglish ? "How to play" : "遊び方"}</h2>
             <p>
-              自分の番では、一つの山から1個以上の石を取ります。複数の山から同時には取れません。
-              最後の石を取ったプレイヤーが勝ちです。
+              {isEnglish
+                ? "On your turn, take one or more stones from a single pile. You cannot take from multiple piles at once. The player who takes the last stone wins."
+                : "自分の番では、一つの山から1個以上の石を取ります。複数の山から同時には取れません。最後の石を取ったプレイヤーが勝ちです。"}
             </p>
           </div>
 
@@ -271,8 +308,8 @@ export function Nim({ onBack }: NimProps) {
                 type="button"
                 onClick={() => startGame(level)}
               >
-                <span>{setupLabels[level]}</span>
-                <small>{setupDescriptions[level]}</small>
+                <span>{isEnglish ? setupEnglishLabels[level] : setupLabels[level]}</span>
+                <small>{isEnglish ? setupEnglishDescriptions[level] : setupDescriptions[level]}</small>
               </button>
             ))}
           </div>
@@ -286,42 +323,42 @@ export function Nim({ onBack }: NimProps) {
                 type="button"
                 onClick={() => setDifficulty(level)}
               >
-                <span>{difficultyLabels[level]}</span>
-                <small>{difficultyDescriptions[level]}</small>
+                <span>{isEnglish ? difficultyEnglishLabels[level] : difficultyLabels[level]}</span>
+                <small>{isEnglish ? difficultyEnglishDescriptions[level] : difficultyDescriptions[level]}</small>
               </button>
             ))}
           </div>
 
           <div className="nim-progress">
-            <span>現在: {status === "playing" ? (turn === "player" ? "あなたの番" : "COMの番") : status === "won" ? "勝利" : status === "lost" ? "敗北" : "待機中"}</span>
-            <span>残り石: {remaining}</span>
-            <span>Nim和: {nimSum}</span>
-            <span>最高連勝: {record.bestStreak}</span>
+            <span>{isEnglish ? "Current" : "現在"}: {isEnglish ? (status === "playing" ? (turn === "player" ? "Your turn" : "CPU turn") : status === "won" ? "Win" : status === "lost" ? "Loss" : "Idle") : (status === "playing" ? (turn === "player" ? "あなたの番" : "COMの番") : status === "won" ? "勝利" : status === "lost" ? "敗北" : "待機中")}</span>
+            <span>{isEnglish ? "Stones left" : "残り石"}: {remaining}</span>
+            <span>{isEnglish ? "Nim-sum" : "Nim和"}: {nimSum}</span>
+            <span>{isEnglish ? "Best streak" : "最高連勝"}: {record.bestStreak}</span>
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "won" ? { score: record.streak, display: `${record.streak}連勝`, meta: `${setupLabels[setup]} / ${difficultyLabels[difficulty]}` } : null}
+            pendingScore={status === "won" ? { score: record.streak, display: isEnglish ? `${record.streak}-win streak` : `${record.streak}連勝`, meta: `${isEnglish ? setupEnglishLabels[setup] : setupLabels[setup]} / ${isEnglish ? difficultyEnglishLabels[difficulty] : difficultyLabels[difficulty]}` } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => startGame()}>
               <Sparkles aria-hidden="true" />
-              新しく始める
+              {isEnglish ? "New game" : "新しく始める"}
             </button>
             <button className="ghost-button" type="button" onClick={resetRecord}>
               <RotateCcw aria-hidden="true" />
-              戦績リセット
+              {isEnglish ? "Reset record" : "戦績リセット"}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {isEnglish ? "Back to shelf" : "棚へ戻る"}
           </button>
 
           <div className="nim-hint">
             <Hand aria-hidden="true" />
-            山の数を見比べて、相手に取りづらい形を残せるとぐっと勝ちやすくなります。
+            {isEnglish ? "Compare the piles and try to leave a shape that is awkward for your opponent." : "山の数を見比べて、相手に取りづらい形を残せるとぐっと勝ちやすくなります。"}
           </div>
         </aside>
       </div>
