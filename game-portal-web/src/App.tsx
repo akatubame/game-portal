@@ -75,7 +75,7 @@ const gameViews: Record<string, ComponentType<{ onBack: () => void }>> = {
 };
 
 const recentGameIds = ["wordGuess", "nonogram", "poker", "yachtDice"];
-const popularGameIds = ["2048", "sudoku", "minesweeper", "nonogram", "snake", "reversi"];
+const popularGameIds = ["random-shogi", "yonmai-mahjong", "2048", "sudoku", "minesweeper", "nonogram", "snake", "reversi"];
 const allGenresKey = "__all__";
 const favoriteStorageKey = "game-shelf-favorites";
 const recentlyPlayedStorageKey = "game-shelf-recently-played";
@@ -350,16 +350,16 @@ export function App() {
         <LanguageSwitcher language={language} setLanguage={setLanguage} />
       </header>
 
-      <section className="quick-shelf" aria-labelledby="recent-games-title">
+      <section className="quick-shelf" aria-labelledby="popular-games-title">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">{t.recentlyAdded}</p>
-            <h2 id="recent-games-title">{t.newOnShelf}</h2>
+            <p className="eyebrow">{t.popularEyebrow}</p>
+            <h2 id="popular-games-title">{t.popularGames}</h2>
           </div>
-          <span>{recentGames.length} {t.picks}</span>
+          <span>{popularGames.length} {t.picks}</span>
         </div>
         <div className="quick-grid">
-          {recentGames.map((game, index) => (
+          {popularGames.map((game, index) => (
             <GameCard
               compact
               favorite={favoriteIds.includes(game.id)}
@@ -375,16 +375,16 @@ export function App() {
         </div>
       </section>
 
-      <section className="quick-shelf" aria-labelledby="popular-games-title">
+      <section className="quick-shelf" aria-labelledby="recent-games-title">
         <div className="section-heading">
           <div>
-            <p className="eyebrow">{t.popularEyebrow}</p>
-            <h2 id="popular-games-title">{t.popularGames}</h2>
+            <p className="eyebrow">{t.recentlyAdded}</p>
+            <h2 id="recent-games-title">{t.newOnShelf}</h2>
           </div>
-          <span>{popularGames.length} {t.picks}</span>
+          <span>{recentGames.length} {t.picks}</span>
         </div>
         <div className="quick-grid">
-          {popularGames.map((game, index) => (
+          {recentGames.map((game, index) => (
             <GameCard
               compact
               favorite={favoriteIds.includes(game.id)}
