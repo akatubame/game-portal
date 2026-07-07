@@ -80,6 +80,8 @@ const allGenresKey = "__all__";
 const favoriteStorageKey = "game-shelf-favorites";
 const recentlyPlayedStorageKey = "game-shelf-recently-played";
 const maxRecentlyPlayed = 8;
+const yonmaiMahjongId = "yonmai-mahjong";
+const yonmaiAndroidUrl = "https://play.google.com/store/apps/details?id=com.yonmai.mahjong";
 
 function getSelectedGameId() {
   return new URLSearchParams(window.location.search).get("game");
@@ -107,6 +109,9 @@ export function App() {
   const [recentlyPlayedIds, setRecentlyPlayedIds] = useState<string[]>(() => readStoredIds(recentlyPlayedStorageKey));
   const [copyNotice, setCopyNotice] = useState("");
   const SelectedGame = selectedGameId ? gameViews[selectedGameId] : undefined;
+  const selectedEmbeddedGame = selectedGameId && !SelectedGame
+    ? games.find((game) => game.id === selectedGameId && game.kind === "embedded")
+    : undefined;
   const t = uiText[language];
 
   const availableGames = useMemo(
@@ -208,10 +213,11 @@ export function App() {
       return;
     }
 
-    const href = game.kind === "internal" ? `?game=${game.id}` : game.href;
+    const opensInPortal = game.kind === "internal" || game.id === yonmaiMahjongId;
+    const href = opensInPortal ? `?game=${game.id}` : game.href;
     rememberPlayedGame(game.id);
 
-    if (game.kind === "internal") {
+    if (opensInPortal) {
       window.history.pushState({}, "", href);
       setSelectedGameId(game.id);
       return;
@@ -294,7 +300,7 @@ export function App() {
     setSelectedGameId(null);
   };
 
-  if (SelectedGame) {
+  if (SelectedGame || selectedEmbeddedGame) {
     return (
       <I18nContext.Provider value={{ language, setLanguage }}>
         <main className="game-screen">
@@ -306,7 +312,11 @@ export function App() {
             </button>
             <LanguageSwitcher language={language} setLanguage={setLanguage} />
           </div>
-          <SelectedGame onBack={returnToShelf} />
+          {SelectedGame ? (
+            <SelectedGame onBack={returnToShelf} />
+          ) : selectedEmbeddedGame ? (
+            <EmbeddedGameLanding game={selectedEmbeddedGame} language={language} onBack={returnToShelf} />
+          ) : null}
         </main>
       </I18nContext.Provider>
     );
@@ -492,14 +502,17 @@ function GameCard({
 }: GameCardProps) {
   const isComingSoon = game.status === "coming-soon";
   const href = game.kind === "internal" ? `?game=${game.id}` : game.href;
+  const shouldOpenInPortal = game.id === yonmaiMahjongId;
+  const cardHref = shouldOpenInPortal ? `?game=${game.id}` : href;
   const t = uiText[language];
   const gameText = getGameText(game, language);
   const kindLabel = game.kind === "embedded" ? t.included : game.kind === "internal" ? t.internal : t.external;
+  const appBadgeText = language === "ja" ? "Android版あり" : "Android app";
 
   return (
     <a
       className={`game-card${isComingSoon ? " is-coming-soon" : ""}${compact ? " is-compact" : ""}`}
-      href={href}
+      href={cardHref}
       style={{ "--accent": game.accent, "--delay": `${index * 90}ms` } as CSSProperties}
       aria-label={isComingSoon ? `${gameText.title} ${t.comingSoon}` : `${t.openGame} ${gameText.title}`}
       onClick={(event) => {
@@ -508,9 +521,9 @@ function GameCard({
           return;
         }
 
-        if (game.kind === "internal") {
+        if (game.kind === "internal" || shouldOpenInPortal) {
           event.preventDefault();
-          window.history.pushState({}, "", href);
+          window.history.pushState({}, "", cardHref);
           onPlayed?.(game.id);
           onSelect(game.id);
           return;
@@ -571,9 +584,105 @@ function GameCard({
         <div className="card-meta">
           <span className="english-title">{gameText.alternateTitle}</span>
           <span className={`kind-badge is-${game.kind}`}>{kindLabel}</span>
+          {game.id === yonmaiMahjongId && <span className="app-badge">{appBadgeText}</span>}
         </div>
       </div>
     </a>
+  );
+}
+
+function EmbeddedGameLanding({
+  game,
+  language,
+  onBack
+}: {
+  game: Game;
+  language: Language;
+  onBack: () => void;
+}) {
+  const gameText = getGameText(game, language);
+  const isYonmai = game.id === yonmaiMahjongId;
+  const androidUrl = `${yonmaiAndroidUrl}&hl=${language === "ja" ? "ja" : "en"}`;
+  const copy = language === "ja"
+    ? {
+        eyebrow: "TABLE GAME / EMBEDDED GAME",
+        webTitle: "Web版で遊ぶ",
+        webDescription: "ブラウザ版の四枚麻雀をこのサイト内で開きます。PCでもスマホでもすぐに遊べます。",
+        appEyebrow: "ANDROID APP",
+        appTitle: "Android版 四枚麻雀",
+        appDescription: "スマホで遊ぶならAndroidアプリ版も公開中です。ホーム画面からすぐ起動したい場合はこちらが便利です。",
+        appButton: "Google Playで見る",
+        webButton: "Web版を開く",
+        backButton: "ゲーム一覧へ戻る",
+        lead: "少ない手牌でテンポよく役作りを楽しめる四枚麻雀です。ブラウザ版で遊ぶか、Androidアプリ版を確認できます。"
+      }
+    : {
+        eyebrow: "TABLE GAME / EMBEDDED GAME",
+        webTitle: "Play the web version",
+        webDescription: "Open the browser version of Four-Tile Mahjong inside this site. It works on both PC and mobile browsers.",
+        appEyebrow: "ANDROID APP",
+        appTitle: "Four-Tile Mahjong for Android",
+        appDescription: "The Android app is also available on Google Play if you prefer launching it directly from your phone.",
+        appButton: "View on Google Play",
+        webButton: "Open web version",
+        backButton: "Back to game list",
+        lead: "A quick mahjong-style game built around small hands and fast rounds. Play the web version or check out the Android app."
+      };
+
+  if (!isYonmai) {
+    window.location.href = game.href;
+    return null;
+  }
+
+  return (
+    <section className="embedded-landing" aria-labelledby="embedded-landing-title">
+      <div className="embedded-landing-hero">
+        <div className="embedded-landing-copy">
+          <p className="eyebrow">{copy.eyebrow}</p>
+          <h1 id="embedded-landing-title">{gameText.title}</h1>
+          <p className="lead">{copy.lead}</p>
+          <div className="embedded-landing-actions">
+            <a className="primary-button" href={game.href}>
+              <Gamepad2 aria-hidden="true" />
+              {copy.webButton}
+            </a>
+            <a className="ghost-button" href={androidUrl} target="_blank" rel="noreferrer">
+              <ArrowUpRight aria-hidden="true" />
+              {copy.appButton}
+            </a>
+          </div>
+        </div>
+        <div className="embedded-landing-preview">
+          <img src={game.screenshot} alt={`${gameText.title} game screen`} />
+        </div>
+      </div>
+
+      <div className="embedded-promo-grid">
+        <article className="embedded-promo-card">
+          <span className="promo-kicker">{gameText.alternateTitle}</span>
+          <h2>{copy.webTitle}</h2>
+          <p>{copy.webDescription}</p>
+          <a className="text-link" href={game.href}>
+            {copy.webButton}
+            <ArrowUpRight aria-hidden="true" />
+          </a>
+        </article>
+
+        <article className="embedded-promo-card is-app">
+          <span className="promo-kicker">{copy.appEyebrow}</span>
+          <h2>{copy.appTitle}</h2>
+          <p>{copy.appDescription}</p>
+          <a className="text-link" href={androidUrl} target="_blank" rel="noreferrer">
+            {copy.appButton}
+            <ArrowUpRight aria-hidden="true" />
+          </a>
+        </article>
+      </div>
+
+      <button className="ghost-button shelf-button" type="button" onClick={onBack}>
+        {copy.backButton}
+      </button>
+    </section>
   );
 }
 
@@ -610,7 +719,8 @@ function ShelfStrip({
         <div className="saved-game-list">
           {shelfGames.map((game) => {
             const gameText = getGameText(game, language);
-            const href = game.kind === "internal" ? `?game=${game.id}` : game.href;
+            const opensInPortal = game.kind === "internal" || game.id === yonmaiMahjongId;
+            const href = opensInPortal ? `?game=${game.id}` : game.href;
 
             return (
               <a
@@ -619,7 +729,7 @@ function ShelfStrip({
                 key={game.id}
                 style={{ "--accent": game.accent } as CSSProperties}
                 onClick={(event) => {
-                  if (game.kind === "internal") {
+                  if (opensInPortal) {
                     event.preventDefault();
                     window.history.pushState({}, "", href);
                     onPlayed(game.id);

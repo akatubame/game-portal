@@ -697,6 +697,7 @@ h2 {
 .card-meta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 12px;
 }
@@ -724,6 +725,19 @@ h2 {
   background: linear-gradient(135deg, var(--accent), #f4f1e8);
 }
 
+.app-badge {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border: 1px solid rgba(120, 220, 162, 0.34);
+  border-radius: 999px;
+  color: #9df0bd;
+  background: rgba(41, 94, 65, 0.26);
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
 footer {
   display: flex;
   justify-content: space-between;
@@ -738,6 +752,115 @@ footer {
 
 .game-screen {
   width: min(1080px, calc(100% - 40px));
+}
+
+.embedded-landing {
+  display: grid;
+  gap: 24px;
+}
+
+.embedded-landing-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.06fr) minmax(260px, 0.74fr);
+  gap: 28px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background:
+    radial-gradient(circle at 82% 14%, rgba(81, 169, 141, 0.2), transparent 23rem),
+    rgba(20, 26, 27, 0.9);
+  box-shadow: 0 30px 100px rgba(0, 0, 0, 0.28);
+}
+
+.embedded-landing-copy {
+  align-self: center;
+  padding: clamp(28px, 5vw, 44px);
+}
+
+.embedded-landing-copy h1 {
+  margin: 0 0 14px;
+  font-size: clamp(2.25rem, 8vw, 5.2rem);
+  line-height: 0.95;
+  letter-spacing: -0.08em;
+}
+
+.embedded-landing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+.embedded-landing-actions a,
+.embedded-promo-card a {
+  text-decoration: none;
+}
+
+.embedded-landing-preview {
+  min-height: 300px;
+  border-left: 1px solid var(--line);
+  background: rgba(8, 11, 12, 0.34);
+}
+
+.embedded-landing-preview img {
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+  display: block;
+  object-fit: cover;
+}
+
+.embedded-promo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.embedded-promo-card {
+  padding: 24px;
+  border: 1px solid rgba(244, 241, 232, 0.13);
+  border-radius: 6px;
+  background: rgba(20, 26, 27, 0.76);
+}
+
+.embedded-promo-card.is-app {
+  border-color: rgba(81, 169, 141, 0.38);
+  background:
+    linear-gradient(135deg, rgba(81, 169, 141, 0.16), transparent 70%),
+    rgba(20, 26, 27, 0.82);
+}
+
+.promo-kicker {
+  display: inline-flex;
+  margin-bottom: 12px;
+  color: var(--accent);
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.embedded-promo-card h2 {
+  margin-bottom: 10px;
+  font-size: clamp(1.2rem, 3vw, 1.65rem);
+}
+
+.embedded-promo-card p {
+  margin: 0 0 18px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.text-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.text-link svg {
+  width: 17px;
+  color: var(--accent);
 }
 
 .back-button,
@@ -5887,6 +6010,26 @@ footer {
 
   .game-screen {
     width: min(100% - 24px, 560px);
+  }
+
+  .embedded-landing-hero,
+  .embedded-promo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .embedded-landing-preview {
+    min-height: 210px;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .embedded-landing-preview img {
+    min-height: 210px;
+  }
+
+  .embedded-landing-actions {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .puzzle-hero,
