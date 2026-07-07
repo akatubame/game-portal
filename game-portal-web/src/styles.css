@@ -6035,6 +6035,7 @@ footer {
   .puzzle-hero,
   .puzzle-layout {
     grid-template-columns: 1fr;
+    gap: 16px;
     padding: 22px;
   }
 
@@ -6044,6 +6045,24 @@ footer {
 
   .score-panel {
     min-width: 0;
+  }
+
+  .puzzle-side {
+    gap: 12px;
+  }
+
+  .rule-card {
+    padding: 16px;
+  }
+
+  .control-row {
+    gap: 9px;
+  }
+
+  .primary-button,
+  .ghost-button {
+    min-height: 46px;
+    padding: 0 15px;
   }
 
   .board-2048 {
@@ -6059,13 +6078,147 @@ footer {
     border-width: 2px;
   }
 
+  .sudoku-side .number-pad {
+    order: -6;
+  }
+
+  .sudoku-side > .control-row {
+    order: -5;
+  }
+
+  .sudoku-side .select-label {
+    order: -4;
+  }
+
+  .sudoku-side .check-label,
+  .sudoku-side .sudoku-note {
+    order: -3;
+  }
+
+  .sudoku-side .rule-card {
+    order: 4;
+  }
+
   .number-pad {
     grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
   }
 
   .number-pad button {
     aspect-ratio: auto;
-    min-height: 44px;
+    min-height: 52px;
+    font-size: 1.15rem;
+  }
+
+  .snake-board-wrap,
+  .pong-board-wrap,
+  .breakout-board-wrap {
+    width: 100%;
+    padding: 8px;
+    border-radius: 16px;
+  }
+
+  .snake-board {
+    gap: 2px;
+    padding: 6px;
+    border-radius: 12px;
+  }
+
+  .snake-cell {
+    border-radius: 4px;
+  }
+
+  .snake-side .snake-controls,
+  .pong-side .pong-controls,
+  .breakout-side .breakout-controls,
+  .maze-side .maze-controls {
+    order: -8;
+  }
+
+  .snake-side > .control-row,
+  .pong-side > .control-row,
+  .breakout-side > .control-row {
+    order: -7;
+  }
+
+  .snake-side .snake-progress,
+  .pong-side .pong-progress,
+  .breakout-side .breakout-progress,
+  .maze-side .maze-progress {
+    order: -6;
+  }
+
+  .pong-side .pong-difficulty {
+    order: -5;
+  }
+
+  .snake-side .rule-card,
+  .pong-side .rule-card,
+  .breakout-side .rule-card,
+  .maze-side .rule-card {
+    order: 5;
+  }
+
+  .snake-controls {
+    grid-template-columns: repeat(3, minmax(60px, 76px));
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .snake-controls button {
+    min-height: 58px;
+    border-radius: 14px;
+    font-size: 1.55rem;
+    touch-action: none;
+  }
+
+  .pong-controls,
+  .breakout-controls {
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .pong-controls button,
+  .breakout-controls button {
+    min-height: 60px;
+    font-size: 1.05rem;
+    touch-action: none;
+  }
+
+  .maze-controls {
+    grid-template-columns: repeat(3, minmax(58px, 74px));
+    gap: 10px;
+    justify-content: center;
+    padding: 10px;
+  }
+
+  .maze-controls button {
+    min-height: 56px;
+    border-radius: 14px;
+    font-size: 1.35rem;
+    touch-action: none;
+  }
+
+  .pong-side .ranking-card,
+  .snake-side .ranking-card,
+  .breakout-side .ranking-card,
+  .sudoku-side .ranking-card,
+  .maze-side .ranking-card {
+    order: 7;
+  }
+
+  .pong-side .shelf-button,
+  .snake-side .shelf-button,
+  .breakout-side .shelf-button,
+  .sudoku-side .shelf-button,
+  .maze-side .shelf-button {
+    order: 8;
+  }
+
+  .pong-overlay,
+  .snake-overlay {
+    inset: 8px;
+    border-radius: 14px;
   }
 
   .minesweeper-layout {
