@@ -76,6 +76,7 @@ const gameViews: Record<string, ComponentType<{ onBack: () => void }>> = {
 
 const recentGameIds = ["wordGuess", "nonogram", "poker", "yachtDice"];
 const popularGameIds = ["random-shogi", "yonmai-mahjong", "2048", "sudoku", "minesweeper", "nonogram", "snake", "reversi"];
+const maxPopularGames = 4;
 const allGenresKey = "__all__";
 const favoriteStorageKey = "game-shelf-favorites";
 const recentlyPlayedStorageKey = "game-shelf-recently-played";
@@ -129,7 +130,8 @@ export function App() {
   const popularGames = useMemo(
     () => popularGameIds
       .map((id) => games.find((game) => game.id === id))
-      .filter((game): game is Game => game !== undefined && game.status !== "coming-soon"),
+      .filter((game): game is Game => game !== undefined && game.status !== "coming-soon")
+      .slice(0, maxPopularGames),
     []
   );
 
