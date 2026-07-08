@@ -1,0 +1,49 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" fill="#0c1112"/>
+  <circle cx="1010" cy="150" r="250" fill="#72efff" opacity="0.12"/>
+  <circle cx="245" cy="610" r="250" fill="#9df08a" opacity="0.1"/>
+  <rect x="88" y="76" width="1104" height="568" rx="42" fill="#141a1b" stroke="#f4f1e8" stroke-opacity="0.12"/>
+  <text x="124" y="142" fill="#8f9997" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800" letter-spacing="5">WORD GAME / INTERNAL GAME</text>
+  <text x="124" y="208" fill="#f4f1e8" font-family="Inter, Arial, sans-serif" font-size="68" font-weight="900">Word Guess</text>
+  <text x="126" y="256" fill="#aab4b0" font-family="Inter, Arial, sans-serif" font-size="24">5文字の英単語を6回以内に推理する</text>
+  <g transform="translate(700 120)">
+    <rect width="370" height="420" rx="34" fill="#080d18" stroke="#f4f1e8" stroke-opacity="0.12"/>
+    <g transform="translate(42 42)">
+      <rect width="48" height="48" rx="10" fill="#4fbf74"/>
+      <rect x="56" width="48" height="48" rx="10" fill="#d9a84e"/>
+      <rect x="112" width="48" height="48" rx="10" fill="#303b3d"/>
+      <rect x="168" width="48" height="48" rx="10" fill="#303b3d"/>
+      <rect x="224" width="48" height="48" rx="10" fill="#4fbf74"/>
+      <text x="15" y="34" fill="#f4f1e8" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="900">B</text>
+      <text x="71" y="34" fill="#f4f1e8" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="900">R</text>
+      <text x="126" y="34" fill="#f4f1e8" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="900">A</text>
+      <text x="184" y="34" fill="#f4f1e8" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="900">I</text>
+      <text x="239" y="34" fill="#f4f1e8" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="900">N</text>
+      <rect y="62" width="48" height="48" rx="10" fill="#4fbf74"/>
+      <rect x="56" y="62" width="48" height="48" rx="10" fill="#4fbf74"/>
+      <rect x="112" y="62" width="48" height="48" rx="10" fill="#303b3d"/>
+      <rect x="168" y="62" width="48" height="48" rx="10" fill="#d9a84e"/>
+      <rect x="224" y="62" width="48" height="48" rx="10" fill="#303b3d"/>
+      <rect y="124" width="48" height="48" rx="10" fill="#172022" stroke="#f4f1e8" stroke-opacity="0.16"/>
+      <rect x="56" y="124" width="48" height="48" rx="10" fill="#172022" stroke="#f4f1e8" stroke-opacity="0.16"/>
+      <rect x="112" y="124" width="48" height="48" rx="10" fill="#172022" stroke="#f4f1e8" stroke-opacity="0.16"/>
+      <rect x="168" y="124" width="48" height="48" rx="10" fill="#172022" stroke="#f4f1e8" stroke-opacity="0.16"/>
+      <rect x="224" y="124" width="48" height="48" rx="10" fill="#172022" stroke="#f4f1e8" stroke-opacity="0.16"/>
+    </g>
+    <g transform="translate(46 282)">
+      <rect width="38" height="34" rx="8" fill="#243033"/>
+      <rect x="44" width="38" height="34" rx="8" fill="#4fbf74"/>
+      <rect x="88" width="38" height="34" rx="8" fill="#d9a84e"/>
+      <rect x="132" width="38" height="34" rx="8" fill="#243033"/>
+      <rect x="176" width="38" height="34" rx="8" fill="#243033"/>
+      <rect x="220" width="38" height="34" rx="8" fill="#4fbf74"/>
+    </g>
+  </g>
+  <g transform="translate(126 340)">
+    <rect width="178" height="96" rx="18" fill="#080d18" stroke="#f4f1e8" stroke-opacity="0.12"/>
+    <text x="28" y="38" fill="#8f9997" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="800" letter-spacing="3">TRIES</text>
+    <text x="28" y="76" fill="#f4f1e8" font-family="Inter, Arial, sans-serif" font-size="38" font-weight="900">06</text>
+  </g>
+  <path d="M128 522h390" stroke="#f4f1e8" stroke-opacity="0.12"/>
+  <text x="128" y="574" fill="#f4f1e8" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800">GUESS, COLOR, NARROW DOWN</text>
+</svg>

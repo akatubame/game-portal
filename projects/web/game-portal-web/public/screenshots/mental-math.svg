@@ -1,0 +1,30 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#161f35"/>
+      <stop offset="1" stop-color="#342049"/>
+    </linearGradient>
+    <linearGradient id="card" x1="250" y1="130" x2="1030" y2="590" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffdb70"/>
+      <stop offset="1" stop-color="#ff8f70"/>
+    </linearGradient>
+    <filter id="shadow" x="170" y="70" width="940" height="580" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="30" stdDeviation="30" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="1280" height="720" rx="38" fill="url(#bg)"/>
+  <circle cx="132" cy="126" r="76" fill="#ffe28a" opacity="0.16"/>
+  <circle cx="1124" cy="590" r="118" fill="#ff9f80" opacity="0.15"/>
+  <g filter="url(#shadow)">
+    <rect x="220" y="110" width="840" height="500" rx="42" fill="#101827"/>
+    <rect x="260" y="150" width="760" height="420" rx="34" fill="url(#card)" opacity="0.95"/>
+    <rect x="318" y="212" width="644" height="150" rx="28" fill="#101827" opacity="0.92"/>
+    <text x="640" y="312" text-anchor="middle" font-family="Arial, sans-serif" font-size="78" font-weight="800" fill="#fff7dc">37 + 58 = ?</text>
+    <rect x="360" y="408" width="320" height="86" rx="24" fill="#fff8e4"/>
+    <text x="520" y="464" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="800" fill="#192033">ANSWER</text>
+    <rect x="710" y="408" width="210" height="86" rx="24" fill="#192033"/>
+    <text x="815" y="464" text-anchor="middle" font-family="Arial, sans-serif" font-size="36" font-weight="800" fill="#ffdb70">GO</text>
+  </g>
+  <text x="92" y="642" font-family="Arial, sans-serif" font-size="30" font-weight="800" fill="#fff8e4" opacity="0.82">MENTAL MATH</text>
+  <text x="1188" y="86" text-anchor="end" font-family="Arial, sans-serif" font-size="28" font-weight="800" fill="#fff8e4" opacity="0.8">60 SEC</text>
+</svg>

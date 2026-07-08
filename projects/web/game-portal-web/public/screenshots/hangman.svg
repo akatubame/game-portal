@@ -1,0 +1,32 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" fill="#0b0811"/>
+  <circle cx="250" cy="120" r="220" fill="#c99cff" fill-opacity=".18"/>
+  <circle cx="1030" cy="590" r="260" fill="#ffcf6d" fill-opacity=".11"/>
+  <rect x="238" y="76" width="804" height="568" rx="46" fill="#15101f" stroke="#f4f1e8" stroke-opacity=".13" stroke-width="2"/>
+  <text x="640" y="140" text-anchor="middle" fill="#f4f1e8" font-family="Segoe UI, sans-serif" font-size="48" font-weight="850">HANGMAN</text>
+  <text x="640" y="184" text-anchor="middle" fill="#9aa39d" font-family="Segoe UI, sans-serif" font-size="22">GUESS THE WORD</text>
+  <g transform="translate(392 214)" stroke-linecap="round">
+    <path d="M42 282H250" stroke="#f4f1e8" stroke-opacity=".32" stroke-width="10"/>
+    <path d="M78 282V42H250" stroke="#f4f1e8" stroke-opacity=".32" stroke-width="10"/>
+    <path d="M250 42V88" stroke="#f4f1e8" stroke-opacity=".48" stroke-width="7"/>
+    <circle cx="250" cy="121" r="28" stroke="#ffcf6d" stroke-width="8"/>
+    <path d="M250 152V225M250 170L213 207M250 170L287 207M250 225L218 266M250 225L282 266" stroke="#ffcf6d" stroke-width="8"/>
+  </g>
+  <g transform="translate(632 274)">
+    <text x="0" y="0" fill="#9aa39d" font-family="Segoe UI, sans-serif" font-size="22">HINT: A PLACE WITH MANY BOOKS</text>
+    <g transform="translate(0 56)">
+      <rect width="54" height="70" rx="10" fill="#f4f1e8" fill-opacity=".08"/>
+      <rect x="68" width="54" height="70" rx="10" fill="#f4f1e8" fill-opacity=".08"/>
+      <rect x="136" width="54" height="70" rx="10" fill="#f4f1e8" fill-opacity=".08"/>
+      <rect x="204" width="54" height="70" rx="10" fill="#f4f1e8" fill-opacity=".08"/>
+      <rect x="272" width="54" height="70" rx="10" fill="#f4f1e8" fill-opacity=".08"/>
+      <text x="27" y="49" text-anchor="middle" fill="#f4f1e8" font-family="Segoe UI, sans-serif" font-size="38" font-weight="900">L</text>
+      <text x="95" y="49" text-anchor="middle" fill="#f4f1e8" font-family="Segoe UI, sans-serif" font-size="38" font-weight="900">I</text>
+      <text x="231" y="49" text-anchor="middle" fill="#f4f1e8" font-family="Segoe UI, sans-serif" font-size="38" font-weight="900">R</text>
+    </g>
+    <g transform="translate(0 168)">
+      <rect width="340" height="54" rx="18" fill="#c99cff" fill-opacity=".16" stroke="#c99cff" stroke-opacity=".48"/>
+      <text x="170" y="36" text-anchor="middle" fill="#f4f1e8" font-family="Segoe UI, sans-serif" font-size="20" font-weight="800">A B C D E F G ...</text>
+    </g>
+  </g>
+</svg>

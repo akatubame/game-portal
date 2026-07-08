@@ -1,0 +1,30 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" fill="#0b0710"/>
+  <circle cx="236" cy="130" r="210" fill="#ff8ac7" fill-opacity=".18"/>
+  <circle cx="1040" cy="584" r="260" fill="#72efff" fill-opacity=".13"/>
+  <circle cx="670" cy="250" r="190" fill="#ffcf6d" fill-opacity=".08"/>
+  <rect x="238" y="76" width="804" height="568" rx="46" fill="#121019" stroke="#f4f1e8" stroke-opacity=".13" stroke-width="2"/>
+  <text x="640" y="140" text-anchor="middle" fill="#f4f1e8" font-family="Segoe UI, sans-serif" font-size="48" font-weight="850">COLOR JUDGE</text>
+  <text x="640" y="184" text-anchor="middle" fill="#9aa39d" font-family="Segoe UI, sans-serif" font-size="22">MATCH THE WORD AND COLOR</text>
+  <rect x="370" y="232" width="540" height="244" rx="34" fill="#1b1625" stroke="#f4f1e8" stroke-opacity=".12"/>
+  <text x="640" y="378" text-anchor="middle" fill="#72a7ff" font-family="Segoe UI, sans-serif" font-size="126" font-weight="900" letter-spacing="12">赤</text>
+  <text x="640" y="434" text-anchor="middle" fill="#9aa39d" font-family="Segoe UI, sans-serif" font-size="22">WORD: RED / COLOR: BLUE</text>
+  <g transform="translate(430 526)">
+    <rect width="178" height="58" rx="29" fill="url(#okGrad)"/>
+    <text x="89" y="38" text-anchor="middle" fill="#07100c" font-family="Segoe UI, sans-serif" font-size="22" font-weight="800">MATCH</text>
+  </g>
+  <g transform="translate(672 526)">
+    <rect width="178" height="58" rx="29" fill="url(#ngGrad)"/>
+    <text x="89" y="38" text-anchor="middle" fill="#07100c" font-family="Segoe UI, sans-serif" font-size="22" font-weight="800">DIFFERENT</text>
+  </g>
+  <defs>
+    <linearGradient id="okGrad" x1="0" y1="0" x2="178" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#9df08a"/>
+      <stop offset="1" stop-color="#72efff"/>
+    </linearGradient>
+    <linearGradient id="ngGrad" x1="0" y1="0" x2="178" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ff8ac7"/>
+      <stop offset="1" stop-color="#ffcf6d"/>
+    </linearGradient>
+  </defs>
+</svg>

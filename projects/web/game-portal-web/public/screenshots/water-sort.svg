@@ -1,0 +1,33 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" fill="#0b1117"/>
+  <radialGradient id="a" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(646 325) rotate(90) scale(430 650)">
+    <stop stop-color="#72efff" stop-opacity=".25"/>
+    <stop offset="1" stop-color="#72efff" stop-opacity="0"/>
+  </radialGradient>
+  <rect width="1280" height="720" fill="url(#a)"/>
+  <rect x="90" y="70" width="1100" height="580" rx="42" fill="#141c22" stroke="#2e4249" stroke-width="3"/>
+  <text x="150" y="142" fill="#72efff" font-family="Verdana, sans-serif" font-size="28" font-weight="700" letter-spacing="5">SORT PUZZLE</text>
+  <text x="150" y="210" fill="#f4f1e8" font-family="Verdana, sans-serif" font-size="72" font-weight="800">Water Sort</text>
+  <text x="150" y="260" fill="#a7b2b1" font-family="Verdana, sans-serif" font-size="28">Pour colors into matching bottles.</text>
+  <g transform="translate(160 350)">
+    <rect x="0" y="0" width="180" height="70" rx="35" fill="#72efff"/>
+    <text x="90" y="45" text-anchor="middle" fill="#081014" font-family="Verdana, sans-serif" font-size="27" font-weight="800">MOVE 12</text>
+  </g>
+  <g transform="translate(565 150)">
+    <g transform="translate(0 0)">
+      <path d="M42 0h56v52c0 16 22 26 22 55v210c0 28-22 50-50 50S20 345 20 317V107c0-29 22-39 22-55V0Z" fill="#10191f" stroke="#d9fbff" stroke-opacity=".55" stroke-width="5"/>
+      <rect x="26" y="217" width="88" height="72" fill="#4fbf74"/><rect x="26" y="145" width="88" height="72" fill="#d9a84e"/><rect x="26" y="73" width="88" height="72" fill="#4fbf74"/><rect x="26" y="289" width="88" height="45" fill="#d9a84e"/>
+    </g>
+    <g transform="translate(145 0)">
+      <path d="M42 0h56v52c0 16 22 26 22 55v210c0 28-22 50-50 50S20 345 20 317V107c0-29 22-39 22-55V0Z" fill="#10191f" stroke="#d9fbff" stroke-opacity=".55" stroke-width="5"/>
+      <rect x="26" y="217" width="88" height="72" fill="#ff6b6b"/><rect x="26" y="145" width="88" height="72" fill="#72efff"/><rect x="26" y="73" width="88" height="72" fill="#ff6b6b"/><rect x="26" y="289" width="88" height="45" fill="#72efff"/>
+    </g>
+    <g transform="translate(290 0)">
+      <path d="M42 0h56v52c0 16 22 26 22 55v210c0 28-22 50-50 50S20 345 20 317V107c0-29 22-39 22-55V0Z" fill="#10191f" stroke="#d9fbff" stroke-opacity=".55" stroke-width="5"/>
+      <rect x="26" y="73" width="88" height="261" fill="#b785ff"/>
+    </g>
+    <g transform="translate(435 0)" opacity=".75">
+      <path d="M42 0h56v52c0 16 22 26 22 55v210c0 28-22 50-50 50S20 345 20 317V107c0-29 22-39 22-55V0Z" fill="#10191f" stroke="#d9fbff" stroke-opacity=".55" stroke-width="5"/>
+    </g>
+  </g>
+</svg>

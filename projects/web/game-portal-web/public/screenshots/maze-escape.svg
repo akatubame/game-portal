@@ -1,0 +1,20 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" fill="#07101c"/>
+  <circle cx="250" cy="130" r="220" fill="#8fb7ff" fill-opacity=".17"/>
+  <circle cx="1030" cy="590" r="260" fill="#9df08a" fill-opacity=".1"/>
+  <rect x="238" y="76" width="804" height="568" rx="46" fill="#0d1626" stroke="#f4f1e8" stroke-opacity=".13" stroke-width="2"/>
+  <text x="640" y="140" text-anchor="middle" fill="#f4f1e8" font-family="Segoe UI, sans-serif" font-size="48" font-weight="850">MAZE ESCAPE</text>
+  <text x="640" y="184" text-anchor="middle" fill="#9aa39d" font-family="Segoe UI, sans-serif" font-size="22">FIND THE GOAL / BEST ROUTE</text>
+  <g transform="translate(430 230)">
+    <rect width="420" height="320" rx="22" fill="#07101c" stroke="#8fb7ff" stroke-width="5"/>
+    <path d="M40 0V78H118V40H196V118H80V200H158V280H236V202H314V242H420" stroke="#f4f1e8" stroke-opacity=".62" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M0 120H80M118 78H236V0M236 118H354V40H420M0 240H80V320M158 200H236M314 122V320" stroke="#f4f1e8" stroke-opacity=".44" stroke-width="10" stroke-linecap="round"/>
+    <circle cx="36" cy="36" r="18" fill="#ffcf6d"/>
+    <circle cx="384" cy="284" r="18" fill="#9df08a"/>
+    <path d="M36 36C92 60 104 120 154 142C212 168 210 226 270 238C320 248 334 282 384 284" stroke="#ffcf6d" stroke-width="7" stroke-linecap="round" stroke-dasharray="14 16"/>
+  </g>
+  <g transform="translate(504 604)">
+    <rect width="272" height="42" rx="21" fill="#8fb7ff" fill-opacity=".16" stroke="#8fb7ff" stroke-opacity=".55"/>
+    <text x="136" y="28" text-anchor="middle" fill="#f4f1e8" font-family="Segoe UI, sans-serif" font-size="18" font-weight="800">ARROW KEY READY</text>
+  </g>
+</svg>

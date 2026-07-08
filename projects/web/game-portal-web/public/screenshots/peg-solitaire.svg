@@ -1,0 +1,59 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" fill="#0c1112"/>
+  <circle cx="1010" cy="140" r="250" fill="#d9a84e" opacity="0.13"/>
+  <circle cx="240" cy="615" r="250" fill="#72efff" opacity="0.1"/>
+  <rect x="88" y="76" width="1104" height="568" rx="42" fill="#141a1b" stroke="#f4f1e8" stroke-opacity="0.12"/>
+  <text x="124" y="142" fill="#8f9997" font-family="Inter, Arial, sans-serif" font-size="22" font-weight="800" letter-spacing="5">PUZZLE / INTERNAL GAME</text>
+  <text x="124" y="208" fill="#f4f1e8" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="900">ペグ・ソリティア</text>
+  <text x="126" y="256" fill="#aab4b0" font-family="Inter, Arial, sans-serif" font-size="24">飛び越えて取り除き、最後の1本を目指す</text>
+  <g transform="translate(710 130)">
+    <rect width="340" height="340" rx="34" fill="#080d18" stroke="#f4f1e8" stroke-opacity="0.12"/>
+    <g transform="translate(44 44)">
+      <circle cx="90" cy="18" r="17" fill="#d9a84e"/>
+      <circle cx="126" cy="18" r="17" fill="#d9a84e"/>
+      <circle cx="162" cy="18" r="17" fill="#d9a84e"/>
+      <circle cx="90" cy="54" r="17" fill="#d9a84e"/>
+      <circle cx="126" cy="54" r="17" fill="#d9a84e"/>
+      <circle cx="162" cy="54" r="17" fill="#d9a84e"/>
+      <circle cx="18" cy="90" r="17" fill="#d9a84e"/>
+      <circle cx="54" cy="90" r="17" fill="#d9a84e"/>
+      <circle cx="90" cy="90" r="17" fill="#d9a84e"/>
+      <circle cx="126" cy="90" r="17" fill="#d9a84e"/>
+      <circle cx="162" cy="90" r="17" fill="#d9a84e"/>
+      <circle cx="198" cy="90" r="17" fill="#d9a84e"/>
+      <circle cx="234" cy="90" r="17" fill="#d9a84e"/>
+      <circle cx="18" cy="126" r="17" fill="#d9a84e"/>
+      <circle cx="54" cy="126" r="17" fill="#d9a84e"/>
+      <circle cx="90" cy="126" r="17" fill="#d9a84e"/>
+      <circle cx="126" cy="126" r="17" fill="#141a1b" stroke="#f4f1e8" stroke-opacity="0.42"/>
+      <circle cx="162" cy="126" r="17" fill="#d9a84e"/>
+      <circle cx="198" cy="126" r="17" fill="#d9a84e"/>
+      <circle cx="234" cy="126" r="17" fill="#d9a84e"/>
+      <circle cx="18" cy="162" r="17" fill="#d9a84e"/>
+      <circle cx="54" cy="162" r="17" fill="#d9a84e"/>
+      <circle cx="90" cy="162" r="17" fill="#d9a84e"/>
+      <circle cx="126" cy="162" r="17" fill="#d9a84e"/>
+      <circle cx="162" cy="162" r="17" fill="#d9a84e"/>
+      <circle cx="198" cy="162" r="17" fill="#d9a84e"/>
+      <circle cx="234" cy="162" r="17" fill="#d9a84e"/>
+      <circle cx="90" cy="198" r="17" fill="#d9a84e"/>
+      <circle cx="126" cy="198" r="17" fill="#d9a84e"/>
+      <circle cx="162" cy="198" r="17" fill="#d9a84e"/>
+      <circle cx="90" cy="234" r="17" fill="#d9a84e"/>
+      <circle cx="126" cy="234" r="17" fill="#d9a84e"/>
+      <circle cx="162" cy="234" r="17" fill="#d9a84e"/>
+    </g>
+  </g>
+  <g transform="translate(126 340)">
+    <rect width="178" height="96" rx="18" fill="#080d18" stroke="#f4f1e8" stroke-opacity="0.12"/>
+    <text x="28" y="38" fill="#8f9997" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="800" letter-spacing="3">PEGS</text>
+    <text x="28" y="76" fill="#f4f1e8" font-family="Inter, Arial, sans-serif" font-size="38" font-weight="900">32</text>
+  </g>
+  <g transform="translate(326 340)">
+    <rect width="178" height="96" rx="18" fill="#080d18" stroke="#f4f1e8" stroke-opacity="0.12"/>
+    <text x="28" y="38" fill="#8f9997" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="800" letter-spacing="3">GOAL</text>
+    <text x="28" y="76" fill="#f4f1e8" font-family="Inter, Arial, sans-serif" font-size="38" font-weight="900">01</text>
+  </g>
+  <path d="M128 522h390" stroke="#f4f1e8" stroke-opacity="0.12"/>
+  <text x="128" y="574" fill="#f4f1e8" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="800">JUMP, REMOVE, SURVIVE</text>
+</svg>

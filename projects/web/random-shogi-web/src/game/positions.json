@@ -1,0 +1,10 @@
+[
+  {"id":"endgame-001","title":"玉頭の寄せ合い","sfen":"3g1g1nl/1ks6/1pp1p2pp/p3R4/4+B4/P1P3P2/1P1PS1N1P/2K1G4/LNG4NL b 2SL3Prb3p 91","evaluationForSente":760,"phase":"終盤","note":"竜と馬を軸に、玉頭の速度を見極める局面です。","category":"終盤"},
+  {"id":"endgame-003","title":"竜を作った寄せ","sfen":"4g2nl/1k1s5/1pp1p1gpp/p5p2/3+R5/P1P2P3/1P1PS1N1P/2K6/LN1G3NL b 2BGSL4Prsp 103","evaluationForSente":1180,"phase":"終盤","note":"王手の連続より包む寄せが有効です。","category":"終盤"},
+  {"id":"endgame-004","title":"角を据えた終盤入口","sfen":"ln1g5/2k2g3/1ppsp2pp/p5P2/4B4/P1P1P4/1P2S1N1P/2K2R3/LN1G3NL w R2S3Pbgl3p 96","evaluationForSente":260,"phase":"終盤","note":"攻め合いに出るか、一手受けるかが分岐点です。","category":"相居飛車"},
+  {"id":"endgame-005","title":"馬で迫る勝負所","sfen":"3g3nl/1k1s1g3/1pp1p2pp/p6R1/2+B6/P1P1P1P2/1P2S1N1P/2K1G4/LN5NL b G2SL4Prb2p 112","evaluationForSente":1450,"phase":"最終盤","note":"駒を渡す順番に注意して寄せます。","category":"対抗形"},
+  {"id":"endgame-007","title":"飛車の横利きで受ける","sfen":"4g1snl/1k1g5/1pp1p2pp/p1R6/4+B3P/P1P1P4/1P2S1N2/2K1G4/LN5NL b GSL5Prbs2p 109","evaluationForSente":620,"phase":"終盤","note":"飛車の守備力を残しながら寄せを狙います。","category":"相振り飛車"},
+  {"id":"endgame-009","title":"馬が急所にいる局面","sfen":"3g1g3/1ks6/1pp1p1npp/p2+B5/6P2/P1P1P4/1P2S1N1P/2K1G1R2/LN5NL b 2S2L5Prbgp 101","evaluationForSente":390,"phase":"終盤","note":"自玉の退路を消さない寄せが求められます。","category":"入玉模様"},
+  {"id":"endgame-010","title":"一手争いの最終盤","sfen":"ln6l/2k1g1g2/1ppsp2pp/p6B1/4R4/P1P1P1P2/1P2S1N1P/2K1G4/LN6L w GS4Prbsn2p 118","evaluationForSente":1320,"phase":"最終盤","note":"相手の厳しい王手も確認しながら詰めろを続けます。","category":"相居飛車"},
+  {"id":"endgame-012","title":"馬と飛車の挟撃","sfen":"ln1g5/2k6/1pps1g1pp/p3+B4/6P2/P1P1P4/1P1PS1N1P/2K1G4/LN3R1NL w G2S3Prbl3p 122","evaluationForSente":880,"phase":"最終盤","note":"受け一辺倒にせず反撃を含みにします。","category":"穴熊"}
+]

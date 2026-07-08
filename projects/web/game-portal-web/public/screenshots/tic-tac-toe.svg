@@ -1,0 +1,23 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1280" height="720" fill="#07100c"/>
+  <circle cx="276" cy="120" r="210" fill="#9df08a" fill-opacity=".14"/>
+  <circle cx="1040" cy="600" r="250" fill="#72efff" fill-opacity=".12"/>
+  <rect x="248" y="82" width="784" height="556" rx="44" fill="#0f1713" stroke="#f4f1e8" stroke-opacity=".13" stroke-width="2"/>
+  <text x="640" y="146" text-anchor="middle" fill="#f4f1e8" font-family="Segoe UI, sans-serif" font-size="46" font-weight="800">TIC-TAC-TOE</text>
+  <text x="640" y="190" text-anchor="middle" fill="#9aa39d" font-family="Segoe UI, sans-serif" font-size="22">COM DIFFICULTY / LOCAL BATTLE</text>
+  <g transform="translate(424 222)">
+    <rect width="432" height="360" rx="28" fill="#08100d" stroke="#f4f1e8" stroke-opacity=".12"/>
+    <path d="M144 36V324M288 36V324M36 120H396M36 240H396" stroke="#f4f1e8" stroke-opacity=".2" stroke-width="8" stroke-linecap="round"/>
+    <text x="72" y="96" text-anchor="middle" dominant-baseline="middle" fill="#9df08a" font-family="Segoe UI, sans-serif" font-size="78" font-weight="900">X</text>
+    <text x="216" y="96" text-anchor="middle" dominant-baseline="middle" fill="#72efff" font-family="Segoe UI, sans-serif" font-size="78" font-weight="900">O</text>
+    <text x="360" y="96" text-anchor="middle" dominant-baseline="middle" fill="#9df08a" font-family="Segoe UI, sans-serif" font-size="78" font-weight="900">X</text>
+    <text x="72" y="216" text-anchor="middle" dominant-baseline="middle" fill="#72efff" font-family="Segoe UI, sans-serif" font-size="78" font-weight="900">O</text>
+    <text x="216" y="216" text-anchor="middle" dominant-baseline="middle" fill="#9df08a" font-family="Segoe UI, sans-serif" font-size="78" font-weight="900">X</text>
+    <text x="360" y="336" text-anchor="middle" dominant-baseline="middle" fill="#9df08a" font-family="Segoe UI, sans-serif" font-size="78" font-weight="900">X</text>
+    <path d="M70 72L360 334" stroke="#ffcf6d" stroke-width="12" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(482 612)">
+    <rect width="316" height="42" rx="21" fill="#9df08a" fill-opacity=".16" stroke="#9df08a" stroke-opacity=".5"/>
+    <text x="158" y="28" text-anchor="middle" fill="#f4f1e8" font-family="Segoe UI, sans-serif" font-size="18" font-weight="700">3 IN A ROW TO WIN</text>
+  </g>
+</svg>
