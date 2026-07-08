@@ -796,12 +796,70 @@ export function Nonogram({ onBack }: NonogramProps) {
     window.localStorage.setItem(RECORD_KEY, JSON.stringify({}));
   };
 
-  const cellSize = columns >= 12 ? "28px" : columns >= 10 ? "34px" : columns >= 8 ? "38px" : "42px";
+  const boardWrapRef = useRef<HTMLDivElement | null>(null);
+  const [boardWrapWidth, setBoardWrapWidth] = useState(0);
+
+  useEffect(() => {
+    const element = boardWrapRef.current;
+
+    if (!element) {
+      return;
+    }
+
+    const updateWidth = () => {
+      setBoardWrapWidth(Math.floor(element.getBoundingClientRect().width));
+    };
+
+    updateWidth();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateWidth);
+      return () => window.removeEventListener("resize", updateWidth);
+    }
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [puzzle.id]);
+
+  const maxRowHintCount = useMemo(() => Math.max(...rowHints.map((hints) => hints.length), 1), [rowHints]);
+  const maxColumnHintCount = useMemo(() => Math.max(...columnHints.map((hints) => hints.length), 1), [columnHints]);
+
+  const boardMetrics = useMemo(() => {
+    const defaultCellSize = columns >= 12 ? 28 : columns >= 10 ? 34 : columns >= 8 ? 38 : 42;
+    const defaultRowHintWidth = 86;
+    const defaultColumnHintHeight = 90;
+
+    if (boardWrapWidth <= 0 || boardWrapWidth > 560) {
+      return {
+        cellSize: defaultCellSize,
+        rowHintWidth: defaultRowHintWidth,
+        columnHintHeight: defaultColumnHintHeight
+      };
+    }
+
+    const availableWidth = Math.max(260, boardWrapWidth - 2);
+    const preferredRowHintWidth = Math.min(64, Math.max(maxRowHintCount >= 4 ? 54 : maxRowHintCount >= 3 ? 48 : 42, Math.floor(availableWidth * 0.17)));
+    const compactRowHintWidth = Math.max(34, availableWidth - columns * 20 - 2);
+    const rowHintWidth = Math.floor(Math.min(preferredRowHintWidth, compactRowHintWidth));
+    const maxCellSize = columns >= 12 ? 29 : columns >= 10 ? 32 : columns >= 8 ? 36 : 44;
+    const fittedCellSize = Math.floor((availableWidth - rowHintWidth - 2) / columns);
+    const cellSize = Math.max(18, Math.min(maxCellSize, fittedCellSize));
+    const columnHintHeight = Math.min(78, Math.max(54, cellSize * Math.min(maxColumnHintCount, 4) + 18));
+
+    return {
+      cellSize,
+      rowHintWidth,
+      columnHintHeight
+    };
+  }, [boardWrapWidth, columns, maxColumnHintCount, maxRowHintCount]);
 
   const boardStyle = {
     "--nonogram-cols": columns,
     "--nonogram-rows": rows,
-    "--nonogram-cell": cellSize
+    "--nonogram-cell": `${boardMetrics.cellSize}px`,
+    "--nonogram-row-hint": `${boardMetrics.rowHintWidth}px`,
+    "--nonogram-column-hint": `${boardMetrics.columnHintHeight}px`
   } as CSSProperties;
 
   return (
@@ -845,7 +903,7 @@ export function Nonogram({ onBack }: NonogramProps) {
             </button>
           </div>
 
-          <div className="nonogram-board-wrap">
+          <div className="nonogram-board-wrap" ref={boardWrapRef}>
             <div className="nonogram-board" style={boardStyle} onPointerMove={dragAcrossBoard}>
               <div className="nonogram-corner">
                 <Grid3X3 aria-hidden="true" />

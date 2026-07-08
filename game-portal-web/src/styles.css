@@ -5728,8 +5728,8 @@ footer {
 .nonogram-board {
   --nonogram-cell: clamp(30px, 5.2vw, 44px);
   display: grid;
-  grid-template-columns: minmax(86px, auto) repeat(var(--nonogram-cols), var(--nonogram-cell));
-  grid-template-rows: minmax(90px, auto) repeat(var(--nonogram-rows), var(--nonogram-cell));
+  grid-template-columns: var(--nonogram-row-hint, minmax(86px, auto)) repeat(var(--nonogram-cols), var(--nonogram-cell));
+  grid-template-rows: var(--nonogram-column-hint, minmax(90px, auto)) repeat(var(--nonogram-rows), var(--nonogram-cell));
   width: max-content;
   overflow: hidden;
   border: 1px solid rgba(244, 241, 232, 0.18);
@@ -5761,13 +5761,13 @@ footer {
 
 .nonogram-column-hint {
   flex-direction: column;
-  min-height: 90px;
+  min-height: var(--nonogram-column-hint, 90px);
   padding: 7px 4px;
 }
 
 .nonogram-row-hint {
   justify-content: flex-end;
-  min-width: 86px;
+  min-width: var(--nonogram-row-hint, 86px);
   padding: 4px 9px;
 }
 
@@ -6621,19 +6621,57 @@ footer {
 
   .nonogram-play-area {
     padding: 12px;
+    min-width: 0;
+  }
+
+  .nonogram-board-wrap {
+    width: 100%;
+    overflow-x: hidden;
+    padding: 0;
   }
 
   .nonogram-board {
-    --nonogram-cell: 32px;
-    grid-template-columns: minmax(74px, auto) repeat(var(--nonogram-cols), var(--nonogram-cell));
+    max-width: 100%;
+    border-radius: 14px;
+    box-shadow: 0 14px 24px rgba(0, 0, 0, 0.22);
   }
 
   .nonogram-column-hint {
-    min-height: 78px;
+    min-height: var(--nonogram-column-hint, 64px);
+    gap: 2px;
+    padding: 4px 2px;
   }
 
   .nonogram-row-hint {
-    min-width: 74px;
+    min-width: var(--nonogram-row-hint, 48px);
+    gap: 2px;
+    padding: 2px 4px;
+  }
+
+  .nonogram-corner,
+  .nonogram-column-hint,
+  .nonogram-row-hint {
+    font-size: clamp(0.58rem, 2.15vw, 0.72rem);
+  }
+
+  .nonogram-corner svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .nonogram-hint-number {
+    min-width: 16px;
+    padding: 1px 3px;
+    border-radius: 5px;
+  }
+
+  .nonogram-cell {
+    font-size: clamp(0.62rem, 3vw, 0.95rem);
+  }
+
+  .nonogram-cell.is-answer:not(.is-filled)::after {
+    inset: 24%;
+    border-radius: 4px;
   }
 }
 
