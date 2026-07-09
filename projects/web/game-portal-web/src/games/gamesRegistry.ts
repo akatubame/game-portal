@@ -431,5 +431,17 @@ export const games: Game[] = [
     accent: "#8fb7ff",
     kind: "internal",
     status: "available"
+  },
+  {
+    id: "solitaire",
+    title: "ソリティア",
+    englishTitle: "SOLITAIRE",
+    description: "山札と場札を整理し、4つの組札へAからKまで積み上げる定番の一人用カードゲーム。",
+    genre: "CARD GAME",
+    href: "?game=solitaire",
+    screenshot: "/screenshots/solitaire.svg",
+    accent: "#51a98d",
+    kind: "internal",
+    status: "available"
   }
 ];

@@ -1,0 +1,100 @@
+<svg width="1280" height="720" viewBox="0 0 1280 720" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Solitaire screenshot</title>
+  <desc id="desc">A green solitaire table with stock, waste, foundations, and seven tableau piles.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#0b513e"/>
+      <stop offset="0.55" stop-color="#062b25"/>
+      <stop offset="1" stop-color="#050f13"/>
+    </linearGradient>
+    <linearGradient id="cardBack" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#2b6b53"/>
+      <stop offset="1" stop-color="#15362f"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="16" stdDeviation="10" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <style>
+      .label { fill: #d9a84e; font-family: Inter, Arial, sans-serif; font-size: 34px; font-weight: 800; letter-spacing: 5px; }
+      .small { fill: #f4f1e8; opacity: .72; font-family: Inter, Arial, sans-serif; font-size: 22px; font-weight: 700; letter-spacing: 2px; }
+      .rank { font-family: Georgia, serif; font-size: 40px; font-weight: 800; }
+      .suit { font-family: Georgia, serif; font-size: 58px; font-weight: 800; }
+      .red { fill: #c9263a; }
+      .black { fill: #161a1e; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#bg)"/>
+  <circle cx="220" cy="88" r="210" fill="#51a98d" opacity=".16"/>
+  <circle cx="1040" cy="660" r="310" fill="#d9a84e" opacity=".11"/>
+  <rect x="70" y="54" width="1140" height="612" rx="42" fill="#0a3028" opacity=".72" stroke="#f4f1e8" stroke-opacity=".12"/>
+
+  <text x="96" y="112" class="label">SOLITAIRE</text>
+  <text x="96" y="148" class="small">KLONDIKE CARD GAME</text>
+
+  <g filter="url(#shadow)">
+    <rect x="98" y="188" width="92" height="130" rx="14" fill="url(#cardBack)" stroke="#f4f1e8" stroke-opacity=".55" stroke-width="3"/>
+    <path d="M118 212h52M118 236h52M118 260h52M118 284h52" stroke="#d9a84e" stroke-width="7" stroke-linecap="round" opacity=".75"/>
+
+    <rect x="216" y="188" width="92" height="130" rx="14" fill="#f7f1e4" stroke="#ffffff" stroke-opacity=".72" stroke-width="3"/>
+    <text x="232" y="232" class="rank red">A</text>
+    <text x="253" y="292" class="suit red">♥</text>
+
+    <rect x="812" y="188" width="92" height="130" rx="14" fill="#f7f1e4" stroke="#ffffff" stroke-opacity=".72" stroke-width="3"/>
+    <text x="828" y="232" class="rank black">A</text>
+    <text x="850" y="292" class="suit black">♠</text>
+    <rect x="928" y="188" width="92" height="130" rx="14" fill="#f7f1e4" stroke="#ffffff" stroke-opacity=".72" stroke-width="3"/>
+    <text x="944" y="232" class="rank red">2</text>
+    <text x="967" y="292" class="suit red">♦</text>
+    <rect x="1044" y="188" width="92" height="130" rx="14" fill="#f7f1e4" stroke="#ffffff" stroke-opacity=".72" stroke-width="3"/>
+    <text x="1060" y="232" class="rank black">3</text>
+    <text x="1083" y="292" class="suit black">♣</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <g transform="translate(98 382)">
+      <rect width="84" height="118" rx="13" fill="#f7f1e4"/>
+      <text x="14" y="40" class="rank black">K</text>
+      <text x="45" y="88" class="suit black">♠</text>
+    </g>
+    <g transform="translate(230 382)">
+      <rect width="84" height="118" rx="13" fill="url(#cardBack)"/>
+      <rect y="34" width="84" height="118" rx="13" fill="#f7f1e4"/>
+      <text x="14" y="74" class="rank red">Q</text>
+      <text x="45" y="122" class="suit red">♥</text>
+    </g>
+    <g transform="translate(362 382)">
+      <rect width="84" height="118" rx="13" fill="url(#cardBack)"/>
+      <rect y="34" width="84" height="118" rx="13" fill="url(#cardBack)"/>
+      <rect y="68" width="84" height="118" rx="13" fill="#f7f1e4"/>
+      <text x="14" y="108" class="rank black">J</text>
+      <text x="45" y="156" class="suit black">♣</text>
+    </g>
+    <g transform="translate(494 382)">
+      <rect width="84" height="118" rx="13" fill="url(#cardBack)"/>
+      <rect y="34" width="84" height="118" rx="13" fill="url(#cardBack)"/>
+      <rect y="68" width="84" height="118" rx="13" fill="url(#cardBack)"/>
+      <rect y="102" width="84" height="118" rx="13" fill="#f7f1e4"/>
+      <text x="14" y="142" class="rank red">10</text>
+      <text x="45" y="190" class="suit red">♦</text>
+    </g>
+    <g transform="translate(626 382)">
+      <rect width="84" height="118" rx="13" fill="url(#cardBack)"/>
+      <rect y="34" width="84" height="118" rx="13" fill="url(#cardBack)"/>
+      <rect y="68" width="84" height="118" rx="13" fill="#f7f1e4"/>
+      <text x="14" y="108" class="rank black">9</text>
+      <text x="45" y="156" class="suit black">♠</text>
+    </g>
+    <g transform="translate(758 382)">
+      <rect width="84" height="118" rx="13" fill="url(#cardBack)"/>
+      <rect y="34" width="84" height="118" rx="13" fill="#f7f1e4"/>
+      <text x="14" y="74" class="rank red">8</text>
+      <text x="45" y="122" class="suit red">♥</text>
+    </g>
+    <g transform="translate(890 382)">
+      <rect width="84" height="118" rx="13" fill="#f7f1e4"/>
+      <text x="14" y="40" class="rank black">7</text>
+      <text x="45" y="88" class="suit black">♣</text>
+    </g>
+  </g>
+</svg>

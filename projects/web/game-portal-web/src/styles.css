@@ -3712,6 +3712,209 @@ footer {
   color: #ffcf6d;
 }
 
+.solitaire-layout {
+  grid-template-columns: minmax(560px, 1fr) minmax(280px, 0.72fr);
+}
+
+.solitaire-score {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.solitaire-table {
+  display: grid;
+  gap: 22px;
+  min-height: 620px;
+  padding: clamp(14px, 3vw, 26px);
+  border: 1px solid rgba(244, 241, 232, 0.13);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 28% 12%, rgba(81, 169, 141, 0.24), transparent 36%),
+    radial-gradient(circle at 78% 88%, rgba(217, 168, 78, 0.14), transparent 38%),
+    linear-gradient(145deg, rgba(7, 46, 33, 0.98), rgba(5, 18, 17, 0.94));
+  box-shadow: inset 0 0 44px rgba(0, 0, 0, 0.22);
+}
+
+.solitaire-top-row {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.solitaire-stock-area,
+.solitaire-foundations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.solitaire-slot,
+.solitaire-empty-pile {
+  width: clamp(64px, 8.3vw, 86px);
+  min-height: clamp(92px, 12vw, 124px);
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(244, 241, 232, 0.24);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #f4f1e8;
+}
+
+.solitaire-slot {
+  cursor: pointer;
+  padding: 0;
+}
+
+.solitaire-empty-label,
+.solitaire-foundation-suit {
+  color: rgba(244, 241, 232, 0.52);
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.solitaire-foundation-suit {
+  font-size: 2rem;
+}
+
+.solitaire-foundation-suit.is-red {
+  color: rgba(255, 118, 118, 0.75);
+}
+
+.solitaire-card {
+  width: clamp(64px, 8.3vw, 86px);
+  min-height: clamp(92px, 12vw, 124px);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  padding: 9px;
+  border: 2px solid rgba(255, 255, 255, 0.66);
+  border-radius: 13px;
+  background: #f7f1e4;
+  color: #101418;
+  font-weight: 900;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.22);
+}
+
+.solitaire-card.is-compact {
+  width: clamp(54px, 6.6vw, 74px);
+  min-height: clamp(76px, 9.4vw, 104px);
+  padding: 7px;
+}
+
+.solitaire-card.is-red {
+  color: #c9263a;
+}
+
+.solitaire-card.is-selected {
+  border-color: #ffcf6d;
+  box-shadow: 0 0 22px rgba(255, 207, 109, 0.38), 0 10px 18px rgba(0, 0, 0, 0.22);
+  transform: translateY(-4px);
+}
+
+.solitaire-card.is-facedown {
+  place-items: center;
+  background:
+    linear-gradient(135deg, rgba(217, 168, 78, 0.34), transparent),
+    repeating-linear-gradient(45deg, #25493d 0 8px, #173229 8px 16px);
+  color: #f4f1e8;
+}
+
+.solitaire-card strong {
+  align-self: end;
+  justify-self: end;
+  color: currentColor;
+  font-size: clamp(1.9rem, 4vw, 2.75rem);
+}
+
+.solitaire-card.is-compact strong {
+  font-size: clamp(1.45rem, 3vw, 2.1rem);
+}
+
+.solitaire-card-back {
+  font-size: 1.2rem;
+}
+
+.solitaire-recycle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #9df08a;
+  font-weight: 900;
+}
+
+.solitaire-recycle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.solitaire-tableau {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(54px, 1fr));
+  gap: clamp(6px, 1.2vw, 12px);
+  align-items: start;
+}
+
+.solitaire-pile {
+  position: relative;
+  min-height: 430px;
+}
+
+.solitaire-card-button {
+  position: absolute;
+  top: var(--solitaire-offset);
+  left: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.solitaire-card-button .solitaire-card {
+  width: 100%;
+}
+
+.solitaire-empty-pile {
+  width: 100%;
+  min-height: 104px;
+  font-size: 2rem;
+  color: rgba(244, 241, 232, 0.26);
+}
+
+.solitaire-record {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid rgba(244, 241, 232, 0.12);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.solitaire-record svg {
+  width: 22px;
+  height: 22px;
+  color: #ffcf6d;
+  grid-row: span 3;
+}
+
+.solitaire-record div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.solitaire-record span {
+  color: var(--muted);
+  font-size: 0.74rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.solitaire-record strong {
+  color: #f4f1e8;
+}
+
 .hanoi-layout {
   grid-template-columns: minmax(320px, 0.98fr) minmax(280px, 0.7fr);
 }
@@ -6376,6 +6579,81 @@ footer {
 
   .poker-record {
     grid-template-columns: 1fr;
+  }
+
+  .solitaire-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .solitaire-table {
+    gap: 14px;
+    min-height: 520px;
+    padding: 10px;
+    border-radius: 18px;
+  }
+
+  .solitaire-top-row {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .solitaire-stock-area,
+  .solitaire-foundations {
+    gap: 7px;
+  }
+
+  .solitaire-slot {
+    width: min(18vw, 62px);
+    min-height: min(26vw, 88px);
+    border-radius: 10px;
+  }
+
+  .solitaire-card {
+    width: min(18vw, 62px);
+    min-height: min(26vw, 88px);
+    padding: 6px;
+    border-radius: 10px;
+  }
+
+  .solitaire-card.is-compact {
+    width: 100%;
+    min-height: min(23vw, 78px);
+    padding: 5px;
+  }
+
+  .solitaire-card strong {
+    font-size: clamp(1.2rem, 5.5vw, 1.8rem);
+  }
+
+  .solitaire-card.is-compact strong {
+    font-size: clamp(1.05rem, 4.8vw, 1.55rem);
+  }
+
+  .solitaire-tableau {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .solitaire-pile {
+    min-height: 360px;
+  }
+
+  .solitaire-card-button {
+    top: calc(var(--solitaire-offset) * 0.72);
+  }
+
+  .solitaire-empty-pile {
+    min-height: min(23vw, 78px);
+    border-radius: 10px;
+    font-size: 1.2rem;
+  }
+
+  .solitaire-record {
+    grid-template-columns: 1fr;
+  }
+
+  .solitaire-record svg {
+    grid-row: auto;
   }
 
   .hanoi-layout {

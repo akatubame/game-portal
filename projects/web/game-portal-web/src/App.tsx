@@ -30,6 +30,7 @@ import { SameGame } from "./games/sameGame/SameGame";
 import { SimonSays } from "./games/simonSays/SimonSays";
 import { Slide15 } from "./games/slide15/Slide15";
 import { SnakeGame } from "./games/snake/SnakeGame";
+import { Solitaire } from "./games/solitaire/Solitaire";
 import { Sudoku } from "./games/sudoku/Sudoku";
 import { TicTacToe } from "./games/ticTacToe/TicTacToe";
 import { TypingGame } from "./games/typing/TypingGame";
@@ -71,10 +72,11 @@ const gameViews: Record<string, ComponentType<{ onBack: () => void }>> = {
   poker: Poker,
   yachtDice: YachtDice,
   nonogram: Nonogram,
-  wordGuess: WordGuess
+  wordGuess: WordGuess,
+  solitaire: Solitaire
 };
 
-const recentGameIds = ["wordGuess", "nonogram", "poker", "yachtDice"];
+const recentGameIds = ["solitaire", "wordGuess", "nonogram", "poker"];
 const popularGameIds = ["random-shogi", "yonmai-mahjong", "2048", "sudoku", "minesweeper", "nonogram", "snake", "reversi"];
 const maxPopularGames = 4;
 const allGenresKey = "__all__";

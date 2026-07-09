@@ -181,6 +181,11 @@ export const gameTranslations: Record<string, Record<Language, GameTranslation>>
     ja: { title: "Wordle風ゲーム", description: "5文字の英単語を6回以内に当てる、色ヒント付きの単語推理ゲーム。" },
     en: { title: "Word Guess", description: "Guess a five-letter English word in six tries using color clues." }
   }
+  ,
+  solitaire: {
+    ja: { title: "ソリティア", description: "山札と場札を整理し、4つの組札へAからKまで積み上げる定番の一人用カードゲーム。" },
+    en: { title: "Solitaire", description: "Play classic Klondike solitaire: build foundations from Ace to King while arranging tableau cards in alternating colors." }
+  }
 };
 
 export function getGameText(game: Game, language: Language) {
