@@ -308,13 +308,17 @@ export function App() {
 
   useEffect(() => {
     document.documentElement.lang = language;
-    document.title = language === "ja" ? "Game Shelf | ブラウザゲーム集" : "Game Shelf | Browser Games";
+    const selectedGame = selectedGameId ? getGameById(selectedGameId) : undefined;
+    const selectedGameText = selectedGame ? getGameText(selectedGame, language) : undefined;
+    document.title = selectedGameText
+      ? `Game Shelf | ${selectedGameText.title}`
+      : language === "ja" ? "Game Shelf | ブラウザゲーム集" : "Game Shelf | Browser Games";
 
     const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
     if (description) {
-      description.content = t.metaDescription;
+      description.content = selectedGameText?.description ?? t.metaDescription;
     }
-  }, [language, t.metaDescription]);
+  }, [language, selectedGameId, t.metaDescription]);
 
   const returnToShelf = () => {
     window.history.pushState({}, "", window.location.pathname);
@@ -389,8 +393,7 @@ export function App() {
               key={game.id}
               language={language}
               onFavoriteToggle={toggleFavorite}
-              onPlayed={rememberPlayedGame}
-              onSelect={setSelectedGameId}
+              onOpen={openGame}
             />
           ))}
         </div>
@@ -414,8 +417,7 @@ export function App() {
               key={game.id}
               language={language}
               onFavoriteToggle={toggleFavorite}
-              onPlayed={rememberPlayedGame}
-              onSelect={setSelectedGameId}
+              onOpen={openGame}
             />
           ))}
         </div>
@@ -426,8 +428,7 @@ export function App() {
         games={favoriteGames}
         icon={<Star aria-hidden="true" />}
         language={language}
-        onPlayed={rememberPlayedGame}
-        onSelect={setSelectedGameId}
+        onOpen={openGame}
         title={t.favoritesTitle}
         eyebrow={t.favoritesEyebrow}
       />
@@ -437,8 +438,7 @@ export function App() {
         games={recentlyPlayedGames}
         icon={<Clock3 aria-hidden="true" />}
         language={language}
-        onPlayed={rememberPlayedGame}
-        onSelect={setSelectedGameId}
+        onOpen={openGame}
         title={t.recentlyPlayedTitle}
         eyebrow={t.recentlyPlayedEyebrow}
       />
@@ -479,8 +479,7 @@ export function App() {
             key={game.id}
             language={language}
             onFavoriteToggle={toggleFavorite}
-            onPlayed={rememberPlayedGame}
-            onSelect={setSelectedGameId}
+            onOpen={openGame}
           />
         ))}
       </section>
@@ -506,8 +505,7 @@ type GameCardProps = {
   favorite?: boolean;
   onFavoriteToggle?: (gameId: string) => void;
   onLinkCopy?: (game: Game) => void;
-  onPlayed?: (gameId: string) => void;
-  onSelect: (gameId: string) => void;
+  onOpen: (game: Game) => void;
 };
 
 function GameCard({
@@ -518,8 +516,7 @@ function GameCard({
   favorite = false,
   onFavoriteToggle,
   onLinkCopy,
-  onPlayed,
-  onSelect
+  onOpen
 }: GameCardProps) {
   const isComingSoon = game.status === "coming-soon";
   const href = game.kind === "internal" ? `?game=${game.id}` : game.href;
@@ -531,28 +528,21 @@ function GameCard({
   const appBadgeText = language === "ja" ? "Android版あり" : "Android app";
 
   return (
-    <a
+    <article
       className={`game-card${isComingSoon ? " is-coming-soon" : ""}${compact ? " is-compact" : ""}`}
-      href={cardHref}
       style={{ "--accent": game.accent, "--delay": `${index * 90}ms` } as CSSProperties}
-      aria-label={isComingSoon ? `${gameText.title} ${t.comingSoon}` : `${t.openGame} ${gameText.title}`}
-      onClick={(event) => {
-        if (isComingSoon) {
-          event.preventDefault();
-          return;
-        }
-
-        if (game.kind === "internal" || shouldOpenInPortal) {
-          event.preventDefault();
-          window.history.pushState({}, "", cardHref);
-          onPlayed?.(game.id);
-          onSelect(game.id);
-          return;
-        }
-
-        onPlayed?.(game.id);
-      }}
     >
+      {!isComingSoon && (
+        <a
+          className="game-card-hit-area"
+          href={cardHref}
+          aria-label={`${t.openGame} ${gameText.title}`}
+          onClick={(event) => {
+            event.preventDefault();
+            onOpen(game);
+          }}
+        />
+      )}
       <div className="screenshot-frame">
         <img src={game.screenshot} alt={`${gameText.title} game screen`} />
         {(onFavoriteToggle || onLinkCopy) && (
@@ -564,7 +554,6 @@ function GameCard({
                 aria-label={`${favorite ? t.removeFavorite : t.addFavorite}: ${gameText.title}`}
                 title={favorite ? t.removeFavorite : t.addFavorite}
                 onClick={(event) => {
-                  event.preventDefault();
                   event.stopPropagation();
                   onFavoriteToggle(game.id);
                 }}
@@ -579,7 +568,6 @@ function GameCard({
                 aria-label={`${t.copyLink}: ${gameText.title}`}
                 title={t.copyLink}
                 onClick={(event) => {
-                  event.preventDefault();
                   event.stopPropagation();
                   onLinkCopy(game);
                 }}
@@ -608,7 +596,7 @@ function GameCard({
           {game.id === yonmaiMahjongId && <span className="app-badge">{appBadgeText}</span>}
         </div>
       </div>
-    </a>
+    </article>
   );
 }
 
@@ -713,8 +701,7 @@ function ShelfStrip({
   games: shelfGames,
   icon,
   language,
-  onPlayed,
-  onSelect,
+  onOpen,
   title
 }: {
   emptyText: string;
@@ -722,8 +709,7 @@ function ShelfStrip({
   games: Game[];
   icon: ReactNode;
   language: Language;
-  onPlayed: (gameId: string) => void;
-  onSelect: (gameId: string) => void;
+  onOpen: (game: Game) => void;
   title: string;
 }) {
   return (
@@ -750,15 +736,8 @@ function ShelfStrip({
                 key={game.id}
                 style={{ "--accent": game.accent } as CSSProperties}
                 onClick={(event) => {
-                  if (opensInPortal) {
-                    event.preventDefault();
-                    window.history.pushState({}, "", href);
-                    onPlayed(game.id);
-                    onSelect(game.id);
-                    return;
-                  }
-
-                  onPlayed(game.id);
+                  event.preventDefault();
+                  onOpen(game);
                 }}
               >
                 <span>{gameText.title}</span>

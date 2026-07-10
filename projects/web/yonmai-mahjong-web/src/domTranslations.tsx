@@ -152,6 +152,14 @@ const originalAttributes = new WeakMap<Element, Map<string, string>>();
 export function DomTranslationLayer() {
   useEffect(() => {
     const language = getLanguage();
+    document.documentElement.lang = language;
+    document.title = language === "en" ? "Four-Tile Mahjong" : "四枚麻雀";
+    const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    if (description) {
+      description.content = language === "en"
+        ? "A compact mahjong game built around quick four-tile hands."
+        : "少ない手牌でテンポよく役作りを楽しめる四枚麻雀。";
+    }
     const translate = () => {
       if (language === "ja") return;
       translateDocument();

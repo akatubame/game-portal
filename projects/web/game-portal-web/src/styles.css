@@ -486,6 +486,7 @@ h1 {
   --accent: #d9a84e;
   --delay: 0ms;
   min-width: 0;
+  position: relative;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 3px;
@@ -495,6 +496,13 @@ h1 {
   animation: reveal 620ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   animation-delay: var(--delay);
   transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.game-card-hit-area {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
 }
 
 .game-card:hover {
@@ -528,7 +536,7 @@ h1 {
   font-size: 0.86rem;
 }
 
-.game-card:focus-visible {
+.game-card:has(.game-card-hit-area:focus-visible) {
   outline: 3px solid var(--accent);
   outline-offset: 5px;
 }

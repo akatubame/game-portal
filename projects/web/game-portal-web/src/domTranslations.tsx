@@ -49,6 +49,7 @@ const textTranslations: Record<string, string> = {
   "ベスト": "Best",
   "ベストタイム": "Best time",
   "まだ記録がありません。": "No record yet.",
+  "まだ勝利記録がありません。": "No win record yet.",
   "クリア": "Cleared",
   "挑戦中": "Playing",
   "状態": "Status",
@@ -142,6 +143,18 @@ const textTranslations: Record<string, string> = {
   "現在の道具": "Current tool",
   "ロケット": "Rocket",
   "コーヒー": "Coffee",
+  "未開封": "unopened",
+  "裏向き": "face-down",
+  "三目並べの戦績": "Tic-Tac-Toe record",
+  "Nimの戦績": "Nim record",
+  "Nimの石の山": "Nim stone piles",
+  "山の構成": "Pile setup",
+  "現在の入力": "Current input",
+  "色選択": "Color selection",
+  "盤外": "off board",
+  "ペグ": "peg",
+  "空き": "empty",
+  "操作モード": "Input mode",
   "鍵": "Key",
   "音符": "Music note",
   "蝶": "Butterfly",
@@ -766,6 +779,20 @@ const phraseTranslations: Record<string, string> = {
 };
 
 const regexTranslations: Array<[RegExp, (match: RegExpMatchArray) => string]> = [
+  [/^(.+)のカード盤面$/, (match) => `${translateDynamicText(match[1])} card board`],
+  [/^(.+)の状態$/, (match) => `${translateDynamicText(match[1])} status`],
+  [/^(.+)の盤面$/, (match) => `${translateDynamicText(match[1])} board`],
+  [/^(\d+)行(\d+)列、(.+)$/, (match) => `row ${match[1]}, column ${match[2]}, ${translateDynamicText(match[3])}`],
+  [/^(\d+)行(\d+)列 (.+)$/, (match) => `row ${match[1]}, column ${match[2]}, ${translateDynamicText(match[3])}`],
+  [/^(\d+)番の空きマス$/, (match) => `empty square ${match[1]}`],
+  [/^(\d+)番目のマス (.+)を選ぶ$/, (match) => `cell ${match[1]}, select ${translateDynamicText(match[2])}`],
+  [/^(\d+)番目のブロック (.+)$/, (match) => `block ${match[1]}, ${translateDynamicText(match[2])}`],
+  [/^(\d+)のタイル(、移動できます)?$/, (match) => `tile ${match[1]}${match[2] ? ", movable" : ""}`],
+  [/^(.+)のカード$/, (match) => `${translateDynamicText(match[1])} card`],
+  [/^(上|下|左|右)へ$/, (match) => `Move ${translateDynamicText(match[1]).toLowerCase()}`],
+  [/^(.+)を選ぶ$/, (match) => `Select ${translateDynamicText(match[1])}`],
+  [/^ペグを選び、隣のペグを飛び越えて空きマスへ移動します。飛び越えたペグは取り除かれます。$/, () => "Select a peg, then jump over an adjacent peg into an empty square. The jumped peg is removed."],
+  [/^ペグは上下左右に2マス先の空きマスへジャンプできます。間にあるペグは取り除かれます。\s*これを繰り返して、最後の1本を目指しましょう。$/, () => "Jump a peg up, down, left, or right into an empty square two spaces away. Keep going and try to leave one peg."],
   [/^勝利！\s*(\d+)\s*対\s*(\d+)\s*でチップ \+(\d+) です。$/, (match) => `Win! ${match[1]} to ${match[2]}. +${match[3]} chips.`],
   [/^ディーラーの勝ちです。(\d+)\s*対\s*(\d+)。$/, (match) => `Dealer wins. ${match[1]} to ${match[2]}.`],
   [/^引き分けです。(\d+)\s*対\s*(\d+)。$/, (match) => `Push. ${match[1]} to ${match[2]}.`],
@@ -935,7 +962,7 @@ function translateDocument() {
 
   for (const node of nodes) {
     const parent = node.parentElement;
-    if (!parent || ["SCRIPT", "STYLE", "TEXTAREA"].includes(parent.tagName)) {
+    if (!parent || ["SCRIPT", "STYLE", "TEXTAREA"].includes(parent.tagName) || parent.closest(".typing-japanese")) {
       continue;
     }
 

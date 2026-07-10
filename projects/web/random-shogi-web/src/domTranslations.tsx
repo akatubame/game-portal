@@ -58,6 +58,14 @@ const originalText = new WeakMap<Text, string>()
 export function DomTranslationLayer() {
   useEffect(() => {
     const language = getLanguage()
+    document.documentElement.lang = language
+    document.title = language === 'en' ? 'Random Shogi' : 'ランダム将棋'
+    const description = document.querySelector<HTMLMetaElement>('meta[name="description"]')
+    if (description) {
+      description.content = language === 'en'
+        ? 'Start playing shogi instantly from varied middle- and endgame positions.'
+        : '中終盤の多彩な局面から、すぐに対局を始められるランダム将棋。'
+    }
     const translate = () => {
       if (language === 'ja') return
       translateDocument()
