@@ -1,2 +1,3 @@
 User-agent: *
 Allow: /
+Sitemap: https://game-portal-4nw.pages.dev/sitemap.xml

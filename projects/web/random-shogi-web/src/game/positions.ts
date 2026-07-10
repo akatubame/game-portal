@@ -7,6 +7,16 @@ import type { Difficulty, Move, Position, PositionSeed, Side } from './types'
 
 const baseSeeds = rawSeeds as PositionSeed[]
 
+function readStoredList(key: string): string[] {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || '[]')
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+  } catch {
+    localStorage.removeItem(key)
+    return []
+  }
+}
+
 export interface NewGame {
   seed: PositionSeed
   position: Position
@@ -15,9 +25,9 @@ export interface NewGame {
 }
 
 export async function createRandomGame(difficulty: Difficulty, onProgress?: (value: number, label: string) => void): Promise<NewGame> {
-  const seen = new Set<string>(JSON.parse(localStorage.getItem('random-shogi-seen') || '[]'))
-  const recentFamilies: string[] = JSON.parse(localStorage.getItem('random-shogi-recent-families') || '[]')
-  const recentNames: string[] = JSON.parse(localStorage.getItem('random-shogi-recent-senkei') || '[]')
+  const seen = new Set<string>(readStoredList('random-shogi-seen'))
+  const recentFamilies = readStoredList('random-shogi-recent-families')
+  const recentNames = readStoredList('random-shogi-recent-senkei')
 
   for (let attempt = 0; attempt < 48; attempt += 1) {
     onProgress?.(Math.min(95, 8 + attempt * 2), `戦型と派生局面を生成中 ${attempt + 1}/48`)

@@ -1,80 +1,47 @@
 import { ArrowLeft, ArrowUpRight, Clock3, Gamepad2, Languages, Link2, Search, Shuffle, Star } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties, type LazyExoticComponent, type ReactNode } from "react";
 import { trackGameOpen, trackPageView } from "./analytics";
 import { detectInitialLanguage, I18nContext, type Language, uiText } from "./i18n";
 import { DomTranslationLayer } from "./domTranslations";
 import { genreLabels, getGameText } from "./games/gameTranslations";
 import { games, type Game } from "./games/gamesRegistry";
-import { AimTrainer } from "./games/aimTrainer/AimTrainer";
-import { Blackjack } from "./games/blackjack/Blackjack";
-import { Breakout } from "./games/breakout/Breakout";
-import { ColorJudge } from "./games/colorJudge/ColorJudge";
-import { ConnectFour } from "./games/connectFour/ConnectFour";
-import { FloodFill } from "./games/floodFill/FloodFill";
-import { Hanoi } from "./games/hanoi/Hanoi";
-import { HitBlow } from "./games/hitBlow/HitBlow";
-import { LightsOut } from "./games/lightsOut/LightsOut";
-import { MazeEscape } from "./games/mazeEscape/MazeEscape";
-import { Memory } from "./games/memory/Memory";
-import { MentalMath } from "./games/mentalMath/MentalMath";
-import { Minesweeper } from "./games/minesweeper/Minesweeper";
-import { Nim } from "./games/nim/Nim";
-import { Nonogram } from "./games/nonogram/Nonogram";
-import { OneToFifty } from "./games/oneToFifty/OneToFifty";
-import { PegSolitaire } from "./games/pegSolitaire/PegSolitaire";
-import { Poker } from "./games/poker/Poker";
-import { Pong } from "./games/pong/Pong";
-import { Puzzle2048 } from "./games/puzzle2048/Puzzle2048";
-import { ReactionTest } from "./games/reaction/ReactionTest";
-import { Reversi } from "./games/reversi/Reversi";
-import { SameGame } from "./games/sameGame/SameGame";
-import { SimonSays } from "./games/simonSays/SimonSays";
-import { Slide15 } from "./games/slide15/Slide15";
-import { SnakeGame } from "./games/snake/SnakeGame";
-import { Solitaire } from "./games/solitaire/Solitaire";
-import { Sudoku } from "./games/sudoku/Sudoku";
-import { TicTacToe } from "./games/ticTacToe/TicTacToe";
-import { TypingGame } from "./games/typing/TypingGame";
-import { WhackMole } from "./games/whackMole/WhackMole";
-import { WaterSort } from "./games/waterSort/WaterSort";
-import { WordGuess } from "./games/wordGuess/WordGuess";
-import { YachtDice } from "./games/yachtDice/YachtDice";
+type GameView = LazyExoticComponent<ComponentType<{ onBack: () => void }>>;
 
-const gameViews: Record<string, ComponentType<{ onBack: () => void }>> = {
-  "2048": Puzzle2048,
-  sudoku: Sudoku,
-  minesweeper: Minesweeper,
-  memory: Memory,
-  slide15: Slide15,
-  lightsOut: LightsOut,
-  reaction: ReactionTest,
-  typing: TypingGame,
-  mentalMath: MentalMath,
-  aimTrainer: AimTrainer,
-  snake: SnakeGame,
-  breakout: Breakout,
-  pong: Pong,
-  whackMole: WhackMole,
-  ticTacToe: TicTacToe,
-  reversi: Reversi,
-  colorJudge: ColorJudge,
-  blackjack: Blackjack,
-  hanoi: Hanoi,
-  connectFour: ConnectFour,
-  mazeEscape: MazeEscape,
-  simonSays: SimonSays,
-  nim: Nim,
-  hitBlow: HitBlow,
-  floodFill: FloodFill,
-  sameGame: SameGame,
-  pegSolitaire: PegSolitaire,
-  oneToFifty: OneToFifty,
-  waterSort: WaterSort,
-  poker: Poker,
-  yachtDice: YachtDice,
-  nonogram: Nonogram,
-  wordGuess: WordGuess,
-  solitaire: Solitaire
+const gameViews: Record<string, GameView> = {
+  "2048": lazy(() => import("./games/puzzle2048/Puzzle2048").then((module) => ({ default: module.Puzzle2048 }))),
+  sudoku: lazy(() => import("./games/sudoku/Sudoku").then((module) => ({ default: module.Sudoku }))),
+  minesweeper: lazy(() => import("./games/minesweeper/Minesweeper").then((module) => ({ default: module.Minesweeper }))),
+  memory: lazy(() => import("./games/memory/Memory").then((module) => ({ default: module.Memory }))),
+  slide15: lazy(() => import("./games/slide15/Slide15").then((module) => ({ default: module.Slide15 }))),
+  lightsOut: lazy(() => import("./games/lightsOut/LightsOut").then((module) => ({ default: module.LightsOut }))),
+  reaction: lazy(() => import("./games/reaction/ReactionTest").then((module) => ({ default: module.ReactionTest }))),
+  typing: lazy(() => import("./games/typing/TypingGame").then((module) => ({ default: module.TypingGame }))),
+  mentalMath: lazy(() => import("./games/mentalMath/MentalMath").then((module) => ({ default: module.MentalMath }))),
+  aimTrainer: lazy(() => import("./games/aimTrainer/AimTrainer").then((module) => ({ default: module.AimTrainer }))),
+  snake: lazy(() => import("./games/snake/SnakeGame").then((module) => ({ default: module.SnakeGame }))),
+  breakout: lazy(() => import("./games/breakout/Breakout").then((module) => ({ default: module.Breakout }))),
+  pong: lazy(() => import("./games/pong/Pong").then((module) => ({ default: module.Pong }))),
+  whackMole: lazy(() => import("./games/whackMole/WhackMole").then((module) => ({ default: module.WhackMole }))),
+  ticTacToe: lazy(() => import("./games/ticTacToe/TicTacToe").then((module) => ({ default: module.TicTacToe }))),
+  reversi: lazy(() => import("./games/reversi/Reversi").then((module) => ({ default: module.Reversi }))),
+  colorJudge: lazy(() => import("./games/colorJudge/ColorJudge").then((module) => ({ default: module.ColorJudge }))),
+  blackjack: lazy(() => import("./games/blackjack/Blackjack").then((module) => ({ default: module.Blackjack }))),
+  hanoi: lazy(() => import("./games/hanoi/Hanoi").then((module) => ({ default: module.Hanoi }))),
+  connectFour: lazy(() => import("./games/connectFour/ConnectFour").then((module) => ({ default: module.ConnectFour }))),
+  mazeEscape: lazy(() => import("./games/mazeEscape/MazeEscape").then((module) => ({ default: module.MazeEscape }))),
+  simonSays: lazy(() => import("./games/simonSays/SimonSays").then((module) => ({ default: module.SimonSays }))),
+  nim: lazy(() => import("./games/nim/Nim").then((module) => ({ default: module.Nim }))),
+  hitBlow: lazy(() => import("./games/hitBlow/HitBlow").then((module) => ({ default: module.HitBlow }))),
+  floodFill: lazy(() => import("./games/floodFill/FloodFill").then((module) => ({ default: module.FloodFill }))),
+  sameGame: lazy(() => import("./games/sameGame/SameGame").then((module) => ({ default: module.SameGame }))),
+  pegSolitaire: lazy(() => import("./games/pegSolitaire/PegSolitaire").then((module) => ({ default: module.PegSolitaire }))),
+  oneToFifty: lazy(() => import("./games/oneToFifty/OneToFifty").then((module) => ({ default: module.OneToFifty }))),
+  waterSort: lazy(() => import("./games/waterSort/WaterSort").then((module) => ({ default: module.WaterSort }))),
+  poker: lazy(() => import("./games/poker/Poker").then((module) => ({ default: module.Poker }))),
+  yachtDice: lazy(() => import("./games/yachtDice/YachtDice").then((module) => ({ default: module.YachtDice }))),
+  nonogram: lazy(() => import("./games/nonogram/Nonogram").then((module) => ({ default: module.Nonogram }))),
+  wordGuess: lazy(() => import("./games/wordGuess/WordGuess").then((module) => ({ default: module.WordGuess }))),
+  solitaire: lazy(() => import("./games/solitaire/Solitaire").then((module) => ({ default: module.Solitaire })))
 };
 
 const recentGameIds = ["solitaire", "wordGuess", "nonogram", "poker"];
@@ -338,7 +305,9 @@ export function App() {
             <LanguageSwitcher language={language} setLanguage={setLanguage} />
           </div>
           {SelectedGame ? (
-            <SelectedGame onBack={returnToShelf} />
+            <Suspense fallback={<div className="game-loading" role="status">{language === "ja" ? "ゲームを読み込んでいます…" : "Loading game..."}</div>}>
+              <SelectedGame onBack={returnToShelf} />
+            </Suspense>
           ) : selectedEmbeddedGame ? (
             <EmbeddedGameLanding game={selectedEmbeddedGame} language={language} onBack={returnToShelf} />
           ) : null}
@@ -490,6 +459,7 @@ export function App() {
 
       <footer>
         <span>{t.edition}</span>
+        <a href="/privacy.html">{t.privacy}</a>
         <span>{availableGames.length} {t.gamesAvailable}</span>
       </footer>
     </main>
@@ -544,7 +514,12 @@ function GameCard({
         />
       )}
       <div className="screenshot-frame">
-        <img src={game.screenshot} alt={`${gameText.title} game screen`} />
+        <img
+          src={game.screenshot}
+          alt={`${gameText.title} game screen`}
+          loading={compact ? "eager" : "lazy"}
+          decoding="async"
+        />
         {(onFavoriteToggle || onLinkCopy) && (
           <div className="card-action-row">
             {onFavoriteToggle && (
@@ -662,7 +637,7 @@ function EmbeddedGameLanding({
           </div>
         </div>
         <div className="embedded-landing-preview">
-          <img src={game.screenshot} alt={`${gameText.title} game screen`} />
+          <img src={game.screenshot} alt={`${gameText.title} game screen`} decoding="async" />
         </div>
       </div>
 

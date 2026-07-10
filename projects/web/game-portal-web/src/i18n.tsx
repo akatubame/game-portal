@@ -71,6 +71,7 @@ export const uiText = {
     language: "言語",
     japanese: "日本語",
     english: "English",
+    privacy: "プライバシー",
     metaDescription: "ブラウザで遊べる小さなゲームを集めたポータルサイト"
   },
   en: {
@@ -115,6 +116,7 @@ export const uiText = {
     language: "Language",
     japanese: "Japanese",
     english: "English",
+    privacy: "Privacy",
     metaDescription: "A portal site collecting small browser games you can play instantly"
   }
 } as const;
