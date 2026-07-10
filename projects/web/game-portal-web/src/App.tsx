@@ -1,5 +1,6 @@
 import { ArrowLeft, ArrowUpRight, Clock3, Gamepad2, Languages, Link2, Search, Shuffle, Star } from "lucide-react";
-import { useEffect, useMemo, useState, type ComponentType, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties, type ReactNode } from "react";
+import { trackGameOpen, trackPageView } from "./analytics";
 import { detectInitialLanguage, I18nContext, type Language, uiText } from "./i18n";
 import { DomTranslationLayer } from "./domTranslations";
 import { genreLabels, getGameText } from "./games/gameTranslations";
@@ -111,6 +112,7 @@ export function App() {
   const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readStoredIds(favoriteStorageKey));
   const [recentlyPlayedIds, setRecentlyPlayedIds] = useState<string[]>(() => readStoredIds(recentlyPlayedStorageKey));
   const [copyNotice, setCopyNotice] = useState("");
+  const didSendInitialPageView = useRef(false);
   const SelectedGame = selectedGameId ? gameViews[selectedGameId] : undefined;
   const selectedEmbeddedGame = selectedGameId && !SelectedGame
     ? games.find((game) => game.id === selectedGameId && game.kind === "embedded")
@@ -219,7 +221,9 @@ export function App() {
 
     const opensInPortal = game.kind === "internal" || game.id === yonmaiMahjongId;
     const href = opensInPortal ? `?game=${game.id}` : game.href;
+    const gameText = getGameText(game, language);
     rememberPlayedGame(game.id);
+    trackGameOpen(game.id, gameText.title, game.kind);
 
     if (opensInPortal) {
       window.history.pushState({}, "", href);
@@ -287,6 +291,19 @@ export function App() {
     if (selectedGameId) {
       rememberPlayedGame(selectedGameId);
     }
+  }, [selectedGameId]);
+
+  useEffect(() => {
+    if (!didSendInitialPageView.current) {
+      didSendInitialPageView.current = true;
+      return;
+    }
+
+    const selectedGame = selectedGameId ? getGameById(selectedGameId) : undefined;
+    const pageTitle = selectedGame
+      ? `Game Shelf | ${getGameText(selectedGame, language).title}`
+      : "Game Shelf";
+    trackPageView(pageTitle);
   }, [selectedGameId]);
 
   useEffect(() => {
