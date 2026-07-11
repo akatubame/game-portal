@@ -34,7 +34,8 @@ function runBuild(game) {
     cwd: game.projectDir,
     env: {
       ...process.env,
-      VITE_BASE_PATH: game.basePath
+      VITE_BASE_PATH: game.basePath,
+      VITE_EMBEDDED_BUILD: "true"
     },
     shell: process.platform === "win32",
     stdio: "inherit"

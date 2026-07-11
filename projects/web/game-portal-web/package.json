@@ -5,13 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 4172 --strictPort",
-    "build": "tsc -b && vite build",
+    "build": "node scripts/build-pwa.mjs",
+    "build:portal": "tsc -b && vite build",
     "build:embedded-games": "node scripts/build-embedded-games.mjs",
-    "build:with-embedded": "npm run build && npm run build:embedded-games",
+    "build:with-embedded": "npm run build",
     "build:cloudflare": "npm ci && npm --prefix ../random-shogi-web ci && npm --prefix ../yonmai-mahjong-web ci && npm run build:with-embedded",
     "preview": "vite preview --host 0.0.0.0 --port 4172 --strictPort",
     "preview:deploy": "vite preview --host 0.0.0.0 --port 4175 --strictPort",
-    "deploy:check": "npm run build:with-embedded"
+    "deploy:check": "npm run build",
+    "icons:pwa": "node scripts/generate-pwa-icons.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
@@ -22,7 +24,9 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "sharp": "^0.35.3",
     "typescript": "~5.7.2",
-    "vite": "^6.0.5"
+    "vite": "^6.0.5",
+    "vite-plugin-pwa": "^1.3.0"
   }
 }

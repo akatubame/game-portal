@@ -478,6 +478,106 @@ h1 {
   animation: toast-in 220ms ease both;
 }
 
+.pwa-install-button {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 17px;
+  border: 1px solid rgba(244, 241, 232, 0.22);
+  border-radius: 999px;
+  color: var(--ink);
+  background: rgba(244, 241, 232, 0.08);
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.pwa-install-button svg,
+.pwa-offline-badge svg,
+.pwa-toast button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.pwa-offline-badge {
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  z-index: 35;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 207, 109, 0.35);
+  border-radius: 999px;
+  color: #ffcf6d;
+  background: rgba(8, 11, 12, 0.94);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.pwa-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 40;
+  width: min(430px, calc(100% - 36px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(244, 241, 232, 0.2);
+  border-radius: 18px;
+  color: var(--ink);
+  background: rgba(8, 11, 12, 0.96);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(14px);
+}
+
+.pwa-toast p {
+  flex: 1;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.pwa-toast button {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  color: #101516;
+  background: var(--accent, #d9a84e);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.pwa-toast .pwa-toast-close {
+  width: 40px;
+  padding: 0;
+  color: var(--ink);
+  background: rgba(244, 241, 232, 0.1);
+}
+
+@media (max-width: 620px) {
+  .pwa-toast {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+    flex-wrap: wrap;
+  }
+
+  .pwa-toast p {
+    min-width: calc(100% - 52px);
+  }
+}
+
 .game-topbar {
   display: flex;
   align-items: center;

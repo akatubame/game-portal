@@ -5,6 +5,7 @@ import { detectInitialLanguage, I18nContext, type Language, uiText } from "./i18
 import { DomTranslationLayer } from "./domTranslations";
 import { genreLabels, getGameText } from "./games/gameTranslations";
 import { games, type Game } from "./games/gamesRegistry";
+import { PwaControls } from "./PwaControls";
 type GameView = LazyExoticComponent<ComponentType<{ onBack: () => void }>>;
 
 const gameViews: Record<string, GameView> = {
@@ -339,6 +340,7 @@ export function App() {
               {t.randomGame}
             </button>
             <span>{t.randomGameHint}</span>
+            <PwaControls language={language} />
           </div>
         </div>
         <LanguageSwitcher language={language} setLanguage={setLanguage} />

@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { VitePWA } from "vite-plugin-pwa";
 import { existsSync, statSync, createReadStream } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -84,5 +85,54 @@ function embeddedGamesDevServer() {
 }
 
 export default defineConfig({
-  plugins: [embeddedGamesDevServer(), react()]
+  plugins: [
+    embeddedGamesDevServer(),
+    react(),
+    VitePWA({
+      registerType: "prompt",
+      includeAssets: ["favicon.svg", "pwa-192.png", "pwa-512.png", "pwa-maskable-512.png"],
+      manifest: {
+        name: "Game Shelf - Browser Game Collection",
+        short_name: "Game Shelf",
+        description: "A growing collection of browser games you can play instantly.",
+        theme_color: "#101516",
+        background_color: "#101516",
+        display: "standalone",
+        orientation: "any",
+        start_url: "/",
+        scope: "/",
+        categories: ["games", "entertainment"],
+        icons: [
+          { src: "/pwa-192.png", sizes: "192x192", type: "image/png" },
+          { src: "/pwa-512.png", sizes: "512x512", type: "image/png" },
+          { src: "/pwa-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
+        ],
+        shortcuts: [
+          { name: "Random Shogi", short_name: "Shogi", url: "/games/random-shogi/", icons: [{ src: "/pwa-192.png", sizes: "192x192" }] },
+          { name: "Four-Tile Mahjong", short_name: "Mahjong", url: "/games/yonmai-mahjong/", icons: [{ src: "/pwa-192.png", sizes: "192x192" }] },
+          { name: "2048", url: "/?game=2048", icons: [{ src: "/pwa-192.png", sizes: "192x192" }] }
+        ]
+      },
+      workbox: {
+        cleanupOutdatedCaches: true,
+        globPatterns: ["**/*.{html,js,css,json,png,svg,webp,wasm,woff,woff2}"],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+        navigateFallback: "/index.html",
+        navigateFallbackDenylist: [/^\/games\//, /^\/privacy\.html$/],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/www\.googletagmanager\.com\//,
+            handler: "NetworkOnly"
+          },
+          {
+            urlPattern: /^https:\/\/www\.google-analytics\.com\//,
+            handler: "NetworkOnly"
+          }
+        ]
+      },
+      devOptions: {
+        enabled: false
+      }
+    })
+  ]
 });

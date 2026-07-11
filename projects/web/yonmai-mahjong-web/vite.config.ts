@@ -4,11 +4,13 @@ import { VitePWA } from "vite-plugin-pwa";
 
 declare const process: { env: Record<string, string | undefined> };
 
+const isEmbeddedBuild = process.env.VITE_EMBEDDED_BUILD === "true";
+
 export default defineConfig({
   base: process.env.VITE_BASE_PATH ?? "/",
   plugins: [
     react(),
-    VitePWA({
+    ...(!isEmbeddedBuild ? [VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["icon.svg", "tiles/*.png"],
       manifest: {
@@ -25,6 +27,6 @@ export default defineConfig({
           { src: "icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" }
         ]
       }
-    })
+    })] : [])
   ]
 });
