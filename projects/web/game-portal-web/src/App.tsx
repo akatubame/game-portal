@@ -56,7 +56,13 @@ const yonmaiMahjongId = "yonmai-mahjong";
 const yonmaiAndroidUrl = "https://play.google.com/store/apps/details?id=com.yonmai.mahjong";
 
 function getSelectedGameId() {
-  return new URLSearchParams(window.location.search).get("game");
+  const legacyQueryId = new URLSearchParams(window.location.search).get("game");
+  if (legacyQueryId) {
+    return legacyQueryId;
+  }
+
+  const routeMatch = window.location.pathname.match(/^\/play\/([^/]+)\/?$/);
+  return routeMatch ? decodeURIComponent(routeMatch[1]) : null;
 }
 
 function readStoredIds(key: string) {
@@ -70,6 +76,25 @@ function readStoredIds(key: string) {
 
 function getGameById(id: string) {
   return games.find((game) => game.id === id);
+}
+
+function getGameHref(game: Game) {
+  if (game.kind === "internal") {
+    return `/play/${encodeURIComponent(game.id)}/`;
+  }
+
+  if (game.id === yonmaiMahjongId) {
+    return `/play/${yonmaiMahjongId}/`;
+  }
+
+  return game.href;
+}
+
+function setMetaContent(selector: string, content: string) {
+  const element = document.querySelector<HTMLMetaElement>(selector);
+  if (element) {
+    element.content = content;
+  }
 }
 
 export function App() {
@@ -188,7 +213,7 @@ export function App() {
     }
 
     const opensInPortal = game.kind === "internal" || game.id === yonmaiMahjongId;
-    const href = opensInPortal ? `?game=${game.id}` : game.href;
+    const href = getGameHref(game);
     const gameText = getGameText(game, language);
     rememberPlayedGame(game.id);
     trackGameOpen(game.id, gameText.title, game.kind);
@@ -212,7 +237,7 @@ export function App() {
   };
 
   const copyGameLink = async (game: Game) => {
-    const href = game.kind === "internal" ? `${window.location.pathname}?game=${game.id}` : game.href;
+    const href = getGameHref(game);
     const url = new URL(href, window.location.origin).href;
 
     try {
@@ -286,10 +311,33 @@ export function App() {
     if (description) {
       description.content = selectedGameText?.description ?? t.metaDescription;
     }
+
+    const canonicalPath = selectedGame
+      ? selectedGame.kind === "internal" || selectedGame.id === yonmaiMahjongId
+        ? getGameHref(selectedGame)
+        : selectedGame.href
+      : "/";
+    const canonicalUrl = new URL(canonicalPath, window.location.origin).href;
+    const socialTitle = selectedGameText ? `${selectedGameText.title} | Game Shelf` : "Game Shelf";
+    const socialDescription = selectedGameText?.description ?? t.metaDescription;
+    const socialImage = new URL(selectedGame?.screenshot ?? "/screenshots/random-shogi.png", window.location.origin).href;
+
+    const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (canonical) {
+      canonical.href = canonicalUrl;
+    }
+
+    setMetaContent('meta[property="og:title"]', socialTitle);
+    setMetaContent('meta[property="og:description"]', socialDescription);
+    setMetaContent('meta[property="og:url"]', canonicalUrl);
+    setMetaContent('meta[property="og:image"]', socialImage);
+    setMetaContent('meta[name="twitter:title"]', socialTitle);
+    setMetaContent('meta[name="twitter:description"]', socialDescription);
+    setMetaContent('meta[name="twitter:image"]', socialImage);
   }, [language, selectedGameId, t.metaDescription]);
 
   const returnToShelf = () => {
-    window.history.pushState({}, "", window.location.pathname);
+    window.history.pushState({}, "", "/");
     setSelectedGameId(null);
   };
 
@@ -491,9 +539,7 @@ function GameCard({
   onOpen
 }: GameCardProps) {
   const isComingSoon = game.status === "coming-soon";
-  const href = game.kind === "internal" ? `?game=${game.id}` : game.href;
-  const shouldOpenInPortal = game.id === yonmaiMahjongId;
-  const cardHref = shouldOpenInPortal ? `?game=${game.id}` : href;
+  const cardHref = getGameHref(game);
   const t = uiText[language];
   const gameText = getGameText(game, language);
   const kindLabel = game.kind === "embedded" ? t.included : game.kind === "internal" ? t.internal : t.external;
@@ -703,8 +749,7 @@ function ShelfStrip({
         <div className="saved-game-list">
           {shelfGames.map((game) => {
             const gameText = getGameText(game, language);
-            const opensInPortal = game.kind === "internal" || game.id === yonmaiMahjongId;
-            const href = opensInPortal ? `?game=${game.id}` : game.href;
+            const href = getGameHref(game);
 
             return (
               <a

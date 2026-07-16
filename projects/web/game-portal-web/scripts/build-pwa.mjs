@@ -46,8 +46,14 @@ try {
     cpSync(sourceDist, stagingDist, { recursive: true });
   }
 
+  console.log("\n> Generating sitemap");
+  run(npmCommand, ["run", "seo:sitemap"], portalRoot);
+
   console.log("\n> Building portal and generating the root service worker");
   run(npmCommand, ["run", "build:portal"], portalRoot);
+
+  console.log("\n> Generating static search landing pages");
+  run(npmCommand, ["run", "seo:generate"], portalRoot);
 } finally {
   rmSync(stagingRoot, { recursive: true, force: true });
 }

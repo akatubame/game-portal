@@ -13,7 +13,9 @@
     "preview": "vite preview --host 0.0.0.0 --port 4172 --strictPort",
     "preview:deploy": "vite preview --host 0.0.0.0 --port 4175 --strictPort",
     "deploy:check": "npm run build",
-    "icons:pwa": "node scripts/generate-pwa-icons.mjs"
+    "icons:pwa": "node scripts/generate-pwa-icons.mjs",
+    "seo:generate": "node scripts/generate-search-pages.mjs",
+    "seo:sitemap": "node scripts/generate-search-pages.mjs --sitemap-only"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

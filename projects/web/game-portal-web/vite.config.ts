@@ -110,7 +110,7 @@ export default defineConfig({
         shortcuts: [
           { name: "Random Shogi", short_name: "Shogi", url: "/games/random-shogi/", icons: [{ src: "/pwa-192.png", sizes: "192x192" }] },
           { name: "Four-Tile Mahjong", short_name: "Mahjong", url: "/games/yonmai-mahjong/", icons: [{ src: "/pwa-192.png", sizes: "192x192" }] },
-          { name: "2048", url: "/?game=2048", icons: [{ src: "/pwa-192.png", sizes: "192x192" }] }
+          { name: "2048", url: "/play/2048/", icons: [{ src: "/pwa-192.png", sizes: "192x192" }] }
         ]
       },
       workbox: {
