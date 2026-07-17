@@ -27,7 +27,7 @@ const {
   createRandomPair,
   findBombBlastCells,
   findHorizontalLaserClearCells,
-  findSpecialClearCells,
+  findTriggeredSpecialClearCells,
   findVerticalLaserClearCells,
   findMatches,
   getPairCells,
@@ -180,7 +180,30 @@ assert.equal(horizontalLaserClear.verticalLasers.size, 1, "a horizontal laser tr
 assert.ok(horizontalLaserClear.cells.has("11:3"), "the triggered bomb expands the horizontal laser clear area");
 assert.ok(horizontalLaserClear.cells.has("9:6"), "the triggered vertical laser clears its column");
 assert.equal(findHorizontalLaserClearCells(horizontalLaserBoard, -1).cells.size, 0, "an invalid laser row clears nothing");
-assert.equal(findSpecialClearCells(horizontalLaserBoard).verticalLasers.size, 1, "all landed special blocks are resolved together");
+
+const inertSpecialBoard = createEmptyBoard();
+inertSpecialBoard[10][3] = BOMB_BLOCK;
+inertSpecialBoard[10][6] = VERTICAL_LASER_BLOCK;
+const inertSpecials = findTriggeredSpecialClearCells(inertSpecialBoard, []);
+assert.equal(inertSpecials.cells.size, 0, "landed special blocks remain inert without a neighboring clear");
+assert.equal(inertSpecials.bombs.size, 0, "a landed bomb does not activate by itself");
+assert.equal(inertSpecials.verticalLasers.size, 0, "a landed vertical laser does not activate by itself");
+
+const adjacentSpecialBoard = createEmptyBoard();
+adjacentSpecialBoard[10][2] = "coral";
+adjacentSpecialBoard[10][3] = BOMB_BLOCK;
+adjacentSpecialBoard[9][4] = VERTICAL_LASER_BLOCK;
+adjacentSpecialBoard[7][4] = "sky";
+const adjacentSpecialClear = findTriggeredSpecialClearCells(adjacentSpecialBoard, ["10:2"]);
+assert.equal(adjacentSpecialClear.bombs.size, 1, "an orthogonally adjacent clear activates a bomb");
+assert.equal(adjacentSpecialClear.verticalLasers.size, 1, "a special hit by the blast activates in a cascade");
+assert.ok(adjacentSpecialClear.cells.has("7:4"), "the chained vertical laser clears its column");
+
+const diagonalSpecialBoard = createEmptyBoard();
+diagonalSpecialBoard[10][2] = "mint";
+diagonalSpecialBoard[9][3] = BOMB_BLOCK;
+const diagonalSpecialClear = findTriggeredSpecialClearCells(diagonalSpecialBoard, ["10:2"]);
+assert.equal(diagonalSpecialClear.bombs.size, 0, "a diagonal clear does not activate a special block");
 
 const shaftBoard = createEmptyBoard();
 const shaftRow = TOTAL_ROWS - 4;

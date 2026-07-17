@@ -326,8 +326,35 @@ function collectSpecials(board: Board, token?: typeof BOMB_BLOCK | typeof VERTIC
   )));
 }
 
-export function findSpecialClearCells(board: Board): SpecialClearResult {
-  return findSpecialCascade(board, [], collectSpecials(board));
+/**
+ * Expands a normal clear into any special blocks touching it vertically or
+ * horizontally. Specials caught by the resulting blast or beam are chained by
+ * findSpecialCascade.
+ */
+export function findTriggeredSpecialClearCells(board: Board, clearedCells: Iterable<string>): SpecialClearResult {
+  const initialCells = [...clearedCells];
+  const specials = new Map<string, QueuedSpecial>();
+  const adjacentOffsets = [
+    { row: -1, column: 0 },
+    { row: 1, column: 0 },
+    { row: 0, column: -1 },
+    { row: 0, column: 1 }
+  ];
+
+  for (const key of initialCells) {
+    const { row, column } = parseCellKey(key);
+    for (const offset of adjacentOffsets) {
+      const targetRow = row + offset.row;
+      const targetColumn = column + offset.column;
+      if (!isInside(targetRow, targetColumn)) continue;
+      const token = board[targetRow][targetColumn];
+      if (token !== BOMB_BLOCK && token !== VERTICAL_LASER_BLOCK) continue;
+      const specialKey = cellKey(targetRow, targetColumn);
+      specials.set(specialKey, { key: specialKey, token });
+    }
+  }
+
+  return findSpecialCascade(board, initialCells, specials.values());
 }
 
 export function findBombBlastCells(board: Board, initialBombs?: Iterable<string>): SpecialClearResult {

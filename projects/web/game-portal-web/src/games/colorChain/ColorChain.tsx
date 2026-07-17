@@ -30,7 +30,7 @@ import {
   createRandomPair,
   findMatches,
   findHorizontalLaserClearCells,
-  findSpecialClearCells,
+  findTriggeredSpecialClearCells,
   getGhostPair,
   getPairCells,
   getSpawnPreviewTokens,
@@ -142,7 +142,7 @@ const copy = {
     laserRow: (row: number) => `${row}行目へ横レーザー発射！`,
     laserMiss: "空の行に横レーザーを発射しました。",
     verticalLaserBlast: (count: number) => `縦レーザーが発動！ ${count}個のブロックを破壊しました。`,
-    bombHelp: "爆弾ブロックは着地後に周囲3×3を破壊し、縦レーザーブロックは着地した列を消去します。互いを巻き込むと連動して発動します。横レーザーはブロック消去数でゲージがたまり、選んだ横1行を消去できます。",
+    bombHelp: "爆弾ブロックは上下左右に隣接するブロックが消えると周囲3×3を破壊し、縦レーザーブロックは同じ条件でその列を消去します。爆風やレーザーに巻き込まれた特殊ブロックも連動して発動します。横レーザーはブロック消去数でゲージがたまり、選んだ横1行を消去できます。",
     selectRow: (row: number) => `${row}行目を消す`,
     slow: "スロータイム",
     slowReady: "使用可能",
@@ -208,7 +208,7 @@ const copy = {
     laserRow: (row: number) => `Horizontal laser fired at row ${row}!`,
     laserMiss: "The horizontal laser was fired at an empty row.",
     verticalLaserBlast: (count: number) => `Vertical laser activated! Destroyed ${count} blocks.`,
-    bombHelp: "Bomb blocks destroy a 3×3 area after landing. Vertical-laser blocks clear the column where they land, and special blocks can trigger one another. Clear blocks to charge the horizontal laser, then use it to erase one selected row.",
+    bombHelp: "Bomb and vertical-laser blocks activate when an orthogonally adjacent block is cleared. Bombs destroy a 3×3 area, while vertical lasers clear their column. Specials caught by a blast or laser trigger one another. Clear blocks to charge the horizontal laser, then use it to erase one selected row.",
     selectRow: (row: number) => `Clear row ${row}`,
     slow: "Slow Time",
     slowReady: "Ready",
@@ -466,45 +466,32 @@ export function ColorChain({ onBack }: ColorChainProps) {
     nextBoard = await animateGravity(nextBoard, token);
     if (token !== resolutionToken.current) return;
 
-    const blast = findSpecialClearCells(nextBoard);
-    if (blast.cells.size > 0) {
-      const triggeredLaserColumns = [...blast.verticalLasers].map((key) => Number(key.split(":")[1]));
-      setVerticalLaserColumns([...new Set(triggeredLaserColumns)]);
-      setClearingCells(new Set(blast.cells));
-      setMessage(blast.verticalLasers.size > 0 ? t.verticalLaserBlast(blast.cells.size) : t.bombBlast(blast.cells.size));
-      await wait(CLEAR_DELAY + 80);
-      if (token !== resolutionToken.current) return;
-
-      nextBoard = clearMatchedCells(nextBoard, blast.cells);
-      updateBoard(nextBoard);
-      setClearingCells(new Set());
-      setVerticalLaserColumns([]);
-      recordClearedBlocks(blast.cells.size);
-      addScore(
-        blast.cells.size * BOMB_BLOCK_SCORE
-        + blast.bombs.size * BOMB_TRIGGER_SCORE
-        + blast.verticalLasers.size * VERTICAL_LASER_TRIGGER_SCORE
-      );
-      await wait(FALL_DELAY);
-      if (token !== resolutionToken.current) return;
-      nextBoard = await animateGravity(nextBoard, token);
-      if (token !== resolutionToken.current) return;
-    }
-
     while (token === resolutionToken.current) {
       const match = findMatches(nextBoard);
       if (match.cells.size === 0) break;
 
       chain += 1;
+      const clearResult = findTriggeredSpecialClearCells(nextBoard, match.cells);
+      const specialTriggered = clearResult.bombs.size > 0 || clearResult.verticalLasers.size > 0;
+      const triggeredLaserColumns = [...clearResult.verticalLasers].map((key) => Number(key.split(":")[1]));
+      const extraCleared = Math.max(0, clearResult.cells.size - match.cells.size);
       setCurrentChain(chain);
-      setClearingCells(new Set(match.cells));
-      setMessage(t.resolving(chain, match.cells.size));
-      await wait(CLEAR_DELAY);
+      setVerticalLaserColumns([...new Set(triggeredLaserColumns)]);
+      setClearingCells(new Set(clearResult.cells));
+      setMessage(
+        clearResult.verticalLasers.size > 0
+          ? t.verticalLaserBlast(clearResult.cells.size)
+          : clearResult.bombs.size > 0
+            ? t.bombBlast(clearResult.cells.size)
+            : t.resolving(chain, match.cells.size)
+      );
+      await wait(CLEAR_DELAY + (specialTriggered ? 80 : 0));
       if (token !== resolutionToken.current) return;
 
-      nextBoard = clearMatchedCells(nextBoard, match.cells);
+      nextBoard = clearMatchedCells(nextBoard, clearResult.cells);
       updateBoard(nextBoard);
       setClearingCells(new Set());
+      setVerticalLaserColumns([]);
       await wait(FALL_DELAY);
       if (token !== resolutionToken.current) return;
 
@@ -513,8 +500,13 @@ export function ColorChain({ onBack }: ColorChainProps) {
       const nextMaxChain = Math.max(maxChainRef.current, chain);
       maxChainRef.current = nextMaxChain;
       setMaxChain(nextMaxChain);
-      recordClearedBlocks(match.cells.size);
-      addScore(calculateClearScore(match, chain));
+      recordClearedBlocks(clearResult.cells.size);
+      addScore(
+        calculateClearScore(match, chain)
+        + extraCleared * BOMB_BLOCK_SCORE
+        + clearResult.bombs.size * BOMB_TRIGGER_SCORE
+        + clearResult.verticalLasers.size * VERTICAL_LASER_TRIGGER_SCORE
+      );
       await wait(FALL_DELAY);
     }
 
