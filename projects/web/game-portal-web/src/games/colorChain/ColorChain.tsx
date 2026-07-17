@@ -33,6 +33,7 @@ import {
   findSpecialClearCells,
   getGhostPair,
   getPairCells,
+  getSpawnPreviewTokens,
   hasBlocksAboveTop,
   HIDDEN_ROWS,
   mergePair,
@@ -1054,7 +1055,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
             <div>
               {nextPairs.map((pair, index) => (
                 <span className="color-chain-next-pair" key={`${index}-${pair.colors.join("-")}`}>
-                  {pair.colors.map((color, colorIndex) => (
+                  {getSpawnPreviewTokens(pair).map((color, colorIndex) => (
                     <i className={`is-${color}`} data-symbol={symbols[color]} key={`${color}-${colorIndex}`} />
                   ))}
                 </span>

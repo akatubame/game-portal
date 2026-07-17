@@ -116,6 +116,11 @@ export function getPairCells(pair: FallingPair): [PairCell, PairCell] {
   ];
 }
 
+/** Returns a newly spawned vertical pair in visual top-to-bottom order. */
+export function getSpawnPreviewTokens(pair: FallingPair): [BlockToken, BlockToken] {
+  return [pair.colors[1], pair.colors[0]];
+}
+
 export function canPlacePair(board: Board, pair: FallingPair) {
   return getPairCells(pair).every(({ row, column }) => (
     row >= 0 && row < TOTAL_ROWS && column >= 0 && column < BOARD_COLUMNS && board[row][column] === null

@@ -31,6 +31,7 @@ const {
   findVerticalLaserClearCells,
   findMatches,
   getPairCells,
+  getSpawnPreviewTokens,
   mergePair,
   preparePairForSpawn,
   rotatePair,
@@ -99,6 +100,19 @@ const firstScore = calculateClearScore(secondClear, 1);
 const chainScore = calculateClearScore(secondClear, 2);
 assert.ok(chainScore > firstScore, "a chain awards a score bonus");
 assert.equal(BOARD_COLUMNS, 8, "board width remains fixed");
+
+const previewPair = {
+  row: 1,
+  column: 3,
+  orientation: 0,
+  colors: ["coral", "sky"],
+};
+const spawnedCells = getPairCells(previewPair).sort((a, b) => a.row - b.row);
+assert.deepEqual(
+  getSpawnPreviewTokens(previewPair),
+  spawnedCells.map(({ color }) => color),
+  "next preview uses the same top-to-bottom order as a newly spawned pair",
+);
 
 const generatedBombPair = createRandomPair(4, (() => {
   const values = [0, 0.3, 0, 0.9];
