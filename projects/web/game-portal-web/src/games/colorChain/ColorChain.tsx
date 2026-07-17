@@ -30,6 +30,7 @@ import {
   createRandomPair,
   findMatches,
   findHorizontalLaserClearCells,
+  findSuperSpecialClearCells,
   findTriggeredSpecialClearCells,
   getGhostPair,
   getPairCells,
@@ -68,8 +69,10 @@ const FALL_DELAY = 130;
 const GRAVITY_STEP_DELAY = 36;
 const BOMB_BLOCK_SCORE = 5;
 const BOMB_TRIGGER_SCORE = 25;
+const SUPER_BOMB_TRIGGER_SCORE = 100;
 const LASER_BLOCK_SCORE = 4;
 const VERTICAL_LASER_TRIGGER_SCORE = 20;
+const SUPER_VERTICAL_LASER_TRIGGER_SCORE = 80;
 const SLOW_DURATION = 10;
 const SLOW_TICK = 250;
 
@@ -133,6 +136,7 @@ const copy = {
     down: "1段下げる",
     hardDrop: "即落下",
     bombBlast: (count: number) => `爆弾が炸裂！ ${count}個のブロックを破壊しました。`,
+    superBombBlast: (count: number) => `スーパー爆弾が炸裂！ 5×5の範囲から${count}個のブロックを破壊しました。`,
     laser: "横レーザー",
     laserReady: "発射可能",
     laserCharging: "ブロック消去で充填",
@@ -142,7 +146,8 @@ const copy = {
     laserRow: (row: number) => `${row}行目へ横レーザー発射！`,
     laserMiss: "空の行に横レーザーを発射しました。",
     verticalLaserBlast: (count: number) => `縦レーザーが発動！ ${count}個のブロックを破壊しました。`,
-    bombHelp: "爆弾ブロックは上下左右に隣接するブロックが消えると周囲3×3を破壊し、縦レーザーブロックは同じ条件でその列を消去します。爆風やレーザーに巻き込まれた特殊ブロックも連動して発動します。横レーザーはブロック消去数でゲージがたまり、選んだ横1行を消去できます。",
+    superVerticalLaserBlast: (count: number) => `スーパー縦レーザーが発動！ 縦3列から${count}個のブロックを破壊しました。`,
+    bombHelp: "爆弾ブロックは上下左右に隣接するブロックが消えると周囲3×3を破壊し、縦レーザーブロックは同じ条件でその列を消去します。同種の特殊ブロック同士が上下左右で隣接すると自動発動し、爆弾は5×5のスーパー爆弾、縦レーザーは縦3列のスーパー縦レーザーになります。爆風やレーザーに巻き込まれた特殊ブロックも連動します。横レーザーはブロック消去数でゲージがたまり、選んだ横1行を消去できます。",
     selectRow: (row: number) => `${row}行目を消す`,
     slow: "スロータイム",
     slowReady: "使用可能",
@@ -199,6 +204,7 @@ const copy = {
     down: "Soft drop",
     hardDrop: "Hard drop",
     bombBlast: (count: number) => `Bomb blast! Destroyed ${count} blocks.`,
+    superBombBlast: (count: number) => `Super Bomb! Destroyed ${count} blocks in a 5×5 area.`,
     laser: "Horizontal laser",
     laserReady: "Ready",
     laserCharging: "Charge by clearing blocks",
@@ -208,7 +214,8 @@ const copy = {
     laserRow: (row: number) => `Horizontal laser fired at row ${row}!`,
     laserMiss: "The horizontal laser was fired at an empty row.",
     verticalLaserBlast: (count: number) => `Vertical laser activated! Destroyed ${count} blocks.`,
-    bombHelp: "Bomb and vertical-laser blocks activate when an orthogonally adjacent block is cleared. Bombs destroy a 3×3 area, while vertical lasers clear their column. Specials caught by a blast or laser trigger one another. Clear blocks to charge the horizontal laser, then use it to erase one selected row.",
+    superVerticalLaserBlast: (count: number) => `Super Vertical Laser! Destroyed ${count} blocks across three columns.`,
+    bombHelp: "Bomb and vertical-laser blocks activate when an orthogonally adjacent block is cleared. Bombs destroy a 3×3 area, while vertical lasers clear their column. Two or more matching specials touching orthogonally activate automatically: bombs become a 5×5 Super Bomb, and vertical lasers become a three-column Super Vertical Laser. Specials caught by a blast or laser also chain. Clear blocks to charge the horizontal laser, then use it to erase one selected row.",
     selectRow: (row: number) => `Clear row ${row}`,
     slow: "Slow Time",
     slowReady: "Ready",
@@ -467,23 +474,63 @@ export function ColorChain({ onBack }: ColorChainProps) {
     if (token !== resolutionToken.current) return;
 
     while (token === resolutionToken.current) {
+      const superClear = findSuperSpecialClearCells(nextBoard);
+      if (superClear.cells.size > 0) {
+        setVerticalLaserColumns([...superClear.verticalLaserColumns]);
+        setClearingCells(new Set(superClear.cells));
+        setMessage(
+          superClear.superVerticalLasers.size > 0
+            ? t.superVerticalLaserBlast(superClear.cells.size)
+            : t.superBombBlast(superClear.cells.size)
+        );
+        await wait(CLEAR_DELAY + 140);
+        if (token !== resolutionToken.current) return;
+
+        nextBoard = clearMatchedCells(nextBoard, superClear.cells);
+        updateBoard(nextBoard);
+        setClearingCells(new Set());
+        setVerticalLaserColumns([]);
+        recordClearedBlocks(superClear.cells.size);
+        addScore(
+          superClear.cells.size * BOMB_BLOCK_SCORE
+          + superClear.bombs.size * BOMB_TRIGGER_SCORE
+          + superClear.verticalLasers.size * VERTICAL_LASER_TRIGGER_SCORE
+          + superClear.superBombs.size * SUPER_BOMB_TRIGGER_SCORE
+          + superClear.superVerticalLasers.size * SUPER_VERTICAL_LASER_TRIGGER_SCORE
+        );
+        await wait(FALL_DELAY);
+        if (token !== resolutionToken.current) return;
+        nextBoard = await animateGravity(nextBoard, token);
+        if (token !== resolutionToken.current) return;
+        await wait(FALL_DELAY);
+        continue;
+      }
+
       const match = findMatches(nextBoard);
       if (match.cells.size === 0) break;
 
       chain += 1;
       const clearResult = findTriggeredSpecialClearCells(nextBoard, match.cells);
-      const specialTriggered = clearResult.bombs.size > 0 || clearResult.verticalLasers.size > 0;
-      const triggeredLaserColumns = [...clearResult.verticalLasers].map((key) => Number(key.split(":")[1]));
+      const specialTriggered = (
+        clearResult.bombs.size > 0
+        || clearResult.verticalLasers.size > 0
+        || clearResult.superBombs.size > 0
+        || clearResult.superVerticalLasers.size > 0
+      );
       const extraCleared = Math.max(0, clearResult.cells.size - match.cells.size);
       setCurrentChain(chain);
-      setVerticalLaserColumns([...new Set(triggeredLaserColumns)]);
+      setVerticalLaserColumns([...clearResult.verticalLaserColumns]);
       setClearingCells(new Set(clearResult.cells));
       setMessage(
-        clearResult.verticalLasers.size > 0
-          ? t.verticalLaserBlast(clearResult.cells.size)
-          : clearResult.bombs.size > 0
-            ? t.bombBlast(clearResult.cells.size)
-            : t.resolving(chain, match.cells.size)
+        clearResult.superVerticalLasers.size > 0
+          ? t.superVerticalLaserBlast(clearResult.cells.size)
+          : clearResult.superBombs.size > 0
+            ? t.superBombBlast(clearResult.cells.size)
+            : clearResult.verticalLasers.size > 0
+              ? t.verticalLaserBlast(clearResult.cells.size)
+              : clearResult.bombs.size > 0
+                ? t.bombBlast(clearResult.cells.size)
+                : t.resolving(chain, match.cells.size)
       );
       await wait(CLEAR_DELAY + (specialTriggered ? 80 : 0));
       if (token !== resolutionToken.current) return;
@@ -506,6 +553,8 @@ export function ColorChain({ onBack }: ColorChainProps) {
         + extraCleared * BOMB_BLOCK_SCORE
         + clearResult.bombs.size * BOMB_TRIGGER_SCORE
         + clearResult.verticalLasers.size * VERTICAL_LASER_TRIGGER_SCORE
+        + clearResult.superBombs.size * SUPER_BOMB_TRIGGER_SCORE
+        + clearResult.superVerticalLasers.size * SUPER_VERTICAL_LASER_TRIGGER_SCORE
       );
       await wait(FALL_DELAY);
     }
@@ -565,7 +614,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
   async function resolveLaser(row: number, token: number) {
     const result = findHorizontalLaserClearCells(boardRef.current, row);
     setHorizontalLaserRow(row);
-    setVerticalLaserColumns([...new Set([...result.verticalLasers].map((key) => Number(key.split(":")[1]))) ]);
+    setVerticalLaserColumns([...result.verticalLaserColumns]);
     setMessage(result.cells.size > 0 ? t.laserRow(row - HIDDEN_ROWS + 1) : t.laserMiss);
     setClearingCells(new Set(result.cells));
     await wait(CLEAR_DELAY + 80);
@@ -580,6 +629,8 @@ export function ColorChain({ onBack }: ColorChainProps) {
         result.cells.size * LASER_BLOCK_SCORE
         + result.bombs.size * BOMB_TRIGGER_SCORE
         + result.verticalLasers.size * VERTICAL_LASER_TRIGGER_SCORE
+        + result.superBombs.size * SUPER_BOMB_TRIGGER_SCORE
+        + result.superVerticalLasers.size * SUPER_VERTICAL_LASER_TRIGGER_SCORE
       );
     }
     setClearingCells(new Set());

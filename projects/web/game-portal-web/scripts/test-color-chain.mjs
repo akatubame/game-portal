@@ -27,6 +27,7 @@ const {
   createRandomPair,
   findBombBlastCells,
   findHorizontalLaserClearCells,
+  findSuperSpecialClearCells,
   findTriggeredSpecialClearCells,
   findVerticalLaserClearCells,
   findMatches,
@@ -204,6 +205,55 @@ diagonalSpecialBoard[10][2] = "mint";
 diagonalSpecialBoard[9][3] = BOMB_BLOCK;
 const diagonalSpecialClear = findTriggeredSpecialClearCells(diagonalSpecialBoard, ["10:2"]);
 assert.equal(diagonalSpecialClear.bombs.size, 0, "a diagonal clear does not activate a special block");
+
+const superVerticalLaserBoard = createEmptyBoard();
+superVerticalLaserBoard[10][3] = VERTICAL_LASER_BLOCK;
+superVerticalLaserBoard[11][3] = VERTICAL_LASER_BLOCK;
+superVerticalLaserBoard[5][2] = "coral";
+superVerticalLaserBoard[5][3] = "gold";
+superVerticalLaserBoard[5][4] = "mint";
+superVerticalLaserBoard[5][1] = "sky";
+const superVerticalLaserClear = findSuperSpecialClearCells(superVerticalLaserBoard);
+assert.equal(superVerticalLaserClear.superVerticalLasers.size, 1, "adjacent vertical lasers create one super laser");
+assert.equal(superVerticalLaserClear.verticalLasers.size, 2, "both adjacent vertical-laser blocks are consumed");
+assert.deepEqual(
+  [...superVerticalLaserClear.verticalLaserColumns].sort((a, b) => a - b),
+  [2, 3, 4],
+  "a super vertical laser targets exactly three columns",
+);
+assert.ok(superVerticalLaserClear.cells.has("5:2"), "the super vertical laser clears its left column");
+assert.ok(superVerticalLaserClear.cells.has("5:3"), "the super vertical laser clears its center column");
+assert.ok(superVerticalLaserClear.cells.has("5:4"), "the super vertical laser clears its right column");
+assert.ok(!superVerticalLaserClear.cells.has("5:1"), "the super vertical laser does not clear a fourth column");
+
+const superBombBoard = createEmptyBoard();
+for (let row = 8; row <= 12; row += 1) {
+  for (let column = 2; column <= 6; column += 1) superBombBoard[row][column] = "rose";
+}
+superBombBoard[10][3] = BOMB_BLOCK;
+superBombBoard[10][4] = BOMB_BLOCK;
+const superBombClear = findSuperSpecialClearCells(superBombBoard);
+assert.equal(superBombClear.superBombs.size, 1, "adjacent bombs create one super bomb");
+assert.equal(superBombClear.bombs.size, 2, "both adjacent bomb blocks are consumed");
+assert.equal(superBombClear.cells.size, 25, "a centered super bomb clears a filled 5 by 5 area");
+
+const nonMatchingSpecialBoard = createEmptyBoard();
+nonMatchingSpecialBoard[10][3] = BOMB_BLOCK;
+nonMatchingSpecialBoard[10][4] = VERTICAL_LASER_BLOCK;
+assert.equal(
+  findSuperSpecialClearCells(nonMatchingSpecialBoard).cells.size,
+  0,
+  "different adjacent special types do not activate automatically",
+);
+
+const diagonalSuperBoard = createEmptyBoard();
+diagonalSuperBoard[10][3] = BOMB_BLOCK;
+diagonalSuperBoard[9][4] = BOMB_BLOCK;
+assert.equal(
+  findSuperSpecialClearCells(diagonalSuperBoard).cells.size,
+  0,
+  "diagonally touching matching specials do not create a super effect",
+);
 
 const shaftBoard = createEmptyBoard();
 const shaftRow = TOTAL_ROWS - 4;
