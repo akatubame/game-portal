@@ -120,22 +120,46 @@ function blockIcon(token: BlockToken) {
   );
 }
 
+const chainCallNames = {
+  ja: [
+    "マジカルチェイン",
+    "Wチェイン",
+    "トリプルチェイン",
+    "ハイパーマジカルチェイン",
+    "ギガマジカルチェイン",
+    "アルティメットマジカルチェイン"
+  ],
+  en: [
+    "Magical Chain",
+    "Double Chain",
+    "Triple Chain",
+    "Hyper Magical Chain",
+    "Giga Magical Chain",
+    "Ultimate Magical Chain"
+  ]
+} as const;
+
+function chainCallName(chain: number, language: keyof typeof chainCallNames) {
+  const names = chainCallNames[language];
+  return names[Math.min(Math.max(Math.floor(chain), 1), names.length) - 1];
+}
+
 const copy = {
   ja: {
     eyebrow: "落ちものパズル / 内部ゲーム",
-    title: "カラーチェイン",
-    idle: "2個1組のブロックを落とし、同じ色を縦・横・斜めに4個以上並べましょう。",
-    playing: "同じ色を4個以上つなげて、連鎖を狙いましょう。",
+    title: "クロマのマジカルチェイン",
+    idle: "2個1組のブロックを落とし、同じ色を4個以上並べてマジカルチェインを起こしましょう。",
+    playing: "同じ色を4個以上つなげて、魔法のチェインを重ねましょう。",
     paused: "一時停止中です。再開すると落下が始まります。",
-    resolving: (chain: number, count: number) => `${chain}連鎖！ ${count}個のブロックを消去しました。`,
-    gameover: "ゲームオーバー。上部に余白を残しながら連鎖を組み立てましょう。",
+    resolving: (callName: string, count: number) => `${callName}！ ${count}個のブロックを消去しました。`,
+    gameover: "ゲームオーバー。上部に余白を残しながらマジカルチェインを組み立てましょう。",
     score: "スコア",
-    chain: "最大連鎖",
+    chain: "最大チェイン",
     cleared: "消去数",
     level: "レベル",
     next: "次のブロック",
     howTo: "遊び方",
-    rules: "2個1組のブロックを移動・回転して積みます。着地後、支えのないブロックは個別に下まで落下します。同色が縦・横・斜めに4個以上並ぶと一括消去。落下後に再び揃うと連鎖ボーナスになり、特に3連鎖以上はスコア倍率が大幅に上がります。ブロックが最上段を超えるとゲームオーバーです。",
+    rules: "2個1組のブロックを移動・回転して積みます。同色が縦・横・斜めに4個以上並ぶと、魔法の鎖が結ばれる『マジカルチェイン』が発生します。落下後に続けて揃えるとWチェイン、トリプルチェインと発展し、特に3段階目以降はスコア倍率が大幅に上がります。ブロックが最上段を超えるとゲームオーバーです。",
     controls: "操作",
     keyboard: "PC: ←→で移動、↓で下降、Z/Xで回転、Spaceで即落下、Hでホールド、Sでスロータイム、Lで横レーザー、Pで一時停止。レーザー照準中は↑↓で行を選び、Enterで発射します。1列幅の縦穴では、回転入力でブロックの上下を反転できます。",
     easy: "初級",
@@ -155,7 +179,7 @@ const copy = {
     status: "状態",
     ready: "待機中",
     inPlay: "プレイ中",
-    resolvingLabel: "連鎖判定中",
+    resolvingLabel: "チェイン判定中",
     gameoverLabel: "ゲームオーバー",
     moveLeft: "左へ移動",
     moveRight: "右へ移動",
@@ -178,7 +202,7 @@ const copy = {
     superHorizontalLaserBlast: (count: number) => `スーパー横レーザーが発動！ 横3行から${count}個のブロックを破壊しました。`,
     colorBreakerBlast: (count: number) => `カラーブレイカーが発動！ 同じ色のブロックを${count}個破壊しました。`,
     superColorBreakerBlast: (count: number) => `スーパーカラーブレイカー発動！ すべての色ブロックを${count}個破壊しました。`,
-    rewardCreated: (reward: string) => `${reward}を獲得！ 次の連鎖に活用しましょう。`,
+    rewardCreated: (reward: string) => `${reward}を獲得！ 次のマジカルチェインに活用しましょう。`,
     itemHelpTitle: "特殊ブロック・補助技",
     itemHelpHint: "アイコンにマウスを重ねるか、タップすると詳しい説明を表示します。",
     bombItem: "爆弾",
@@ -208,11 +232,11 @@ const copy = {
   },
   en: {
     eyebrow: "FALLING BLOCK PUZZLE / INTERNAL GAME",
-    title: "Color Chain Drop",
-    idle: "Drop connected pairs and line up four or more matching colors vertically, horizontally, or diagonally.",
-    playing: "Connect four matching colors and build a chain reaction.",
+    title: "Chroma's Magical Chain",
+    idle: "Drop connected pairs and match four or more colors to cast a Magical Chain.",
+    playing: "Connect four matching colors and weave magical chains.",
     paused: "Paused. Resume when you are ready to continue.",
-    resolving: (chain: number, count: number) => `${chain} CHAIN! Cleared ${count} blocks.`,
+    resolving: (callName: string, count: number) => `${callName}! Cleared ${count} blocks.`,
     gameover: "Game over. Keep space near the top while preparing your chains.",
     score: "Score",
     chain: "Max chain",
@@ -220,7 +244,7 @@ const copy = {
     level: "Level",
     next: "Next pairs",
     howTo: "How to Play",
-    rules: "Move and rotate each connected pair. After landing, unsupported blocks fall independently. Four or more matching colors in a vertical, horizontal, or diagonal line clear together. New matches formed after blocks fall create chain bonuses, with a major score boost from the third chain onward. The game ends when blocks rise beyond the top.",
+    rules: "Move and rotate each connected pair. Matching four or more colors vertically, horizontally, or diagonally casts a Magical Chain of glowing links. Matches formed after blocks fall advance to Double Chain, Triple Chain, and stronger calls, with a major score boost from the third stage onward. The game ends when blocks rise beyond the top.",
     controls: "Controls",
     keyboard: "PC: Move with ←/→, soft drop with ↓, rotate with Z/X, hard drop with Space, hold with H, use Slow Time with S, target the horizontal laser with L, and pause with P. While targeting, choose a row with ↑/↓ and fire with Enter. In a one-cell-wide shaft, rotate to flip a vertical pair by 180 degrees.",
     easy: "Easy",
@@ -654,7 +678,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
                         ? t.bombBlast(clearResult.cells.size)
                         : rewards.length > 0
                           ? t.rewardCreated(rewards.map((reward) => rewardLabel(reward.token)).filter(Boolean).join("・"))
-                          : t.resolving(chain, match.cells.size)
+                          : t.resolving(chainCallName(chain, language), match.cells.size)
       );
       await wait(CLEAR_DELAY + (specialTriggered ? 80 : 0));
       if (token !== resolutionToken.current) return;
@@ -1122,10 +1146,17 @@ export function ColorChain({ onBack }: ColorChainProps) {
               </div>
             )}
 
-            {currentChain >= 2 && status === "resolving" && (
+            {clearingCells.size > 0 && status === "resolving" && (
+              <div className={`color-chain-magic-chain-effect is-tier-${Math.min(currentChain, 6)}`} aria-hidden="true">
+                <span>{Array.from({ length: 10 }, (_, index) => <i key={`upper-${index}`} />)}</span>
+                <span>{Array.from({ length: 10 }, (_, index) => <i key={`lower-${index}`} />)}</span>
+              </div>
+            )}
+
+            {currentChain >= 1 && status === "resolving" && (
               <div className="color-chain-burst" aria-live="polite">
                 <Sparkles aria-hidden="true" />
-                <strong>{currentChain} CHAIN! ×{getChainMultiplier(currentChain)}</strong>
+                <strong>{chainCallName(currentChain, language)} ×{getChainMultiplier(currentChain)}</strong>
               </div>
             )}
 

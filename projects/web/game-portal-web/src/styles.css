@@ -9,13 +9,19 @@
   --line: rgba(244, 241, 232, 0.15);
 }
 
-/* Color Chain Drop */
+/* Chroma's Magical Chain */
 .color-chain-shell {
   --chain-cell-size: clamp(20px, 4.5vh, 31px);
 }
 
 .color-chain-hero {
   align-items: center;
+}
+
+.color-chain-hero h1 {
+  font-size: clamp(2.45rem, 5vw, 3.6rem);
+  line-height: 1.04;
+  text-wrap: balance;
 }
 
 .color-chain-score {
@@ -75,23 +81,51 @@
   content: attr(data-symbol);
   filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.3));
   line-height: 1;
+  position: relative;
+  z-index: 1;
 }
 
 .color-chain-cell.is-coral,
-.color-chain-next-pair i.is-coral { background: linear-gradient(145deg, #ffaaa1, #ee5d67); }
+.color-chain-next-pair i.is-coral {
+  --chain-block-edge: #ff9ab1;
+  --chain-block-glow: rgba(255, 68, 116, 0.5);
+  background: radial-gradient(circle at 28% 20%, #fff 0 5%, transparent 7%), linear-gradient(145deg, #ffb4c5 0%, #ff617f 36%, #ef2e64 70%, #9e174b 100%);
+}
 .color-chain-cell.is-gold,
-.color-chain-next-pair i.is-gold { background: linear-gradient(145deg, #ffe994, #efb83f); }
+.color-chain-next-pair i.is-gold {
+  --chain-block-edge: #ffe27a;
+  --chain-block-glow: rgba(255, 202, 44, 0.52);
+  background: radial-gradient(circle at 28% 20%, #fff 0 5%, transparent 7%), linear-gradient(145deg, #fff0a0 0%, #ffd24b 36%, #f2a928 70%, #a85d0d 100%);
+}
 .color-chain-cell.is-mint,
-.color-chain-next-pair i.is-mint { background: linear-gradient(145deg, #b2f4bd, #54c986); }
+.color-chain-next-pair i.is-mint {
+  --chain-block-edge: #8ff6c2;
+  --chain-block-glow: rgba(73, 231, 158, 0.48);
+  background: radial-gradient(circle at 28% 20%, #fff 0 5%, transparent 7%), linear-gradient(145deg, #baffd8 0%, #59e4a2 36%, #24b978 70%, #08744e 100%);
+}
 .color-chain-cell.is-sky,
-.color-chain-next-pair i.is-sky { background: linear-gradient(145deg, #b5efff, #55b9e8); }
+.color-chain-next-pair i.is-sky {
+  --chain-block-edge: #91efff;
+  --chain-block-glow: rgba(56, 213, 255, 0.54);
+  background: radial-gradient(circle at 28% 20%, #fff 0 5%, transparent 7%), linear-gradient(145deg, #c1f8ff 0%, #4bdcff 36%, #1aaee7 70%, #12629f 100%);
+}
 .color-chain-cell.is-violet,
-.color-chain-next-pair i.is-violet { background: linear-gradient(145deg, #d4b8ff, #8d65df); }
+.color-chain-next-pair i.is-violet {
+  --chain-block-edge: #c9afff;
+  --chain-block-glow: rgba(151, 104, 255, 0.5);
+  background: radial-gradient(circle at 28% 20%, #fff 0 5%, transparent 7%), linear-gradient(145deg, #e3d1ff 0%, #a879ff 36%, #7645df 70%, #43209b 100%);
+}
 .color-chain-cell.is-rose,
-.color-chain-next-pair i.is-rose { background: linear-gradient(145deg, #ffb5df, #eb66ad); }
+.color-chain-next-pair i.is-rose {
+  --chain-block-edge: #ff9be3;
+  --chain-block-glow: rgba(255, 61, 205, 0.54);
+  background: radial-gradient(circle at 28% 20%, #fff 0 5%, transparent 7%), linear-gradient(145deg, #ffc4ec 0%, #ff55ce 36%, #dd249f 70%, #8b176d 100%);
+}
 .color-chain-cell.is-bomb,
 .color-chain-next-pair i.is-bomb,
 .color-chain-block-icon.is-bomb {
+  --chain-block-edge: #ffd166;
+  --chain-block-glow: rgba(255, 122, 53, 0.5);
   background: radial-gradient(circle at 38% 32%, #fff4b0 0 8%, #ff9f43 9% 20%, #dc3e3e 38%, #21151d 72%);
   border-color: #ffd166;
   color: #fff4b0;
@@ -107,6 +141,8 @@
 .color-chain-cell.is-vertical-laser,
 .color-chain-next-pair i.is-vertical-laser,
 .color-chain-block-icon.is-vertical-laser {
+  --chain-block-edge: #9cf4ff;
+  --chain-block-glow: rgba(103, 232, 255, 0.52);
   background: linear-gradient(135deg, #082a4a, #1ca7d9 42%, #d8fbff 50%, #1ca7d9 58%, #082a4a);
   border-color: #9cf4ff;
 }
@@ -121,6 +157,8 @@
 .color-chain-cell.is-horizontal-laser,
 .color-chain-next-pair i.is-horizontal-laser,
 .color-chain-block-icon.is-horizontal-laser {
+  --chain-block-edge: #ff9add;
+  --chain-block-glow: rgba(255, 117, 206, 0.52);
   background: linear-gradient(45deg, #4a123e, #f057bd 42%, #fff1fa 50%, #f057bd 58%, #4a123e);
   border-color: #ff9add;
 }
@@ -135,6 +173,8 @@
 .color-chain-cell.is-color-breaker,
 .color-chain-next-pair i.is-color-breaker,
 .color-chain-block-icon.is-color-breaker {
+  --chain-block-edge: #fff2a6;
+  --chain-block-glow: rgba(255, 131, 213, 0.58);
   background: conic-gradient(from 25deg, #ff7798, #ffd66a, #78eaa8, #6fdfff, #a98bff, #ff83d5, #ff7798);
   border-color: #fff2a6;
 }
@@ -146,10 +186,25 @@
   filter: drop-shadow(0 0 4px #6d2e9f);
 }
 
-.color-chain-cell[class*=" is-"]:not(.is-ghost) {
-  border-color: rgba(255, 255, 255, 0.35);
+.color-chain-cell[class*=" is-"]:not(.is-ghost),
+.color-chain-next-pair i[class*="is-"],
+.color-chain-block-icon[class*="is-"] {
+  border-color: var(--chain-block-edge, rgba(255, 255, 255, 0.35));
   border-radius: 29%;
-  box-shadow: inset 0 2px 3px rgba(255, 255, 255, 0.35), inset 0 -3px 4px rgba(0, 0, 0, 0.15);
+  box-shadow: inset 0 2px 3px rgba(255, 255, 255, 0.48), inset 0 -4px 5px rgba(0, 0, 0, 0.2), 0 0 7px var(--chain-block-glow, transparent);
+  overflow: hidden;
+}
+
+.color-chain-cell[class*=" is-"]:not(.is-ghost)::before,
+.color-chain-next-pair i[class*="is-"]::before,
+.color-chain-block-icon[class*="is-"]::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.08));
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 40% 40% 48% 48%;
+  content: "";
+  inset: 2px 3px 48%;
+  pointer-events: none;
+  position: absolute;
 }
 
 .color-chain-block-icon {
@@ -184,13 +239,28 @@
 
 .color-chain-cell.is-clearing {
   animation: color-chain-clear 220ms ease-in-out infinite alternate;
+  box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.9), 0 0 12px #ffd166, 0 0 22px rgba(240, 87, 189, 0.75);
   filter: brightness(1.8) saturate(0.7);
   z-index: 3;
+}
+
+.color-chain-cell.is-clearing::before {
+  animation: color-chain-link-flash 220ms ease-in-out infinite alternate;
+  background:
+    radial-gradient(ellipse at 36% 50%, transparent 0 23%, #fff7b8 27% 38%, transparent 42%),
+    radial-gradient(ellipse at 64% 50%, transparent 0 23%, #9cf4ff 27% 38%, transparent 42%);
+  border: 0;
+  inset: 2px;
 }
 
 @keyframes color-chain-clear {
   from { opacity: 0.55; transform: scale(0.76) rotate(-4deg); }
   to { opacity: 1; transform: scale(1.08) rotate(4deg); }
+}
+
+@keyframes color-chain-link-flash {
+  from { opacity: 0.45; transform: scale(0.72) rotate(-12deg); }
+  to { opacity: 1; transform: scale(1.12) rotate(8deg); }
 }
 
 .color-chain-overlay {
@@ -227,12 +297,89 @@
   color: #ffdc72;
   display: flex;
   gap: 8px;
+  justify-content: center;
   left: 50%;
+  max-width: calc(100% - 30px);
   padding: 9px 16px;
   position: absolute;
   top: 42%;
   transform: translate(-50%, -50%);
+  text-align: center;
+  width: max-content;
   z-index: 7;
+}
+
+.color-chain-burst strong {
+  font-size: clamp(0.72rem, 2.8vw, 1rem);
+}
+
+.color-chain-magic-chain-effect {
+  filter: drop-shadow(0 0 7px rgba(255, 209, 102, 0.82));
+  inset: 12px;
+  opacity: 0.62;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  z-index: 5;
+}
+
+.color-chain-magic-chain-effect span {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  left: -24%;
+  position: absolute;
+  width: 148%;
+}
+
+.color-chain-magic-chain-effect span:first-child {
+  top: 34%;
+  transform: rotate(-31deg);
+}
+
+.color-chain-magic-chain-effect span:last-child {
+  bottom: 31%;
+  transform: rotate(33deg);
+}
+
+.color-chain-magic-chain-effect i {
+  animation: color-chain-magic-link 360ms ease-out both;
+  border: 2px solid #ffe397;
+  border-radius: 50%;
+  box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.72), 0 0 8px rgba(255, 209, 102, 0.82);
+  flex: 0 0 auto;
+  height: calc(var(--chain-cell-size) * 0.46);
+  margin-left: calc(var(--chain-cell-size) * -0.14);
+  transform: rotate(15deg) scale(0.25);
+  width: calc(var(--chain-cell-size) * 0.9);
+}
+
+.color-chain-magic-chain-effect i:nth-child(even) {
+  border-color: #87ecff;
+  box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.72), 0 0 8px rgba(80, 217, 255, 0.86);
+  transform: rotate(78deg) scale(0.25);
+}
+
+.color-chain-magic-chain-effect.is-tier-3,
+.color-chain-magic-chain-effect.is-tier-4,
+.color-chain-magic-chain-effect.is-tier-5,
+.color-chain-magic-chain-effect.is-tier-6 {
+  filter: drop-shadow(0 0 11px rgba(240, 87, 189, 0.9));
+  opacity: 0.9;
+}
+
+@keyframes color-chain-magic-link {
+  from { opacity: 0; }
+  to { opacity: 1; transform: rotate(15deg) scale(1); }
+}
+
+.color-chain-magic-chain-effect i:nth-child(even) {
+  animation-name: color-chain-magic-link-even;
+}
+
+@keyframes color-chain-magic-link-even {
+  from { opacity: 0; }
+  to { opacity: 1; transform: rotate(78deg) scale(1); }
 }
 
 @keyframes color-chain-burst {
@@ -614,6 +761,7 @@
   font-style: normal;
   height: 29px;
   justify-content: center;
+  position: relative;
   width: 29px;
 }
 
@@ -774,9 +922,19 @@
 @media (prefers-reduced-motion: reduce) {
   .color-chain-cell.is-clearing,
   .color-chain-burst,
+  .color-chain-magic-chain-effect i,
   .color-chain-horizontal-laser-beams i.is-active,
   .color-chain-vertical-laser-beams i.is-active {
     animation: none;
+  }
+
+  .color-chain-magic-chain-effect i {
+    opacity: 1;
+    transform: rotate(15deg) scale(1);
+  }
+
+  .color-chain-magic-chain-effect i:nth-child(even) {
+    transform: rotate(78deg) scale(1);
   }
 }
 

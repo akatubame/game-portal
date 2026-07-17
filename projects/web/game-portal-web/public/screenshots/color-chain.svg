@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-labelledby="title description">
-  <title id="title">Color Chain Drop game screen</title>
-  <desc id="description">Colorful paired blocks falling into a grid with a diagonal chain reaction.</desc>
+  <title id="title">Chroma's Magical Chain game screen</title>
+  <desc id="description">Jewel-like paired blocks and glowing magical chains in a falling-block puzzle.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#111a22"/>
@@ -12,8 +12,8 @@
     </filter>
   </defs>
   <rect width="640" height="360" rx="28" fill="url(#bg)"/>
-  <text x="38" y="55" fill="#f7f7fa" font-family="system-ui,sans-serif" font-size="27" font-weight="800">COLOR CHAIN DROP</text>
-  <text x="40" y="82" fill="#b8c3d1" font-family="system-ui,sans-serif" font-size="14">MATCH 4 · BUILD A CHAIN</text>
+  <text x="38" y="55" fill="#f7f7fa" font-family="system-ui,sans-serif" font-size="25" font-weight="800">CHROMA'S MAGICAL CHAIN</text>
+  <text x="40" y="82" fill="#b8c3d1" font-family="system-ui,sans-serif" font-size="14">MATCH 4 · CAST A MAGICAL CHAIN</text>
   <g transform="translate(55 105)">
     <rect width="260" height="220" rx="16" fill="#080d12" stroke="#657384" stroke-width="3"/>
     <g stroke="#202b36" stroke-width="1">
@@ -47,5 +47,5 @@
     <g transform="translate(88 158)"><circle cx="18" cy="18" r="15" fill="#7fdfff"/><circle cx="18" cy="51" r="15" fill="#ffd45f"/></g>
     <g transform="translate(152 158)"><circle cx="18" cy="18" r="15" fill="#ba91ff"/><circle cx="18" cy="51" r="15" fill="#ff7b79"/></g>
   </g>
-  <text x="366" y="320" fill="#ffdc72" font-family="system-ui,sans-serif" font-size="26" font-weight="900">4 CHAIN!</text>
+  <text x="335" y="320" fill="#ffdc72" font-family="system-ui,sans-serif" font-size="22" font-weight="900">HYPER MAGICAL CHAIN!</text>
 </svg>

@@ -446,9 +446,9 @@ export const games: Game[] = [
   },
   {
     id: "colorChain",
-    title: "カラーチェイン",
-    englishTitle: "COLOR CHAIN DROP",
-    description: "色ブロックを4個以上そろえて連鎖を狙う落ちものパズル。大消しやレアドロップで得られる特殊ブロックも活用できます。",
+    title: "クロマのマジカルチェイン",
+    englishTitle: "CHROMA'S MAGICAL CHAIN",
+    description: "同じ色を4個以上そろえて魔法の鎖を結ぶ落ちものパズル。特殊ブロックと大連鎖で強力なマジカルチェインを狙えます。",
     genre: "PUZZLE",
     href: "?game=colorChain",
     screenshot: "/screenshots/color-chain.svg",
