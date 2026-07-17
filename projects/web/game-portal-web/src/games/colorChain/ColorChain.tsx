@@ -2,18 +2,22 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowRight,
+  Bomb,
   ChevronsDown,
   Pause,
   Play,
   RotateCcw,
   RotateCw,
-  Sparkles
+  Sparkles,
+  X,
+  Zap
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import {
   applyGravityStep,
+  BOMB_BLOCK,
   BOARD_COLUMNS,
   calculateClearScore,
   canPlacePair,
@@ -22,6 +26,8 @@ import {
   createEmptyBoard,
   createRandomPair,
   findMatches,
+  findBombBlastCells,
+  findLaserClearCells,
   getGhostPair,
   getPairCells,
   hasBlocksAboveTop,
@@ -30,7 +36,7 @@ import {
   movePair,
   rotatePair,
   VISIBLE_ROWS,
-  type BlockColor,
+  type BlockToken,
   type Board,
   type FallingPair
 } from "./logic";
@@ -53,20 +59,25 @@ const BEST_KEY = "game-shelf-color-chain-best";
 const CLEAR_DELAY = 220;
 const FALL_DELAY = 130;
 const GRAVITY_STEP_DELAY = 36;
+const LASER_TICK = 250;
+const BOMB_BLOCK_SCORE = 5;
+const BOMB_TRIGGER_SCORE = 25;
+const LASER_BLOCK_SCORE = 4;
 
-const difficultySettings: Record<Difficulty, { colors: number; baseSpeed: number }> = {
-  easy: { colors: 4, baseSpeed: 860 },
-  normal: { colors: 5, baseSpeed: 710 },
-  hard: { colors: 6, baseSpeed: 590 }
+const difficultySettings: Record<Difficulty, { colors: number; baseSpeed: number; bombChance: number; bombPity: number; laserSeconds: number }> = {
+  easy: { colors: 4, baseSpeed: 860, bombChance: 0.09, bombPity: 11, laserSeconds: 35 },
+  normal: { colors: 5, baseSpeed: 710, bombChance: 0.06, bombPity: 14, laserSeconds: 40 },
+  hard: { colors: 6, baseSpeed: 590, bombChance: 0.04, bombPity: 17, laserSeconds: 45 }
 };
 
-const symbols: Record<BlockColor, string> = {
+const symbols: Record<BlockToken, string> = {
   coral: "●",
   gold: "◆",
   mint: "▲",
   sky: "★",
   violet: "＋",
-  rose: "✦"
+  rose: "✦",
+  bomb: "✹"
 };
 
 const copy = {
@@ -110,7 +121,17 @@ const copy = {
     moveRight: "右へ移動",
     rotate: "右回転",
     down: "1段下げる",
-    hardDrop: "即落下"
+    hardDrop: "即落下",
+    bombBlast: (count: number) => `爆弾が炸裂！ ${count}個のブロックを破壊しました。`,
+    laser: "縦レーザー",
+    laserReady: "発射可能",
+    laserCharging: "充填中",
+    laserSelect: "消したい列を選んでください。",
+    laserCancel: "選択をやめる",
+    laserColumn: (column: number) => `${column}列目へレーザー発射！`,
+    laserMiss: "空の列にレーザーを発射しました。",
+    bombHelp: "爆弾は着地後に周囲3×3を破壊します。レーザーはゲージが満タンになると縦1列を消去できます。",
+    selectColumn: (column: number) => `${column}列目を消す`
   },
   en: {
     eyebrow: "FALLING BLOCK PUZZLE / INTERNAL GAME",
@@ -152,7 +173,17 @@ const copy = {
     moveRight: "Move right",
     rotate: "Rotate clockwise",
     down: "Soft drop",
-    hardDrop: "Hard drop"
+    hardDrop: "Hard drop",
+    bombBlast: (count: number) => `Bomb blast! Destroyed ${count} blocks.`,
+    laser: "Column laser",
+    laserReady: "Ready",
+    laserCharging: "Charging",
+    laserSelect: "Select a column to clear.",
+    laserCancel: "Cancel selection",
+    laserColumn: (column: number) => `Laser fired at column ${column}!`,
+    laserMiss: "The laser was fired at an empty column.",
+    bombHelp: "Bombs destroy a 3×3 area after landing. When the laser gauge is full, it can clear an entire column.",
+    selectColumn: (column: number) => `Clear column ${column}`
   }
 } as const;
 
@@ -192,6 +223,9 @@ export function ColorChain({ onBack }: ColorChainProps) {
   const [maxChain, setMaxChain] = useState(0);
   const [clearingCells, setClearingCells] = useState<Set<string>>(() => new Set());
   const [message, setMessage] = useState<string>(t.idle);
+  const [laserCharge, setLaserCharge] = useState(0);
+  const [laserTargeting, setLaserTargeting] = useState(false);
+  const [laserColumn, setLaserColumn] = useState<number | null>(null);
   const [bestResults, setBestResults] = useState<Partial<Record<Difficulty, BestResult>>>(() => readBestResults());
 
   const boardRef = useRef(board);
@@ -203,6 +237,9 @@ export function ColorChain({ onBack }: ColorChainProps) {
   const clearedRef = useRef(cleared);
   const levelRef = useRef(level);
   const maxChainRef = useRef(maxChain);
+  const laserChargeRef = useRef(laserCharge);
+  const laserTargetingRef = useRef(laserTargeting);
+  const pairsWithoutBombRef = useRef(0);
   const resolutionToken = useRef(0);
 
   const settings = difficultySettings[difficulty];
@@ -231,11 +268,47 @@ export function ColorChain({ onBack }: ColorChainProps) {
     setScore(nextScore);
   };
 
+  const updateLaserCharge = (next: number) => {
+    const normalized = Math.max(0, Math.min(100, next));
+    laserChargeRef.current = normalized;
+    setLaserCharge(normalized);
+  };
+
+  const updateLaserTargeting = (next: boolean) => {
+    laserTargetingRef.current = next;
+    setLaserTargeting(next);
+  };
+
+  const recordClearedBlocks = (count: number) => {
+    if (count <= 0) return;
+    const nextCleared = clearedRef.current + count;
+    const nextLevel = Math.floor(nextCleared / 24) + 1;
+    clearedRef.current = nextCleared;
+    levelRef.current = nextLevel;
+    setCleared(nextCleared);
+    setLevel(nextLevel);
+  };
+
+  function createQueuedPair(nextDifficulty: Difficulty) {
+    const nextSettings = difficultySettings[nextDifficulty];
+    const forceBomb = pairsWithoutBombRef.current >= nextSettings.bombPity;
+    const pair = createRandomPair(
+      nextSettings.colors,
+      Math.random,
+      forceBomb ? 1 : nextSettings.bombChance
+    );
+    if (pair.colors.includes(BOMB_BLOCK)) pairsWithoutBombRef.current = 0;
+    else pairsWithoutBombRef.current += 1;
+    return pair;
+  }
+
   function finishGame() {
     updateStatus("gameover");
     updateActivePair(null);
     setCurrentChain(0);
     setClearingCells(new Set());
+    updateLaserTargeting(false);
+    setLaserColumn(null);
     setMessage(t.gameover);
 
     const result: BestResult = {
@@ -256,11 +329,11 @@ export function ColorChain({ onBack }: ColorChainProps) {
   function spawnNext(nextBoard: Board) {
     const queue = nextPairsRef.current.length > 0
       ? nextPairsRef.current
-      : Array.from({ length: 3 }, () => createRandomPair(difficultySettings[difficultyRef.current].colors));
+      : Array.from({ length: 3 }, () => createQueuedPair(difficultyRef.current));
     const pair = queue[0];
     const replenished = [
       ...queue.slice(1),
-      createRandomPair(difficultySettings[difficultyRef.current].colors)
+      createQueuedPair(difficultyRef.current)
     ];
     nextPairsRef.current = replenished;
     setNextPairs(replenished);
@@ -290,7 +363,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
     return nextBoard;
   }
 
-  async function resolveBoard(lockedBoard: Board, token: number) {
+  async function resolveBoard(lockedBoard: Board, token: number, spawnAfter = true) {
     let nextBoard = lockedBoard;
     let chain = 0;
 
@@ -298,6 +371,24 @@ export function ColorChain({ onBack }: ColorChainProps) {
     if (token !== resolutionToken.current) return;
     nextBoard = await animateGravity(nextBoard, token);
     if (token !== resolutionToken.current) return;
+
+    const blast = findBombBlastCells(nextBoard);
+    if (blast.cells.size > 0) {
+      setClearingCells(new Set(blast.cells));
+      setMessage(t.bombBlast(blast.cells.size));
+      await wait(CLEAR_DELAY + 80);
+      if (token !== resolutionToken.current) return;
+
+      nextBoard = clearMatchedCells(nextBoard, blast.cells);
+      updateBoard(nextBoard);
+      setClearingCells(new Set());
+      recordClearedBlocks(blast.cells.size);
+      addScore(blast.cells.size * BOMB_BLOCK_SCORE + blast.bombs.size * BOMB_TRIGGER_SCORE);
+      await wait(FALL_DELAY);
+      if (token !== resolutionToken.current) return;
+      nextBoard = await animateGravity(nextBoard, token);
+      if (token !== resolutionToken.current) return;
+    }
 
     while (token === resolutionToken.current) {
       const match = findMatches(nextBoard);
@@ -318,15 +409,10 @@ export function ColorChain({ onBack }: ColorChainProps) {
 
       nextBoard = await animateGravity(nextBoard, token);
       if (token !== resolutionToken.current) return;
-      const nextCleared = clearedRef.current + match.cells.size;
-      const nextLevel = Math.floor(nextCleared / 24) + 1;
       const nextMaxChain = Math.max(maxChainRef.current, chain);
-      clearedRef.current = nextCleared;
-      levelRef.current = nextLevel;
       maxChainRef.current = nextMaxChain;
-      setCleared(nextCleared);
-      setLevel(nextLevel);
       setMaxChain(nextMaxChain);
+      recordClearedBlocks(match.cells.size);
       addScore(calculateClearScore(match, chain));
       await wait(FALL_DELAY);
     }
@@ -336,7 +422,13 @@ export function ColorChain({ onBack }: ColorChainProps) {
       finishGame();
       return;
     }
-    spawnNext(nextBoard);
+    if (spawnAfter) {
+      spawnNext(nextBoard);
+    } else {
+      updateStatus("playing");
+      setCurrentChain(0);
+      setMessage(t.playing);
+    }
   }
 
   function lockPair(pair: FallingPair) {
@@ -350,14 +442,58 @@ export function ColorChain({ onBack }: ColorChainProps) {
     void resolveBoard(lockedBoard, token);
   }
 
+  function beginLaserTargeting() {
+    if (statusRef.current !== "playing" || laserChargeRef.current < 100) return;
+    updateLaserTargeting(true);
+    setMessage(t.laserSelect);
+  }
+
+  function cancelLaserTargeting() {
+    if (!laserTargetingRef.current) return;
+    updateLaserTargeting(false);
+    setMessage(t.playing);
+  }
+
+  async function resolveLaser(column: number, token: number) {
+    const result = findLaserClearCells(boardRef.current, column);
+    setLaserColumn(column);
+    setMessage(result.cells.size > 0 ? t.laserColumn(column + 1) : t.laserMiss);
+    setClearingCells(new Set(result.cells));
+    await wait(CLEAR_DELAY + 80);
+    if (token !== resolutionToken.current) return;
+
+    let nextBoard = boardRef.current;
+    if (result.cells.size > 0) {
+      nextBoard = clearMatchedCells(nextBoard, result.cells);
+      updateBoard(nextBoard);
+      recordClearedBlocks(result.cells.size);
+      addScore(result.cells.size * LASER_BLOCK_SCORE + result.bombs.size * BOMB_TRIGGER_SCORE);
+    }
+    setClearingCells(new Set());
+    setLaserColumn(null);
+    await wait(FALL_DELAY);
+    if (token !== resolutionToken.current) return;
+    await resolveBoard(nextBoard, token, false);
+  }
+
+  function fireLaser(column: number) {
+    if (!laserTargetingRef.current || statusRef.current !== "playing") return;
+    updateLaserTargeting(false);
+    updateLaserCharge(0);
+    updateStatus("resolving");
+    const token = resolutionToken.current + 1;
+    resolutionToken.current = token;
+    void resolveLaser(column, token);
+  }
+
   function startGame(nextDifficulty: Difficulty = difficulty) {
     resolutionToken.current += 1;
     difficultyRef.current = nextDifficulty;
     setDifficulty(nextDifficulty);
     const nextBoard = createEmptyBoard();
-    const colorCount = difficultySettings[nextDifficulty].colors;
-    const firstPair = createRandomPair(colorCount);
-    const queue = Array.from({ length: 3 }, () => createRandomPair(colorCount));
+    pairsWithoutBombRef.current = 0;
+    const firstPair = createQueuedPair(nextDifficulty);
+    const queue = Array.from({ length: 3 }, () => createQueuedPair(nextDifficulty));
 
     boardRef.current = nextBoard;
     activePairRef.current = firstPair;
@@ -367,6 +503,8 @@ export function ColorChain({ onBack }: ColorChainProps) {
     clearedRef.current = 0;
     levelRef.current = 1;
     maxChainRef.current = 0;
+    laserChargeRef.current = 0;
+    laserTargetingRef.current = false;
     setBoard(nextBoard);
     setActivePair(firstPair);
     setNextPairs(queue);
@@ -377,6 +515,9 @@ export function ColorChain({ onBack }: ColorChainProps) {
     setCurrentChain(0);
     setMaxChain(0);
     setClearingCells(new Set());
+    setLaserCharge(0);
+    setLaserTargeting(false);
+    setLaserColumn(null);
     setMessage(t.playing);
   }
 
@@ -424,6 +565,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
 
   function togglePause() {
     if (statusRef.current === "playing") {
+      updateLaserTargeting(false);
       updateStatus("paused");
       setMessage(t.paused);
     } else if (statusRef.current === "paused") {
@@ -433,17 +575,37 @@ export function ColorChain({ onBack }: ColorChainProps) {
   }
 
   useEffect(() => {
-    if (status !== "playing") return;
+    if (status !== "playing" || laserTargeting) return;
     const timer = window.setInterval(automaticDrop, dropInterval);
     return () => window.clearInterval(timer);
-  }, [dropInterval, status]);
+  }, [dropInterval, laserTargeting, status]);
+
+  useEffect(() => {
+    if (status !== "playing" || laserTargeting || laserCharge >= 100) return;
+    const timer = window.setInterval(() => {
+      const seconds = difficultySettings[difficultyRef.current].laserSeconds;
+      updateLaserCharge(laserChargeRef.current + (100 * LASER_TICK) / (seconds * 1000));
+    }, LASER_TICK);
+    return () => window.clearInterval(timer);
+  }, [laserCharge, laserTargeting, status]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement) return;
-      const controlKeys = ["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", " ", "z", "Z", "x", "X", "p", "P"];
+      const controlKeys = ["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", " ", "z", "Z", "x", "X", "p", "P", "l", "L", "Escape", "1", "2", "3", "4", "5", "6", "7", "8"];
       if (!controlKeys.includes(event.key)) return;
       event.preventDefault();
+
+      if (laserTargetingRef.current) {
+        if (event.key === "Escape") cancelLaserTargeting();
+        if (/^[1-8]$/.test(event.key)) fireLaser(Number(event.key) - 1);
+        return;
+      }
+
+      if (event.key === "l" || event.key === "L") {
+        beginLaserTargeting();
+        return;
+      }
 
       if (event.key === "p" || event.key === "P") {
         togglePause();
@@ -470,7 +632,10 @@ export function ColorChain({ onBack }: ColorChainProps) {
 
   useEffect(() => {
     if (status === "idle") setMessage(t.idle);
-  }, [language, status, t.idle]);
+    if (status === "playing") setMessage(laserTargeting ? t.laserSelect : t.playing);
+    if (status === "paused") setMessage(t.paused);
+    if (status === "gameover") setMessage(t.gameover);
+  }, [language, laserTargeting, status, t.gameover, t.idle, t.laserSelect, t.paused, t.playing]);
 
   const ghostPair = activePair ? getGhostPair(board, activePair) : null;
   const visibleCells = useMemo(() => {
@@ -548,6 +713,27 @@ export function ColorChain({ onBack }: ColorChainProps) {
               ))}
             </div>
 
+            {laserTargeting && (
+              <div className="color-chain-laser-selector" aria-label={t.laserSelect}>
+                {Array.from({ length: BOARD_COLUMNS }, (_, column) => (
+                  <button
+                    aria-label={t.selectColumn(column + 1)}
+                    key={column}
+                    onClick={() => fireLaser(column)}
+                    type="button"
+                  ><span>{column + 1}</span></button>
+                ))}
+              </div>
+            )}
+
+            {laserColumn !== null && (
+              <div className="color-chain-laser-beams" aria-hidden="true">
+                {Array.from({ length: BOARD_COLUMNS }, (_, column) => (
+                  <i className={laserColumn === column ? "is-active" : ""} key={column} />
+                ))}
+              </div>
+            )}
+
             {currentChain >= 2 && status === "resolving" && (
               <div className="color-chain-burst" aria-live="polite">
                 <Sparkles aria-hidden="true" />
@@ -568,11 +754,35 @@ export function ColorChain({ onBack }: ColorChainProps) {
           </div>
 
           <div className="color-chain-touch-controls" aria-label={t.controls}>
-            <button type="button" disabled={status !== "playing"} onClick={() => moveHorizontal(-1)} aria-label={t.moveLeft}><ArrowLeft /></button>
-            <button type="button" disabled={status !== "playing"} onClick={() => rotate(1)} aria-label={t.rotate}><RotateCw /></button>
-            <button type="button" disabled={status !== "playing"} onClick={softDrop} aria-label={t.down}><ArrowDown /></button>
-            <button type="button" disabled={status !== "playing"} onClick={hardDrop} aria-label={t.hardDrop}><ChevronsDown /></button>
-            <button type="button" disabled={status !== "playing"} onClick={() => moveHorizontal(1)} aria-label={t.moveRight}><ArrowRight /></button>
+            <button type="button" disabled={status !== "playing" || laserTargeting} onClick={() => moveHorizontal(-1)} aria-label={t.moveLeft}><ArrowLeft /></button>
+            <button type="button" disabled={status !== "playing" || laserTargeting} onClick={() => rotate(1)} aria-label={t.rotate}><RotateCw /></button>
+            <button type="button" disabled={status !== "playing" || laserTargeting} onClick={softDrop} aria-label={t.down}><ArrowDown /></button>
+            <button type="button" disabled={status !== "playing" || laserTargeting} onClick={hardDrop} aria-label={t.hardDrop}><ChevronsDown /></button>
+            <button type="button" disabled={status !== "playing" || laserTargeting} onClick={() => moveHorizontal(1)} aria-label={t.moveRight}><ArrowRight /></button>
+          </div>
+
+          <div className={`color-chain-laser-panel${laserCharge >= 100 ? " is-ready" : ""}`}>
+            <div className="color-chain-laser-heading">
+              <span><Zap aria-hidden="true" /> {t.laser}</span>
+              <strong>{laserCharge >= 100 ? t.laserReady : `${Math.floor(laserCharge)}%`}</strong>
+            </div>
+            <div
+              aria-label={t.laser}
+              aria-valuemax={100}
+              aria-valuemin={0}
+              aria-valuenow={Math.round(laserCharge)}
+              className="color-chain-laser-gauge"
+              role="progressbar"
+            ><i style={{ width: `${laserCharge}%` }} /></div>
+            <button
+              className={laserTargeting ? "ghost-button" : "primary-button"}
+              disabled={!laserTargeting && (status !== "playing" || laserCharge < 100)}
+              onClick={laserTargeting ? cancelLaserTargeting : beginLaserTargeting}
+              type="button"
+            >
+              {laserTargeting ? <X aria-hidden="true" /> : <Zap aria-hidden="true" />}
+              {laserTargeting ? t.laserCancel : laserCharge >= 100 ? t.laserReady : t.laserCharging}
+            </button>
           </div>
         </div>
 
@@ -593,6 +803,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
           <div className="rule-card">
             <h2>{t.howTo}</h2>
             <p>{t.rules}</p>
+            <p className="color-chain-item-help"><Bomb aria-hidden="true" /> {t.bombHelp}</p>
             <h3>{t.controls}</h3>
             <p>{t.keyboard}</p>
           </div>

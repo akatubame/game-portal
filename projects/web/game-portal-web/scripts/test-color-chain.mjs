@@ -13,6 +13,7 @@ const compiled = ts.transpileModule(source, {
 const logic = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
 
 const {
+  BOMB_BLOCK,
   BOARD_COLUMNS,
   TOTAL_ROWS,
   applyGravity,
@@ -20,6 +21,9 @@ const {
   calculateClearScore,
   clearMatchedCells,
   createEmptyBoard,
+  createRandomPair,
+  findBombBlastCells,
+  findLaserClearCells,
   findMatches,
   getPairCells,
   mergePair,
@@ -89,6 +93,50 @@ const firstScore = calculateClearScore(secondClear, 1);
 const chainScore = calculateClearScore(secondClear, 2);
 assert.ok(chainScore > firstScore, "a chain awards a score bonus");
 assert.equal(BOARD_COLUMNS, 8, "board width remains fixed");
+
+const generatedBombPair = createRandomPair(4, (() => {
+  const values = [0, 0.3, 0, 0.9];
+  return () => values.shift() ?? 0;
+})(), 1);
+assert.equal(generatedBombPair.colors.filter((token) => token === BOMB_BLOCK).length, 1, "a special pair contains one bomb");
+
+const bombBoard = createEmptyBoard();
+for (let row = 8; row <= 10; row += 1) {
+  for (let column = 2; column <= 4; column += 1) bombBoard[row][column] = "coral";
+}
+bombBoard[9][3] = BOMB_BLOCK;
+const centerBlast = findBombBlastCells(bombBoard);
+assert.equal(centerBlast.cells.size, 9, "a centered bomb clears a 3 by 3 occupied area");
+assert.equal(centerBlast.bombs.size, 1, "the triggering bomb is counted once");
+
+const edgeBombBoard = createEmptyBoard();
+edgeBombBoard[0][0] = BOMB_BLOCK;
+edgeBombBoard[0][1] = "gold";
+edgeBombBoard[1][0] = "mint";
+edgeBombBoard[1][1] = "sky";
+assert.equal(findBombBlastCells(edgeBombBoard).cells.size, 4, "a corner blast is clipped to the board");
+
+const chainBombBoard = createEmptyBoard();
+chainBombBoard[8][2] = BOMB_BLOCK;
+chainBombBoard[9][3] = BOMB_BLOCK;
+chainBombBoard[10][4] = "rose";
+const chainBlast = findBombBlastCells(chainBombBoard, ["8:2"]);
+assert.equal(chainBlast.bombs.size, 2, "a bomb inside the blast area is triggered");
+assert.ok(chainBlast.cells.has("10:4"), "the chained bomb extends the blast area");
+
+const bombLine = createEmptyBoard();
+for (let column = 0; column < 4; column += 1) bombLine[12][column] = BOMB_BLOCK;
+assert.equal(findMatches(bombLine).cells.size, 0, "bombs never form a color match");
+
+const laserBoard = createEmptyBoard();
+laserBoard[8][3] = "coral";
+laserBoard[9][3] = BOMB_BLOCK;
+laserBoard[10][3] = "gold";
+laserBoard[9][4] = "mint";
+const laserClear = findLaserClearCells(laserBoard, 3);
+assert.equal(laserClear.bombs.size, 1, "a laser triggers a bomb in its column");
+assert.ok(laserClear.cells.has("9:4"), "laser-triggered bomb clears an adjacent block");
+assert.equal(findLaserClearCells(laserBoard, -1).cells.size, 0, "an invalid laser column clears nothing");
 
 const shaftBoard = createEmptyBoard();
 const shaftRow = TOTAL_ROWS - 4;

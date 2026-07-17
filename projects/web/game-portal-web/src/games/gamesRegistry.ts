@@ -448,7 +448,7 @@ export const games: Game[] = [
     id: "colorChain",
     title: "カラーチェイン",
     englishTitle: "COLOR CHAIN DROP",
-    description: "2個1組の色ブロックを落とし、縦・横・斜めの4個消しと連鎖でハイスコアを狙う落ちものパズル。",
+    description: "2個1組の色ブロックを落とし、4個消しと連鎖を狙うパズル。3×3爆弾と時間充填式レーザーも活用できます。",
     genre: "PUZZLE",
     href: "?game=colorChain",
     screenshot: "/screenshots/color-chain.svg",

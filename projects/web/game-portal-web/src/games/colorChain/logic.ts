@@ -4,9 +4,11 @@ export const HIDDEN_ROWS = 2;
 export const TOTAL_ROWS = VISIBLE_ROWS + HIDDEN_ROWS;
 
 export const blockColors = ["coral", "gold", "mint", "sky", "violet", "rose"] as const;
+export const BOMB_BLOCK = "bomb" as const;
 
 export type BlockColor = (typeof blockColors)[number];
-export type BoardCell = BlockColor | null;
+export type BlockToken = BlockColor | typeof BOMB_BLOCK;
+export type BoardCell = BlockToken | null;
 export type Board = BoardCell[][];
 export type Orientation = 0 | 1 | 2 | 3;
 
@@ -14,13 +16,13 @@ export type FallingPair = {
   row: number;
   column: number;
   orientation: Orientation;
-  colors: [BlockColor, BlockColor];
+  colors: [BlockToken, BlockToken];
 };
 
 export type PairCell = {
   row: number;
   column: number;
-  color: BlockColor;
+  color: BlockToken;
 };
 
 export type MatchResult = {
@@ -51,15 +53,24 @@ export function createEmptyBoard(): Board {
   return Array.from({ length: TOTAL_ROWS }, () => Array<BoardCell>(BOARD_COLUMNS).fill(null));
 }
 
-export function createRandomPair(colorCount: number, random = Math.random): FallingPair {
+export function isBlockColor(token: BoardCell): token is BlockColor {
+  return token !== null && token !== BOMB_BLOCK;
+}
+
+export function createRandomPair(colorCount: number, random = Math.random, bombChance = 0): FallingPair {
   const availableColors = blockColors.slice(0, Math.max(1, Math.min(colorCount, blockColors.length)));
   const randomColor = () => availableColors[Math.floor(random() * availableColors.length)] ?? availableColors[0];
+
+  const colors: [BlockToken, BlockToken] = [randomColor(), randomColor()];
+  if (random() < Math.max(0, Math.min(1, bombChance))) {
+    colors[random() < 0.5 ? 0 : 1] = BOMB_BLOCK;
+  }
 
   return {
     row: 1,
     column: Math.floor(BOARD_COLUMNS / 2) - 1,
     orientation: 0,
-    colors: [randomColor(), randomColor()]
+    colors
   };
 }
 
@@ -142,7 +153,7 @@ export function findMatches(board: Board): MatchResult {
   for (let row = 0; row < TOTAL_ROWS; row += 1) {
     for (let column = 0; column < BOARD_COLUMNS; column += 1) {
       const color = board[row][column];
-      if (!color) continue;
+      if (!isBlockColor(color)) continue;
 
       for (const direction of matchDirections) {
         const previousRow = row - direction.row;
@@ -180,7 +191,7 @@ export function applyGravity(board: Board): Board {
   const nextBoard = createEmptyBoard();
 
   for (let column = 0; column < BOARD_COLUMNS; column += 1) {
-    const blocks: BlockColor[] = [];
+    const blocks: BlockToken[] = [];
     for (let row = TOTAL_ROWS - 1; row >= 0; row -= 1) {
       const color = board[row][column];
       if (color) blocks.push(color);
@@ -214,6 +225,65 @@ export function applyGravityStep(board: Board): { board: Board; moved: boolean }
 /** Locks a pair, then lets each block fall independently until supported. */
 export function settlePair(board: Board, pair: FallingPair): Board {
   return applyGravity(mergePair(board, pair));
+}
+
+function parseCellKey(key: string) {
+  const [row, column] = key.split(":").map(Number);
+  return { row, column };
+}
+
+export type SpecialClearResult = {
+  cells: Set<string>;
+  bombs: Set<string>;
+};
+
+export function findBombBlastCells(board: Board, initialBombs?: Iterable<string>): SpecialClearResult {
+  const queued = initialBombs
+    ? [...initialBombs]
+    : board.flatMap((row, rowIndex) => row.flatMap((cell, columnIndex) => (
+      cell === BOMB_BLOCK ? [cellKey(rowIndex, columnIndex)] : []
+    )));
+  const cells = new Set<string>();
+  const bombs = new Set<string>();
+
+  while (queued.length > 0) {
+    const bombKey = queued.shift();
+    if (!bombKey || bombs.has(bombKey)) continue;
+    const { row, column } = parseCellKey(bombKey);
+    if (!isInside(row, column) || board[row][column] !== BOMB_BLOCK) continue;
+    bombs.add(bombKey);
+
+    for (let rowOffset = -1; rowOffset <= 1; rowOffset += 1) {
+      for (let columnOffset = -1; columnOffset <= 1; columnOffset += 1) {
+        const targetRow = row + rowOffset;
+        const targetColumn = column + columnOffset;
+        if (!isInside(targetRow, targetColumn) || board[targetRow][targetColumn] === null) continue;
+        const targetKey = cellKey(targetRow, targetColumn);
+        cells.add(targetKey);
+        if (board[targetRow][targetColumn] === BOMB_BLOCK && !bombs.has(targetKey)) queued.push(targetKey);
+      }
+    }
+  }
+
+  return { cells, bombs };
+}
+
+export function findLaserClearCells(board: Board, column: number): SpecialClearResult {
+  const cells = new Set<string>();
+  const triggeredBombs = new Set<string>();
+  if (column < 0 || column >= BOARD_COLUMNS) return { cells, bombs: triggeredBombs };
+
+  for (let row = 0; row < TOTAL_ROWS; row += 1) {
+    const cell = board[row][column];
+    if (cell === null) continue;
+    const key = cellKey(row, column);
+    cells.add(key);
+    if (cell === BOMB_BLOCK) triggeredBombs.add(key);
+  }
+
+  const blast = findBombBlastCells(board, triggeredBombs);
+  blast.cells.forEach((key) => cells.add(key));
+  return { cells, bombs: blast.bombs };
 }
 
 export function hasBlocksAboveTop(board: Board) {

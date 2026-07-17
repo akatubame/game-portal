@@ -88,6 +88,18 @@
 .color-chain-next-pair i.is-violet { background: linear-gradient(145deg, #d4b8ff, #8d65df); }
 .color-chain-cell.is-rose,
 .color-chain-next-pair i.is-rose { background: linear-gradient(145deg, #ffb5df, #eb66ad); }
+.color-chain-cell.is-bomb,
+.color-chain-next-pair i.is-bomb {
+  background: radial-gradient(circle at 38% 32%, #fff4b0 0 8%, #ff9f43 9% 20%, #dc3e3e 38%, #21151d 72%);
+  border-color: #ffd166;
+  color: #fff4b0;
+}
+
+.color-chain-cell.is-bomb::after,
+.color-chain-next-pair i.is-bomb::after {
+  color: #fff7c7;
+  filter: drop-shadow(0 0 4px #ff7a35);
+}
 
 .color-chain-cell[class*=" is-"]:not(.is-ghost) {
   border-color: rgba(255, 255, 255, 0.35);
@@ -189,6 +201,125 @@
 
 .color-chain-touch-controls button:disabled {
   opacity: 0.35;
+}
+
+.color-chain-laser-panel {
+  background: rgba(8, 19, 28, 0.9);
+  border: 1px solid rgba(98, 208, 255, 0.28);
+  border-radius: 15px;
+  display: grid;
+  gap: 9px;
+  max-width: calc(var(--chain-cell-size) * 8 + 24px);
+  padding: 11px 13px;
+  width: 100%;
+}
+
+.color-chain-laser-panel.is-ready {
+  border-color: #69dcff;
+  box-shadow: 0 0 20px rgba(68, 200, 255, 0.2);
+}
+
+.color-chain-laser-heading {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.color-chain-laser-heading span {
+  align-items: center;
+  display: inline-flex;
+  gap: 7px;
+}
+
+.color-chain-laser-heading svg {
+  color: #72ddff;
+  height: 18px;
+  width: 18px;
+}
+
+.color-chain-laser-gauge {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  height: 9px;
+  overflow: hidden;
+}
+
+.color-chain-laser-gauge i {
+  background: linear-gradient(90deg, #468cff, #6ce8ff, #f7ffff);
+  display: block;
+  height: 100%;
+  transition: width 180ms linear;
+}
+
+.color-chain-laser-panel > button {
+  justify-self: stretch;
+}
+
+.color-chain-laser-selector,
+.color-chain-laser-beams {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  inset: 12px;
+  pointer-events: none;
+  position: absolute;
+  z-index: 8;
+}
+
+.color-chain-laser-selector button {
+  align-items: flex-start;
+  background: rgba(54, 199, 255, 0.05);
+  border: 1px solid rgba(113, 224, 255, 0.18);
+  color: #dffaff;
+  display: flex;
+  justify-content: center;
+  padding-top: 8px;
+  pointer-events: auto;
+}
+
+.color-chain-laser-selector button:hover,
+.color-chain-laser-selector button:focus-visible {
+  background: linear-gradient(rgba(192, 249, 255, 0.32), rgba(54, 199, 255, 0.12));
+  border-color: #bcefff;
+  outline: 2px solid #fff;
+  outline-offset: -3px;
+}
+
+.color-chain-laser-selector span {
+  background: rgba(3, 17, 27, 0.8);
+  border-radius: 999px;
+  display: grid;
+  height: 24px;
+  place-items: center;
+  width: 24px;
+}
+
+.color-chain-laser-beams i.is-active {
+  animation: color-chain-laser 300ms ease-out infinite alternate;
+  background: linear-gradient(90deg, transparent, #9cf4ff 30%, #fff 50%, #9cf4ff 70%, transparent);
+  box-shadow: 0 0 22px #59dfff;
+}
+
+@keyframes color-chain-laser {
+  from { opacity: 0.6; transform: scaleX(0.65); }
+  to { opacity: 1; transform: scaleX(1); }
+}
+
+.color-chain-item-help {
+  align-items: flex-start;
+  background: rgba(255, 169, 77, 0.08);
+  border: 1px solid rgba(255, 181, 92, 0.2);
+  border-radius: 12px;
+  display: flex;
+  gap: 8px;
+  padding: 11px;
+}
+
+.color-chain-item-help svg {
+  color: #ffae55;
+  flex: 0 0 auto;
+  height: 19px;
+  margin-top: 2px;
+  width: 19px;
 }
 
 .color-chain-next > div {
@@ -322,6 +453,11 @@
     inset: 7px;
   }
 
+  .color-chain-laser-selector,
+  .color-chain-laser-beams {
+    inset: 7px;
+  }
+
   .color-chain-touch-controls {
     gap: 5px;
     grid-template-columns: repeat(5, minmax(44px, 1fr));
@@ -330,6 +466,11 @@
 
   .color-chain-touch-controls button {
     height: 46px;
+  }
+
+  .color-chain-laser-panel {
+    max-width: calc(var(--chain-cell-size) * 8 + 14px);
+    padding: 9px 10px;
   }
 
   .color-chain-side {
@@ -350,7 +491,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .color-chain-cell.is-clearing,
-  .color-chain-burst {
+  .color-chain-burst,
+  .color-chain-laser-beams i.is-active {
     animation: none;
   }
 }
