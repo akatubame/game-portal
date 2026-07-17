@@ -120,7 +120,12 @@ export default defineConfig({
         globPatterns: ["**/*.{html,js,css,json,png,svg,webp,wasm,woff,woff2}"],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/games\//, /^\/privacy\.html$/],
+        navigateFallbackDenylist: [
+          /^\/games\//,
+          /^\/privacy\.html$/,
+          /^\/sitemap\.xml$/,
+          /^\/robots\.txt$/
+        ],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/www\.googletagmanager\.com\//,
