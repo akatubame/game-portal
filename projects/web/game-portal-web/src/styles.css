@@ -9,6 +9,352 @@
   --line: rgba(244, 241, 232, 0.15);
 }
 
+/* Color Chain Drop */
+.color-chain-shell {
+  --chain-cell-size: clamp(20px, 4.5vh, 31px);
+}
+
+.color-chain-hero {
+  align-items: center;
+}
+
+.color-chain-score {
+  grid-template-columns: repeat(4, minmax(74px, 1fr));
+}
+
+.color-chain-layout {
+  align-items: start;
+  grid-template-columns: minmax(300px, 0.78fr) minmax(300px, 1.22fr);
+}
+
+.color-chain-play-area {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  min-width: 0;
+  position: sticky;
+  top: 16px;
+  width: 100%;
+}
+
+.color-chain-board-wrap {
+  background: linear-gradient(160deg, #111a22, #251633);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 22px;
+  box-shadow: 0 20px 54px rgba(2, 7, 12, 0.38);
+  padding: 12px;
+  position: relative;
+}
+
+.color-chain-board {
+  background: #080d12;
+  border: 2px solid #536577;
+  border-radius: 12px;
+  display: grid;
+  grid-template-columns: repeat(8, var(--chain-cell-size));
+  grid-template-rows: repeat(16, var(--chain-cell-size));
+  overflow: hidden;
+  touch-action: none;
+}
+
+.color-chain-cell {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.018);
+  border: 1px solid rgba(123, 148, 170, 0.11);
+  display: flex;
+  font-size: calc(var(--chain-cell-size) * 0.47);
+  font-weight: 900;
+  justify-content: center;
+  position: relative;
+}
+
+.color-chain-cell::after,
+.color-chain-next-pair i::after {
+  color: rgba(8, 13, 18, 0.52);
+  content: attr(data-symbol);
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.3));
+  line-height: 1;
+}
+
+.color-chain-cell.is-coral,
+.color-chain-next-pair i.is-coral { background: linear-gradient(145deg, #ffaaa1, #ee5d67); }
+.color-chain-cell.is-gold,
+.color-chain-next-pair i.is-gold { background: linear-gradient(145deg, #ffe994, #efb83f); }
+.color-chain-cell.is-mint,
+.color-chain-next-pair i.is-mint { background: linear-gradient(145deg, #b2f4bd, #54c986); }
+.color-chain-cell.is-sky,
+.color-chain-next-pair i.is-sky { background: linear-gradient(145deg, #b5efff, #55b9e8); }
+.color-chain-cell.is-violet,
+.color-chain-next-pair i.is-violet { background: linear-gradient(145deg, #d4b8ff, #8d65df); }
+.color-chain-cell.is-rose,
+.color-chain-next-pair i.is-rose { background: linear-gradient(145deg, #ffb5df, #eb66ad); }
+
+.color-chain-cell[class*=" is-"]:not(.is-ghost) {
+  border-color: rgba(255, 255, 255, 0.35);
+  border-radius: 29%;
+  box-shadow: inset 0 2px 3px rgba(255, 255, 255, 0.35), inset 0 -3px 4px rgba(0, 0, 0, 0.15);
+}
+
+.color-chain-cell.is-active {
+  filter: brightness(1.12) saturate(1.12);
+  outline: 2px solid rgba(255, 255, 255, 0.84);
+  outline-offset: -3px;
+  z-index: 2;
+}
+
+.color-chain-cell.is-ghost {
+  background: transparent;
+  border: 2px dashed currentColor;
+  border-radius: 30%;
+  box-shadow: none;
+  opacity: 0.35;
+}
+
+.color-chain-cell.is-clearing {
+  animation: color-chain-clear 220ms ease-in-out infinite alternate;
+  filter: brightness(1.8) saturate(0.7);
+  z-index: 3;
+}
+
+@keyframes color-chain-clear {
+  from { opacity: 0.55; transform: scale(0.76) rotate(-4deg); }
+  to { opacity: 1; transform: scale(1.08) rotate(4deg); }
+}
+
+.color-chain-overlay {
+  align-items: center;
+  backdrop-filter: blur(4px);
+  background: rgba(5, 9, 14, 0.76);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  inset: 12px;
+  justify-content: center;
+  position: absolute;
+  text-align: center;
+  z-index: 6;
+}
+
+.color-chain-overlay > svg {
+  color: #ffcf6d;
+  height: 38px;
+  width: 38px;
+}
+
+.color-chain-overlay > strong {
+  font-size: 1.15rem;
+}
+
+.color-chain-burst {
+  align-items: center;
+  animation: color-chain-burst 380ms ease-out;
+  background: rgba(12, 16, 23, 0.9);
+  border: 2px solid #ffdc72;
+  border-radius: 999px;
+  color: #ffdc72;
+  display: flex;
+  gap: 8px;
+  left: 50%;
+  padding: 9px 16px;
+  position: absolute;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  z-index: 7;
+}
+
+@keyframes color-chain-burst {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.55); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.color-chain-touch-controls {
+  display: grid;
+  gap: 7px;
+  grid-template-columns: repeat(5, minmax(48px, 58px));
+  justify-content: center;
+  width: 100%;
+}
+
+.color-chain-touch-controls button {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 13px;
+  color: #f7f8fb;
+  display: flex;
+  height: 48px;
+  justify-content: center;
+}
+
+.color-chain-touch-controls button:disabled {
+  opacity: 0.35;
+}
+
+.color-chain-next > div {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.color-chain-next-pair {
+  display: grid;
+  gap: 3px;
+}
+
+.color-chain-next-pair i {
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 8px;
+  display: flex;
+  font-style: normal;
+  height: 29px;
+  justify-content: center;
+  width: 29px;
+}
+
+.color-chain-difficulties {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.color-chain-difficulties button {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 13px;
+  color: inherit;
+  display: grid;
+  gap: 3px;
+  padding: 11px 8px;
+}
+
+.color-chain-difficulties button.is-selected {
+  background: rgba(255, 138, 199, 0.15);
+  border-color: #ff8ac7;
+}
+
+.color-chain-difficulties button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.color-chain-difficulties small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.color-chain-progress {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 15px;
+  display: grid;
+  gap: 7px;
+  padding: 13px 15px;
+}
+
+.color-chain-progress span {
+  color: var(--muted);
+}
+
+.color-chain-progress strong {
+  color: var(--ink);
+}
+
+.color-chain-actions {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .color-chain-shell {
+    --chain-cell-size: min(36px, 4.2vh, calc((100vw - 58px) / 8));
+  }
+
+  .color-chain-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .color-chain-play-area {
+    position: static;
+  }
+
+  .color-chain-side {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .color-chain-side > .ranking-card,
+  .color-chain-side > .color-chain-actions,
+  .color-chain-side > .shelf-button {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 620px) {
+  .color-chain-shell {
+    --chain-cell-size: min(34px, 4.1vh, calc((100vw - 42px) / 8));
+  }
+
+  .color-chain-hero {
+    gap: 10px;
+  }
+
+  .color-chain-score {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .color-chain-score div {
+    min-width: 0;
+    padding: 9px 5px;
+  }
+
+  .color-chain-score strong {
+    font-size: 1.05rem;
+  }
+
+  .color-chain-board-wrap {
+    border-radius: 15px;
+    padding: 7px;
+  }
+
+  .color-chain-overlay {
+    inset: 7px;
+  }
+
+  .color-chain-touch-controls {
+    gap: 5px;
+    grid-template-columns: repeat(5, minmax(44px, 1fr));
+    max-width: calc(var(--chain-cell-size) * 8 + 14px);
+  }
+
+  .color-chain-touch-controls button {
+    height: 46px;
+  }
+
+  .color-chain-side {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .color-chain-difficulties {
+    gap: 5px;
+  }
+
+  .color-chain-difficulties button {
+    padding: 9px 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .color-chain-cell.is-clearing,
+  .color-chain-burst {
+    animation: none;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -7088,5 +7434,38 @@ footer {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Final Color Chain overrides must follow the shared puzzle and mobile rules. */
+.score-panel.color-chain-score {
+  grid-template-columns: repeat(4, minmax(74px, 1fr));
+}
+
+.puzzle-layout.color-chain-layout {
+  grid-template-columns: minmax(300px, 0.78fr) minmax(300px, 1.22fr);
+}
+
+@media (max-width: 900px) {
+  .puzzle-layout.color-chain-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .puzzle-side.color-chain-side {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .score-panel.color-chain-score {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .puzzle-side.color-chain-side {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    width: 100%;
   }
 }

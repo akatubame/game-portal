@@ -185,6 +185,10 @@ export const gameTranslations: Record<string, Record<Language, GameTranslation>>
   solitaire: {
     ja: { title: "ソリティア", description: "山札と場札を整理し、4つの組札へAからKまで積み上げる定番の一人用カードゲーム。" },
     en: { title: "Solitaire", description: "Play classic Klondike solitaire: build foundations from Ace to King while arranging tableau cards in alternating colors." }
+  },
+  colorChain: {
+    ja: { title: "カラーチェイン", description: "2個1組の色ブロックを落とし、縦・横・斜めの4個消しと連鎖でハイスコアを狙う落ちものパズル。" },
+    en: { title: "Color Chain Drop", description: "Drop connected color pairs, match four vertically, horizontally, or diagonally, and build chain reactions for a high score." }
   }
 };
 

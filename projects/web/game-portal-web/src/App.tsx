@@ -42,10 +42,11 @@ const gameViews: Record<string, GameView> = {
   yachtDice: lazy(() => import("./games/yachtDice/YachtDice").then((module) => ({ default: module.YachtDice }))),
   nonogram: lazy(() => import("./games/nonogram/Nonogram").then((module) => ({ default: module.Nonogram }))),
   wordGuess: lazy(() => import("./games/wordGuess/WordGuess").then((module) => ({ default: module.WordGuess }))),
-  solitaire: lazy(() => import("./games/solitaire/Solitaire").then((module) => ({ default: module.Solitaire })))
+  solitaire: lazy(() => import("./games/solitaire/Solitaire").then((module) => ({ default: module.Solitaire }))),
+  colorChain: lazy(() => import("./games/colorChain/ColorChain").then((module) => ({ default: module.ColorChain })))
 };
 
-const recentGameIds = ["solitaire", "wordGuess", "nonogram", "poker"];
+const recentGameIds = ["colorChain", "solitaire", "wordGuess", "nonogram"];
 const popularGameIds = ["random-shogi", "yonmai-mahjong", "2048", "sudoku", "minesweeper", "nonogram", "snake", "reversi"];
 const maxPopularGames = 4;
 const allGenresKey = "__all__";

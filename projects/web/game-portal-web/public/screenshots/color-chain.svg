@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-labelledby="title description">
+  <title id="title">Color Chain Drop game screen</title>
+  <desc id="description">Colorful paired blocks falling into a grid with a diagonal chain reaction.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#111a22"/>
+      <stop offset="1" stop-color="#251633"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="640" height="360" rx="28" fill="url(#bg)"/>
+  <text x="38" y="55" fill="#f7f7fa" font-family="system-ui,sans-serif" font-size="27" font-weight="800">COLOR CHAIN DROP</text>
+  <text x="40" y="82" fill="#b8c3d1" font-family="system-ui,sans-serif" font-size="14">MATCH 4 · BUILD A CHAIN</text>
+  <g transform="translate(55 105)">
+    <rect width="260" height="220" rx="16" fill="#080d12" stroke="#657384" stroke-width="3"/>
+    <g stroke="#202b36" stroke-width="1">
+      <path d="M32.5 0v220M65 0v220M97.5 0v220M130 0v220M162.5 0v220M195 0v220M227.5 0v220"/>
+      <path d="M0 27.5h260M0 55h260M0 82.5h260M0 110h260M0 137.5h260M0 165h260M0 192.5h260"/>
+    </g>
+    <g stroke="#fff" stroke-opacity=".35" stroke-width="2">
+      <circle cx="113.75" cy="41.25" r="11" fill="#ff7b79"/><circle cx="113.75" cy="68.75" r="11" fill="#7fdfff"/>
+      <rect x="12" y="177" width="22" height="22" rx="7" fill="#ffd45f"/><rect x="44.5" y="177" width="22" height="22" rx="7" fill="#8ce59b"/>
+      <rect x="77" y="177" width="22" height="22" rx="7" fill="#ba91ff"/><rect x="109.5" y="177" width="22" height="22" rx="7" fill="#ff7b79"/>
+      <rect x="142" y="149.5" width="22" height="22" rx="7" fill="#ff7b79"/><rect x="174.5" y="122" width="22" height="22" rx="7" fill="#ff7b79"/>
+      <rect x="207" y="94.5" width="22" height="22" rx="7" fill="#ff7b79"/><rect x="239.5" y="177" width="14" height="22" rx="6" fill="#7fdfff"/>
+      <rect x="12" y="204.5" width="22" height="12" rx="5" fill="#7fdfff"/><rect x="44.5" y="204.5" width="22" height="12" rx="5" fill="#ff8bc8"/>
+      <rect x="77" y="204.5" width="22" height="12" rx="5" fill="#ffd45f"/><rect x="109.5" y="204.5" width="22" height="12" rx="5" fill="#8ce59b"/>
+      <rect x="142" y="204.5" width="22" height="12" rx="5" fill="#7fdfff"/><rect x="174.5" y="204.5" width="22" height="12" rx="5" fill="#ba91ff"/>
+      <rect x="207" y="204.5" width="22" height="12" rx="5" fill="#ffd45f"/><rect x="239.5" y="204.5" width="14" height="12" rx="5" fill="#8ce59b"/>
+    </g>
+    <g filter="url(#glow)" fill="#fff4a0">
+      <circle cx="153" cy="160.5" r="5"/><circle cx="185.5" cy="133" r="5"/><circle cx="218" cy="105.5" r="5"/>
+    </g>
+  </g>
+  <g transform="translate(352 112)" font-family="system-ui,sans-serif">
+    <rect width="238" height="92" rx="18" fill="#ffffff0d" stroke="#ffffff24"/>
+    <text x="20" y="30" fill="#bac7d6" font-size="13">SCORE</text>
+    <text x="20" y="67" fill="#fff" font-size="31" font-weight="800">12,480</text>
+    <text x="164" y="30" fill="#bac7d6" font-size="13">CHAIN</text>
+    <text x="177" y="68" fill="#ffdc72" font-size="31" font-weight="900">4</text>
+    <rect y="112" width="238" height="110" rx="18" fill="#ffffff0d" stroke="#ffffff24"/>
+    <text x="20" y="140" fill="#bac7d6" font-size="13">NEXT PAIRS</text>
+    <g transform="translate(24 158)"><circle cx="18" cy="18" r="15" fill="#8ce59b"/><circle cx="18" cy="51" r="15" fill="#ff8bc8"/></g>
+    <g transform="translate(88 158)"><circle cx="18" cy="18" r="15" fill="#7fdfff"/><circle cx="18" cy="51" r="15" fill="#ffd45f"/></g>
+    <g transform="translate(152 158)"><circle cx="18" cy="18" r="15" fill="#ba91ff"/><circle cx="18" cy="51" r="15" fill="#ff7b79"/></g>
+  </g>
+  <text x="366" y="320" fill="#ffdc72" font-family="system-ui,sans-serif" font-size="26" font-weight="900">4 CHAIN!</text>
+</svg>
