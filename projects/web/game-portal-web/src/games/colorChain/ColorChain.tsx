@@ -55,6 +55,7 @@ type ColorChainProps = {
 
 type Difficulty = "easy" | "normal" | "hard";
 type GameStatus = "idle" | "playing" | "paused" | "resolving" | "gameover";
+type HelpItemId = "bomb" | "verticalLaser" | "horizontalLaser" | "slowTime" | "hold";
 
 type BestResult = {
   score: number;
@@ -147,7 +148,18 @@ const copy = {
     laserMiss: "空の行に横レーザーを発射しました。",
     verticalLaserBlast: (count: number) => `縦レーザーが発動！ ${count}個のブロックを破壊しました。`,
     superVerticalLaserBlast: (count: number) => `スーパー縦レーザーが発動！ 縦3列から${count}個のブロックを破壊しました。`,
-    bombHelp: "爆弾ブロックは上下左右に隣接するブロックが消えると周囲3×3を破壊し、縦レーザーブロックは同じ条件でその列を消去します。同種の特殊ブロック同士が上下左右で隣接すると自動発動し、爆弾は5×5のスーパー爆弾、縦レーザーは縦3列のスーパー縦レーザーになります。爆風やレーザーに巻き込まれた特殊ブロックも連動します。横レーザーはブロック消去数でゲージがたまり、選んだ横1行を消去できます。",
+    itemHelpTitle: "特殊ブロック・補助技",
+    itemHelpHint: "アイコンにマウスを重ねるか、タップすると詳しい説明を表示します。",
+    bombItem: "爆弾",
+    bombDetail: "上下左右に隣接するブロックが消えると、周囲3×3を破壊します。爆弾同士が上下左右で接触すると、5×5を消すスーパー爆弾が自動発動します。爆風やレーザーに巻き込まれた場合も発動します。",
+    verticalLaserItem: "縦レーザー",
+    verticalLaserDetail: "上下左右に隣接するブロックが消えると、その列を消去します。縦レーザー同士が上下左右で接触すると、縦3列を消すスーパー縦レーザーが自動発動します。爆風やレーザーに巻き込まれた場合も発動します。",
+    horizontalLaserItem: "横レーザー",
+    horizontalLaserDetail: "ブロック消去数でゲージがたまり、満タンになると選んだ横1行を消去できます。照準中はタップ、または上下キーで行を選びます。",
+    slowTimeItem: "スロータイム",
+    slowTimeDetail: "10秒間、ブロックの落下速度を半分にします。16ブロック消去すると再使用できます。",
+    holdItem: "ホールド",
+    holdDetail: "現在のペアを保存し、次回以降のペアと交換できます。1ペアにつき1回使用できます。",
     selectRow: (row: number) => `${row}行目を消す`,
     slow: "スロータイム",
     slowReady: "使用可能",
@@ -159,8 +171,7 @@ const copy = {
     holdUse: "ペアを保存・交換",
     holdUsed: "次のペアまで使用済み",
     holdStored: "現在のペアをホールドしました。",
-    holdSwapped: "ホールド中のペアと交換しました。",
-    secondHelp: "スロータイムは10秒間、落下速度を半分にします。16ブロック消去で再使用できます。ホールドは現在のペアを保存し、次回以降に交換できます。"
+    holdSwapped: "ホールド中のペアと交換しました。"
   },
   en: {
     eyebrow: "FALLING BLOCK PUZZLE / INTERNAL GAME",
@@ -215,7 +226,18 @@ const copy = {
     laserMiss: "The horizontal laser was fired at an empty row.",
     verticalLaserBlast: (count: number) => `Vertical laser activated! Destroyed ${count} blocks.`,
     superVerticalLaserBlast: (count: number) => `Super Vertical Laser! Destroyed ${count} blocks across three columns.`,
-    bombHelp: "Bomb and vertical-laser blocks activate when an orthogonally adjacent block is cleared. Bombs destroy a 3×3 area, while vertical lasers clear their column. Two or more matching specials touching orthogonally activate automatically: bombs become a 5×5 Super Bomb, and vertical lasers become a three-column Super Vertical Laser. Specials caught by a blast or laser also chain. Clear blocks to charge the horizontal laser, then use it to erase one selected row.",
+    itemHelpTitle: "Special Blocks & Abilities",
+    itemHelpHint: "Hover over an icon or tap it to see the full description.",
+    bombItem: "Bomb",
+    bombDetail: "Activates when an orthogonally adjacent block is cleared, destroying a 3×3 area. Orthogonally touching bombs automatically trigger a 5×5 Super Bomb. Bombs also activate when caught by another blast or laser.",
+    verticalLaserItem: "Vertical Laser",
+    verticalLaserDetail: "Activates when an orthogonally adjacent block is cleared and erases its column. Orthogonally touching vertical lasers automatically trigger a three-column Super Vertical Laser. It also activates when caught by another blast or laser.",
+    horizontalLaserItem: "Horizontal Laser",
+    horizontalLaserDetail: "Clearing blocks charges its gauge. When full, it erases one selected row. While targeting, tap a row or choose one with the Up and Down keys.",
+    slowTimeItem: "Slow Time",
+    slowTimeDetail: "Halves the falling speed for 10 seconds. Clear 16 blocks to recharge it.",
+    holdItem: "Hold",
+    holdDetail: "Stores the current pair so you can swap it with a later pair. It can be used once per falling pair.",
     selectRow: (row: number) => `Clear row ${row}`,
     slow: "Slow Time",
     slowReady: "Ready",
@@ -227,8 +249,7 @@ const copy = {
     holdUse: "Store or swap pair",
     holdUsed: "Used until next pair",
     holdStored: "The current pair was moved to Hold.",
-    holdSwapped: "Swapped with the held pair.",
-    secondHelp: "Slow Time halves the falling speed for 10 seconds and recharges after you clear 16 blocks. Hold stores the current pair and lets you swap it back later."
+    holdSwapped: "Swapped with the held pair."
   }
 } as const;
 
@@ -278,6 +299,8 @@ export function ColorChain({ onBack }: ColorChainProps) {
   const [slowCharge, setSlowCharge] = useState(0);
   const [slowActive, setSlowActive] = useState(false);
   const [slowRemaining, setSlowRemaining] = useState(0);
+  const [selectedHelpItem, setSelectedHelpItem] = useState<HelpItemId | null>(null);
+  const [hoveredHelpItem, setHoveredHelpItem] = useState<HelpItemId | null>(null);
   const [bestResults, setBestResults] = useState<Partial<Record<Difficulty, BestResult>>>(() => readBestResults());
 
   const boardRef = useRef(board);
@@ -305,6 +328,15 @@ export function ColorChain({ onBack }: ColorChainProps) {
   const normalDropInterval = Math.max(180, settings.baseSpeed - (level - 1) * 65);
   const dropInterval = slowActive ? normalDropInterval * 2 : normalDropInterval;
   const laserBlocksRemaining = Math.max(0, Math.ceil(((100 - laserCharge) * settings.laserBlocks) / 100));
+  const helpItems = [
+    { id: "bomb" as const, label: t.bombItem, detail: t.bombDetail, icon: <Bomb aria-hidden="true" /> },
+    { id: "verticalLaser" as const, label: t.verticalLaserItem, detail: t.verticalLaserDetail, icon: <Zap aria-hidden="true" /> },
+    { id: "horizontalLaser" as const, label: t.horizontalLaserItem, detail: t.horizontalLaserDetail, icon: <Zap aria-hidden="true" /> },
+    { id: "slowTime" as const, label: t.slowTimeItem, detail: t.slowTimeDetail, icon: <Snowflake aria-hidden="true" /> },
+    { id: "hold" as const, label: t.holdItem, detail: t.holdDetail, icon: <RotateCcw aria-hidden="true" /> }
+  ];
+  const activeHelpItemId = hoveredHelpItem ?? selectedHelpItem;
+  const activeHelpItem = helpItems.find((item) => item.id === activeHelpItemId);
 
   const updateBoard = (next: Board) => {
     boardRef.current = next;
@@ -1109,8 +1141,44 @@ export function ColorChain({ onBack }: ColorChainProps) {
           <div className="rule-card">
             <h2>{t.howTo}</h2>
             <p>{t.rules}</p>
-            <p className="color-chain-item-help"><Bomb aria-hidden="true" /> {t.bombHelp}</p>
-            <p className="color-chain-item-help is-second"><Snowflake aria-hidden="true" /> {t.secondHelp}</p>
+            <section className="color-chain-help" aria-labelledby="color-chain-help-title">
+              <h3 id="color-chain-help-title">{t.itemHelpTitle}</h3>
+              <div
+                className="color-chain-help-icons"
+                onMouseLeave={() => setHoveredHelpItem(null)}
+              >
+                {helpItems.map((item) => (
+                  <button
+                    aria-controls="color-chain-help-detail"
+                    aria-expanded={activeHelpItemId === item.id}
+                    className={`color-chain-help-icon is-${item.id}${selectedHelpItem === item.id ? " is-selected" : ""}`}
+                    key={item.id}
+                    type="button"
+                    onBlur={() => setHoveredHelpItem(null)}
+                    onClick={() => setSelectedHelpItem(item.id)}
+                    onFocus={() => setHoveredHelpItem(item.id)}
+                    onMouseEnter={() => setHoveredHelpItem(item.id)}
+                  >
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+              <div
+                aria-live="polite"
+                className={`color-chain-help-detail${activeHelpItem ? " is-active" : " is-empty"}`}
+                id="color-chain-help-detail"
+              >
+                {activeHelpItem ? (
+                  <>
+                    <strong>{activeHelpItem.label}</strong>
+                    <p>{activeHelpItem.detail}</p>
+                  </>
+                ) : (
+                  <p>{t.itemHelpHint}</p>
+                )}
+              </div>
+            </section>
             <h3>{t.controls}</h3>
             <p>{t.keyboard}</p>
           </div>
