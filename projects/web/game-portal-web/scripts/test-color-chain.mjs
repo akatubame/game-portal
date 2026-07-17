@@ -14,6 +14,8 @@ const logic = await import(`data:text/javascript;base64,${Buffer.from(compiled).
 
 const {
   BOMB_BLOCK,
+  COLOR_BREAKER_BLOCK,
+  HORIZONTAL_LASER_BLOCK,
   VERTICAL_LASER_BLOCK,
   BOARD_COLUMNS,
   TOTAL_ROWS,
@@ -54,6 +56,71 @@ const crossing = createEmptyBoard();
 for (let column = 2; column <= 5; column += 1) crossing[10][column] = "gold";
 for (let row = 8; row <= 11; row += 1) crossing[row][3] = "gold";
 assert.equal(findMatches(crossing).cells.size, 7, "crossing cells are de-duplicated");
+assert.deepEqual(
+  findMatches(crossing).rewardBlocks.map(({ token }) => token),
+  [BOMB_BLOCK],
+  "simultaneous horizontal and vertical lines create a bomb reward",
+);
+
+const verticalRewardBoard = createEmptyBoard();
+for (let row = 10; row < 15; row += 1) verticalRewardBoard[row][2] = "coral";
+const verticalRewardMatch = findMatches(verticalRewardBoard);
+assert.deepEqual(
+  verticalRewardMatch.rewardBlocks.map(({ token }) => token),
+  [VERTICAL_LASER_BLOCK],
+  "five vertical blocks create a vertical-laser reward",
+);
+const verticalReward = verticalRewardMatch.rewardBlocks[0];
+assert.ok(verticalReward, "a vertical reward has a placement cell");
+const [verticalRewardRow, verticalRewardColumn] = verticalReward.key.split(":").map(Number);
+const verticalRewardCleared = clearMatchedCells(verticalRewardBoard, verticalRewardMatch.cells, verticalRewardMatch.rewardBlocks);
+assert.equal(verticalRewardCleared[verticalRewardRow][verticalRewardColumn], VERTICAL_LASER_BLOCK, "a reward remains on the cleared board");
+
+const horizontalRewardBoard = createEmptyBoard();
+for (let column = 1; column < 6; column += 1) horizontalRewardBoard[13][column] = "gold";
+assert.deepEqual(
+  findMatches(horizontalRewardBoard).rewardBlocks.map(({ token }) => token),
+  [HORIZONTAL_LASER_BLOCK],
+  "five horizontal blocks create a horizontal-laser reward",
+);
+
+const parallelHorizontalRewardBoard = createEmptyBoard();
+for (let column = 1; column < 6; column += 1) {
+  parallelHorizontalRewardBoard[11][column] = "gold";
+  parallelHorizontalRewardBoard[13][column] = "mint";
+}
+assert.deepEqual(
+  findMatches(parallelHorizontalRewardBoard).rewardBlocks.map(({ token }) => token),
+  [HORIZONTAL_LASER_BLOCK, HORIZONTAL_LASER_BLOCK],
+  "independent long horizontal lines each create a reward",
+);
+
+const disconnectedOrthogonalRewardBoard = createEmptyBoard();
+for (let column = 0; column < 5; column += 1) disconnectedOrthogonalRewardBoard[13][column] = "gold";
+for (let row = 7; row < 12; row += 1) disconnectedOrthogonalRewardBoard[row][7] = "mint";
+assert.deepEqual(
+  findMatches(disconnectedOrthogonalRewardBoard).rewardBlocks.map(({ token }) => token),
+  [VERTICAL_LASER_BLOCK, HORIZONTAL_LASER_BLOCK],
+  "separate horizontal and vertical matches earn lasers instead of a bomb",
+);
+
+const crossWithIndependentLineBoard = createEmptyBoard();
+for (let column = 1; column < 6; column += 1) crossWithIndependentLineBoard[9][column] = "coral";
+for (let row = 7; row < 12; row += 1) crossWithIndependentLineBoard[row][3] = "coral";
+for (let column = 1; column < 6; column += 1) crossWithIndependentLineBoard[14][column] = "mint";
+assert.deepEqual(
+  findMatches(crossWithIndependentLineBoard).rewardBlocks.map(({ token }) => token),
+  [BOMB_BLOCK, HORIZONTAL_LASER_BLOCK],
+  "a cross creates a bomb without consuming an independent long-line reward",
+);
+
+const diagonalRewardBoard = createEmptyBoard();
+for (let offset = 0; offset < 5; offset += 1) diagonalRewardBoard[8 + offset][1 + offset] = "mint";
+assert.deepEqual(
+  findMatches(diagonalRewardBoard).rewardBlocks.map(({ token }) => token),
+  [COLOR_BREAKER_BLOCK],
+  "five diagonal blocks create a Color Breaker reward",
+);
 
 const floating = createEmptyBoard();
 floating[0][0] = "coral";
@@ -206,6 +273,64 @@ diagonalSpecialBoard[9][3] = BOMB_BLOCK;
 const diagonalSpecialClear = findTriggeredSpecialClearCells(diagonalSpecialBoard, ["10:2"]);
 assert.equal(diagonalSpecialClear.bombs.size, 0, "a diagonal clear does not activate a special block");
 
+const horizontalLaserBlockBoard = createEmptyBoard();
+horizontalLaserBlockBoard[10][2] = "coral";
+horizontalLaserBlockBoard[10][3] = HORIZONTAL_LASER_BLOCK;
+horizontalLaserBlockBoard[10][7] = "mint";
+const horizontalLaserBlockClear = findTriggeredSpecialClearCells(horizontalLaserBlockBoard, ["10:2"]);
+assert.equal(horizontalLaserBlockClear.horizontalLasers.size, 1, "an adjacent clear activates a horizontal-laser block");
+assert.ok(horizontalLaserBlockClear.cells.has("10:7"), "a horizontal-laser block clears its row");
+
+const colorBreakerBoard = createEmptyBoard();
+colorBreakerBoard[10][2] = "coral";
+colorBreakerBoard[10][3] = COLOR_BREAKER_BLOCK;
+colorBreakerBoard[5][0] = "coral";
+colorBreakerBoard[8][7] = "coral";
+colorBreakerBoard[5][1] = "sky";
+const colorBreakerClear = findTriggeredSpecialClearCells(colorBreakerBoard, ["10:2"]);
+assert.equal(colorBreakerClear.colorBreakers.size, 1, "an adjacent clear activates a Color Breaker");
+assert.ok(colorBreakerClear.cells.has("5:0") && colorBreakerClear.cells.has("8:7"), "a Color Breaker clears every block of the adjacent color");
+assert.ok(!colorBreakerClear.cells.has("5:1"), "a Color Breaker leaves other colors untouched when color-matched");
+assert.equal(colorBreakerClear.colorBreakerClearedCells.size, 3, "Color Breaker clear counts include normal color blocks only");
+
+const colorBreakerCascadeBoard = createEmptyBoard();
+colorBreakerCascadeBoard[10][2] = "coral";
+colorBreakerCascadeBoard[10][3] = COLOR_BREAKER_BLOCK;
+colorBreakerCascadeBoard[7][4] = "coral";
+colorBreakerCascadeBoard[7][5] = BOMB_BLOCK;
+colorBreakerCascadeBoard[6][6] = "sky";
+const colorBreakerCascadeClear = findTriggeredSpecialClearCells(colorBreakerCascadeBoard, ["10:2"]);
+assert.equal(colorBreakerCascadeClear.bombs.size, 1, "a color cleared by a Color Breaker activates an adjacent bomb");
+assert.ok(colorBreakerCascadeClear.cells.has("6:6"), "the bomb chained from a Color Breaker expands the clear area");
+
+const mixedTriggerColorBreakerBoard = createEmptyBoard();
+mixedTriggerColorBreakerBoard[10][2] = "coral";
+mixedTriggerColorBreakerBoard[10][3] = COLOR_BREAKER_BLOCK;
+mixedTriggerColorBreakerBoard[9][2] = BOMB_BLOCK;
+mixedTriggerColorBreakerBoard[5][0] = "gold";
+const originalRandom = Math.random;
+let mixedTriggerColorBreakerClear;
+try {
+  Math.random = () => 0.99;
+  mixedTriggerColorBreakerClear = findTriggeredSpecialClearCells(mixedTriggerColorBreakerBoard, ["10:2"]);
+} finally {
+  Math.random = originalRandom;
+}
+assert.deepEqual(
+  [...mixedTriggerColorBreakerClear.colorBreakerColors],
+  ["gold"],
+  "a Color Breaker caught by a blast uses the random-effect rule even when it was also adjacent to a color clear",
+);
+assert.ok(mixedTriggerColorBreakerClear.cells.has("5:0"), "the blast-triggered Color Breaker clears the selected random color");
+
+const randomColorBreakerBoard = createEmptyBoard();
+randomColorBreakerBoard[10][2] = BOMB_BLOCK;
+randomColorBreakerBoard[10][3] = COLOR_BREAKER_BLOCK;
+randomColorBreakerBoard[5][0] = "gold";
+const randomColorBreakerClear = findBombBlastCells(randomColorBreakerBoard, ["10:2"]);
+assert.equal(randomColorBreakerClear.colorBreakers.size, 1, "a bomb caught in a blast activates a Color Breaker");
+assert.ok(randomColorBreakerClear.cells.has("5:0"), "a blast-triggered Color Breaker clears its randomly selected available color");
+
 const superVerticalLaserBoard = createEmptyBoard();
 superVerticalLaserBoard[10][3] = VERTICAL_LASER_BLOCK;
 superVerticalLaserBoard[11][3] = VERTICAL_LASER_BLOCK;
@@ -225,6 +350,22 @@ assert.ok(superVerticalLaserClear.cells.has("5:2"), "the super vertical laser cl
 assert.ok(superVerticalLaserClear.cells.has("5:3"), "the super vertical laser clears its center column");
 assert.ok(superVerticalLaserClear.cells.has("5:4"), "the super vertical laser clears its right column");
 assert.ok(!superVerticalLaserClear.cells.has("5:1"), "the super vertical laser does not clear a fourth column");
+
+const superColorBreakerBoard = createEmptyBoard();
+superColorBreakerBoard[10][3] = COLOR_BREAKER_BLOCK;
+superColorBreakerBoard[10][4] = COLOR_BREAKER_BLOCK;
+superColorBreakerBoard[5][0] = "coral";
+superColorBreakerBoard[7][2] = "gold";
+superColorBreakerBoard[9][7] = "violet";
+const superColorBreakerClear = findSuperSpecialClearCells(superColorBreakerBoard);
+assert.equal(superColorBreakerClear.superColorBreakers.size, 1, "adjacent Color Breakers create one super effect");
+assert.equal(superColorBreakerClear.colorBreakerClearedCells.size, 3, "Super Color Breaker count excludes its two special blocks");
+assert.ok(
+  superColorBreakerClear.cells.has("5:0")
+    && superColorBreakerClear.cells.has("7:2")
+    && superColorBreakerClear.cells.has("9:7"),
+  "a Super Color Breaker clears every normal color block",
+);
 
 const superBombBoard = createEmptyBoard();
 for (let row = 8; row <= 12; row += 1) {

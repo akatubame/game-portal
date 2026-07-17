@@ -113,6 +113,30 @@
   filter: drop-shadow(0 0 4px #67e8ff);
 }
 
+.color-chain-cell.is-horizontal-laser,
+.color-chain-next-pair i.is-horizontal-laser {
+  background: linear-gradient(45deg, #4a123e, #f057bd 42%, #fff1fa 50%, #f057bd 58%, #4a123e);
+  border-color: #ff9add;
+}
+
+.color-chain-cell.is-horizontal-laser::after,
+.color-chain-next-pair i.is-horizontal-laser::after {
+  color: #fff5fc;
+  filter: drop-shadow(0 0 4px #ff75ce);
+}
+
+.color-chain-cell.is-color-breaker,
+.color-chain-next-pair i.is-color-breaker {
+  background: conic-gradient(from 25deg, #ff7798, #ffd66a, #78eaa8, #6fdfff, #a98bff, #ff83d5, #ff7798);
+  border-color: #fff2a6;
+}
+
+.color-chain-cell.is-color-breaker::after,
+.color-chain-next-pair i.is-color-breaker::after {
+  color: #fff;
+  filter: drop-shadow(0 0 4px #6d2e9f);
+}
+
 .color-chain-cell[class*=" is-"]:not(.is-ghost) {
   border-color: rgba(255, 255, 255, 0.35);
   border-radius: 29%;
@@ -454,7 +478,7 @@
 .color-chain-help-icons {
   display: grid;
   gap: 6px;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .color-chain-help-icon {
@@ -498,6 +522,10 @@
 .color-chain-help-icon.is-horizontalLaser svg {
   color: #ff8fd8;
   transform: rotate(90deg);
+}
+
+.color-chain-help-icon.is-colorBreaker svg {
+  color: #ffe782;
 }
 
 .color-chain-help-icon.is-slowTime svg {
@@ -656,6 +684,10 @@
 }
 
 @media (max-width: 620px) {
+  .color-chain-help-icons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .color-chain-shell {
     --chain-cell-size: min(34px, 4.1vh, calc((100vw - 42px) / 8));
   }
