@@ -74,6 +74,20 @@ export function createRandomPair(colorCount: number, random = Math.random, bombC
   };
 }
 
+export function preparePairForSpawn(pair: FallingPair): FallingPair {
+  return {
+    ...pair,
+    row: 1,
+    column: Math.floor(BOARD_COLUMNS / 2) - 1,
+    orientation: 0
+  };
+}
+
+export function addSlowCharge(current: number, clearedBlocks: number, active = false, chargePerBlock = 6.25) {
+  if (active || clearedBlocks <= 0) return Math.max(0, Math.min(100, current));
+  return Math.max(0, Math.min(100, current + clearedBlocks * chargePerBlock));
+}
+
 export function getPairCells(pair: FallingPair): [PairCell, PairCell] {
   const offset = orientationOffsets[pair.orientation];
   return [

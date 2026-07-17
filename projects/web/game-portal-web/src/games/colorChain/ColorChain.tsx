@@ -8,6 +8,7 @@ import {
   Play,
   RotateCcw,
   RotateCw,
+  Snowflake,
   Sparkles,
   X,
   Zap
@@ -17,6 +18,7 @@ import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import {
   applyGravityStep,
+  addSlowCharge,
   BOMB_BLOCK,
   BOARD_COLUMNS,
   calculateClearScore,
@@ -34,6 +36,7 @@ import {
   HIDDEN_ROWS,
   mergePair,
   movePair,
+  preparePairForSpawn,
   rotatePair,
   VISIBLE_ROWS,
   type BlockToken,
@@ -63,6 +66,8 @@ const LASER_TICK = 250;
 const BOMB_BLOCK_SCORE = 5;
 const BOMB_TRIGGER_SCORE = 25;
 const LASER_BLOCK_SCORE = 4;
+const SLOW_DURATION = 10;
+const SLOW_TICK = 250;
 
 const difficultySettings: Record<Difficulty, { colors: number; baseSpeed: number; bombChance: number; bombPity: number; laserSeconds: number }> = {
   easy: { colors: 4, baseSpeed: 860, bombChance: 0.09, bombPity: 11, laserSeconds: 35 },
@@ -97,7 +102,7 @@ const copy = {
     howTo: "遊び方",
     rules: "2個1組のブロックを移動・回転して積みます。着地後、支えのないブロックは個別に下まで落下します。同色が縦・横・斜めに4個以上並ぶと一括消去。落下後に再び揃うと連鎖ボーナスです。ブロックが最上段を超えるとゲームオーバーです。",
     controls: "操作",
-    keyboard: "PC: ←→で移動、↓で下降、Z/Xで回転、Spaceで即落下、Pで一時停止。1列幅の縦穴では、回転入力でブロックの上下を反転できます。",
+    keyboard: "PC: ←→で移動、↓で下降、Z/Xで回転、Spaceで即落下、Hでホールド、Sでスロータイム、Lでレーザー、Pで一時停止。1列幅の縦穴では、回転入力でブロックの上下を反転できます。",
     easy: "初級",
     normal: "中級",
     hard: "上級",
@@ -131,7 +136,19 @@ const copy = {
     laserColumn: (column: number) => `${column}列目へレーザー発射！`,
     laserMiss: "空の列にレーザーを発射しました。",
     bombHelp: "爆弾は着地後に周囲3×3を破壊します。レーザーはゲージが満タンになると縦1列を消去できます。",
-    selectColumn: (column: number) => `${column}列目を消す`
+    selectColumn: (column: number) => `${column}列目を消す`,
+    slow: "スロータイム",
+    slowReady: "使用可能",
+    slowCharging: "消去で充填",
+    slowActive: (seconds: number) => `残り${seconds.toFixed(1)}秒`,
+    slowStarted: "スロータイム発動！ 10秒間、落下速度が半分になります。",
+    hold: "ホールド",
+    holdEmpty: "空き",
+    holdUse: "ペアを保存・交換",
+    holdUsed: "次のペアまで使用済み",
+    holdStored: "現在のペアをホールドしました。",
+    holdSwapped: "ホールド中のペアと交換しました。",
+    secondHelp: "スロータイムは10秒間、落下速度を半分にします。16ブロック消去で再使用できます。ホールドは現在のペアを保存し、次回以降に交換できます。"
   },
   en: {
     eyebrow: "FALLING BLOCK PUZZLE / INTERNAL GAME",
@@ -149,7 +166,7 @@ const copy = {
     howTo: "How to Play",
     rules: "Move and rotate each connected pair. After landing, unsupported blocks fall independently. Four or more matching colors in a vertical, horizontal, or diagonal line clear together. New matches formed after blocks fall create chain bonuses. The game ends when blocks rise beyond the top.",
     controls: "Controls",
-    keyboard: "PC: Move with ←/→, soft drop with ↓, rotate with Z/X, hard drop with Space, and pause with P. In a one-cell-wide shaft, rotate to flip a vertical pair by 180 degrees.",
+    keyboard: "PC: Move with ←/→, soft drop with ↓, rotate with Z/X, hard drop with Space, hold with H, use Slow Time with S, target the laser with L, and pause with P. In a one-cell-wide shaft, rotate to flip a vertical pair by 180 degrees.",
     easy: "Easy",
     normal: "Normal",
     hard: "Hard",
@@ -183,7 +200,19 @@ const copy = {
     laserColumn: (column: number) => `Laser fired at column ${column}!`,
     laserMiss: "The laser was fired at an empty column.",
     bombHelp: "Bombs destroy a 3×3 area after landing. When the laser gauge is full, it can clear an entire column.",
-    selectColumn: (column: number) => `Clear column ${column}`
+    selectColumn: (column: number) => `Clear column ${column}`,
+    slow: "Slow Time",
+    slowReady: "Ready",
+    slowCharging: "Charge by clearing",
+    slowActive: (seconds: number) => `${seconds.toFixed(1)}s left`,
+    slowStarted: "Slow Time activated! Falling speed is halved for 10 seconds.",
+    hold: "Hold",
+    holdEmpty: "Empty",
+    holdUse: "Store or swap pair",
+    holdUsed: "Used until next pair",
+    holdStored: "The current pair was moved to Hold.",
+    holdSwapped: "Swapped with the held pair.",
+    secondHelp: "Slow Time halves the falling speed for 10 seconds and recharges after you clear 16 blocks. Hold stores the current pair and lets you swap it back later."
   }
 } as const;
 
@@ -226,6 +255,11 @@ export function ColorChain({ onBack }: ColorChainProps) {
   const [laserCharge, setLaserCharge] = useState(0);
   const [laserTargeting, setLaserTargeting] = useState(false);
   const [laserColumn, setLaserColumn] = useState<number | null>(null);
+  const [holdPair, setHoldPair] = useState<FallingPair | null>(null);
+  const [holdUsed, setHoldUsed] = useState(false);
+  const [slowCharge, setSlowCharge] = useState(0);
+  const [slowActive, setSlowActive] = useState(false);
+  const [slowRemaining, setSlowRemaining] = useState(0);
   const [bestResults, setBestResults] = useState<Partial<Record<Difficulty, BestResult>>>(() => readBestResults());
 
   const boardRef = useRef(board);
@@ -239,13 +273,18 @@ export function ColorChain({ onBack }: ColorChainProps) {
   const maxChainRef = useRef(maxChain);
   const laserChargeRef = useRef(laserCharge);
   const laserTargetingRef = useRef(laserTargeting);
+  const holdPairRef = useRef(holdPair);
+  const holdUsedRef = useRef(holdUsed);
+  const slowChargeRef = useRef(slowCharge);
+  const slowActiveRef = useRef(slowActive);
   const pairsWithoutBombRef = useRef(0);
   const resolutionToken = useRef(0);
 
   const settings = difficultySettings[difficulty];
   const ranking = useRanking({ gameId: `color-chain-${difficulty}`, metricLabel: "Score", mode: "higher" });
   const best = bestResults[difficulty];
-  const dropInterval = Math.max(180, settings.baseSpeed - (level - 1) * 65);
+  const normalDropInterval = Math.max(180, settings.baseSpeed - (level - 1) * 65);
+  const dropInterval = slowActive ? normalDropInterval * 2 : normalDropInterval;
 
   const updateBoard = (next: Board) => {
     boardRef.current = next;
@@ -279,6 +318,27 @@ export function ColorChain({ onBack }: ColorChainProps) {
     setLaserTargeting(next);
   };
 
+  const updateHoldUsed = (next: boolean) => {
+    holdUsedRef.current = next;
+    setHoldUsed(next);
+  };
+
+  const updateHoldPair = (next: FallingPair | null) => {
+    holdPairRef.current = next;
+    setHoldPair(next);
+  };
+
+  const updateSlowCharge = (next: number) => {
+    const normalized = Math.max(0, Math.min(100, next));
+    slowChargeRef.current = normalized;
+    setSlowCharge(normalized);
+  };
+
+  const updateSlowActive = (next: boolean) => {
+    slowActiveRef.current = next;
+    setSlowActive(next);
+  };
+
   const recordClearedBlocks = (count: number) => {
     if (count <= 0) return;
     const nextCleared = clearedRef.current + count;
@@ -287,6 +347,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
     levelRef.current = nextLevel;
     setCleared(nextCleared);
     setLevel(nextLevel);
+    updateSlowCharge(addSlowCharge(slowChargeRef.current, count, slowActiveRef.current));
   };
 
   function createQueuedPair(nextDifficulty: Difficulty) {
@@ -308,6 +369,8 @@ export function ColorChain({ onBack }: ColorChainProps) {
     setCurrentChain(0);
     setClearingCells(new Set());
     updateLaserTargeting(false);
+    updateSlowActive(false);
+    setSlowRemaining(0);
     setLaserColumn(null);
     setMessage(t.gameover);
 
@@ -344,6 +407,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
     }
 
     updateActivePair(pair);
+    updateHoldUsed(false);
     updateStatus("playing");
     setCurrentChain(0);
     setMessage(t.playing);
@@ -505,6 +569,10 @@ export function ColorChain({ onBack }: ColorChainProps) {
     maxChainRef.current = 0;
     laserChargeRef.current = 0;
     laserTargetingRef.current = false;
+    holdPairRef.current = null;
+    holdUsedRef.current = false;
+    slowChargeRef.current = 100;
+    slowActiveRef.current = false;
     setBoard(nextBoard);
     setActivePair(firstPair);
     setNextPairs(queue);
@@ -518,7 +586,66 @@ export function ColorChain({ onBack }: ColorChainProps) {
     setLaserCharge(0);
     setLaserTargeting(false);
     setLaserColumn(null);
+    setHoldPair(null);
+    setHoldUsed(false);
+    setSlowCharge(100);
+    setSlowActive(false);
+    setSlowRemaining(0);
     setMessage(t.playing);
+  }
+
+  function holdCurrentPair() {
+    const currentPair = activePairRef.current;
+    if (
+      statusRef.current !== "playing"
+      || !currentPair
+      || holdUsedRef.current
+      || laserTargetingRef.current
+    ) return;
+
+    const storedPair = preparePairForSpawn(currentPair);
+    const previousHold = holdPairRef.current;
+    let replacement: FallingPair | undefined;
+
+    if (previousHold) {
+      replacement = preparePairForSpawn(previousHold);
+      updateHoldPair(storedPair);
+    } else {
+      const queue = nextPairsRef.current.length > 0
+        ? nextPairsRef.current
+        : Array.from({ length: 3 }, () => createQueuedPair(difficultyRef.current));
+      replacement = queue[0];
+      const replenished = [
+        ...queue.slice(1),
+        createQueuedPair(difficultyRef.current)
+      ];
+      nextPairsRef.current = replenished;
+      setNextPairs(replenished);
+      updateHoldPair(storedPair);
+    }
+
+    if (!replacement || !canPlacePair(boardRef.current, replacement)) {
+      finishGame();
+      return;
+    }
+
+    updateActivePair(replacement);
+    updateHoldUsed(true);
+    setMessage(previousHold ? t.holdSwapped : t.holdStored);
+  }
+
+  function activateSlowTime() {
+    if (
+      statusRef.current !== "playing"
+      || laserTargetingRef.current
+      || slowActiveRef.current
+      || slowChargeRef.current < 100
+    ) return;
+
+    updateSlowCharge(0);
+    updateSlowActive(true);
+    setSlowRemaining(SLOW_DURATION);
+    setMessage(t.slowStarted);
   }
 
   function moveHorizontal(direction: -1 | 1) {
@@ -590,9 +717,21 @@ export function ColorChain({ onBack }: ColorChainProps) {
   }, [laserCharge, laserTargeting, status]);
 
   useEffect(() => {
+    if (!slowActive || status !== "playing" || laserTargeting) return;
+    const timer = window.setInterval(() => {
+      setSlowRemaining((current) => {
+        const next = Math.max(0, current - SLOW_TICK / 1000);
+        if (next === 0) updateSlowActive(false);
+        return next;
+      });
+    }, SLOW_TICK);
+    return () => window.clearInterval(timer);
+  }, [laserTargeting, slowActive, status]);
+
+  useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement) return;
-      const controlKeys = ["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", " ", "z", "Z", "x", "X", "p", "P", "l", "L", "Escape", "1", "2", "3", "4", "5", "6", "7", "8"];
+      const controlKeys = ["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", " ", "z", "Z", "x", "X", "h", "H", "s", "S", "p", "P", "l", "L", "Escape", "1", "2", "3", "4", "5", "6", "7", "8"];
       if (!controlKeys.includes(event.key)) return;
       event.preventDefault();
 
@@ -612,6 +751,8 @@ export function ColorChain({ onBack }: ColorChainProps) {
         return;
       }
       if (statusRef.current !== "playing") return;
+      if (event.key === "h" || event.key === "H") holdCurrentPair();
+      if (event.key === "s" || event.key === "S") activateSlowTime();
       if (event.key === "ArrowLeft") moveHorizontal(-1);
       if (event.key === "ArrowRight") moveHorizontal(1);
       if (event.key === "ArrowDown") softDrop();
@@ -784,6 +925,59 @@ export function ColorChain({ onBack }: ColorChainProps) {
               {laserTargeting ? t.laserCancel : laserCharge >= 100 ? t.laserReady : t.laserCharging}
             </button>
           </div>
+
+          <div className="color-chain-second-tools">
+            <div className={`color-chain-tool-card color-chain-slow${slowActive ? " is-active" : slowCharge >= 100 ? " is-ready" : ""}`}>
+              <div className="color-chain-tool-heading">
+                <span><Snowflake aria-hidden="true" /> {t.slow}</span>
+                <strong>{slowActive ? t.slowActive(slowRemaining) : slowCharge >= 100 ? t.slowReady : `${Math.floor(slowCharge)}%`}</strong>
+              </div>
+              <div
+                aria-label={t.slow}
+                aria-valuemax={100}
+                aria-valuemin={0}
+                aria-valuenow={Math.round(slowCharge)}
+                className="color-chain-slow-gauge"
+                role="progressbar"
+              ><i style={{ width: `${slowActive ? (slowRemaining / SLOW_DURATION) * 100 : slowCharge}%` }} /></div>
+              <button
+                className="primary-button"
+                data-testid="color-chain-slow-button"
+                disabled={status !== "playing" || laserTargeting || slowActive || slowCharge < 100}
+                onClick={activateSlowTime}
+                type="button"
+              >
+                <Snowflake aria-hidden="true" />
+                {slowActive ? t.slowActive(slowRemaining) : slowCharge >= 100 ? t.slowReady : t.slowCharging}
+              </button>
+            </div>
+
+            <div className={`color-chain-tool-card color-chain-hold${holdUsed ? " is-used" : ""}`}>
+              <div className="color-chain-tool-heading">
+                <span><RotateCcw aria-hidden="true" /> {t.hold}</span>
+                <strong>{holdPair ? "" : t.holdEmpty}</strong>
+              </div>
+              <div className="color-chain-hold-slot" data-testid="color-chain-hold-slot">
+                {holdPair ? (
+                  <span className="color-chain-next-pair">
+                    {holdPair.colors.map((color, index) => (
+                      <i className={`is-${color}`} data-symbol={symbols[color]} key={`${color}-${index}`} />
+                    ))}
+                  </span>
+                ) : <span>{t.holdEmpty}</span>}
+              </div>
+              <button
+                className="ghost-button"
+                data-testid="color-chain-hold-button"
+                disabled={status !== "playing" || laserTargeting || holdUsed || !activePair}
+                onClick={holdCurrentPair}
+                type="button"
+              >
+                <RotateCcw aria-hidden="true" />
+                {holdUsed ? t.holdUsed : t.holdUse}
+              </button>
+            </div>
+          </div>
         </div>
 
         <aside className="puzzle-side color-chain-side">
@@ -804,6 +998,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
             <h2>{t.howTo}</h2>
             <p>{t.rules}</p>
             <p className="color-chain-item-help"><Bomb aria-hidden="true" /> {t.bombHelp}</p>
+            <p className="color-chain-item-help is-second"><Snowflake aria-hidden="true" /> {t.secondHelp}</p>
             <h3>{t.controls}</h3>
             <p>{t.keyboard}</p>
           </div>

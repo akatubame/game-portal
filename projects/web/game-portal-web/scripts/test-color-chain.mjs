@@ -16,6 +16,7 @@ const {
   BOMB_BLOCK,
   BOARD_COLUMNS,
   TOTAL_ROWS,
+  addSlowCharge,
   applyGravity,
   applyGravityStep,
   calculateClearScore,
@@ -27,6 +28,7 @@ const {
   findMatches,
   getPairCells,
   mergePair,
+  preparePairForSpawn,
   rotatePair,
   settlePair,
 } = logic;
@@ -159,5 +161,21 @@ assert.deepEqual(
   [[shaftRow - 1, shaftColumn, "coral"], [shaftRow, shaftColumn, "gold"]],
   "half turn swaps the colors vertically without leaving the shaft",
 );
+
+const heldPair = preparePairForSpawn({
+  row: 12,
+  column: 6,
+  orientation: 3,
+  colors: [BOMB_BLOCK, "mint"],
+});
+assert.equal(heldPair.row, 1, "a held pair returns to the spawn row");
+assert.equal(heldPair.column, Math.floor(BOARD_COLUMNS / 2) - 1, "a held pair returns to the spawn column");
+assert.equal(heldPair.orientation, 0, "a held pair returns to its initial orientation");
+assert.deepEqual(heldPair.colors, [BOMB_BLOCK, "mint"], "hold preserves both block tokens");
+
+assert.equal(addSlowCharge(0, 16), 100, "clearing 16 blocks fills the Slow Time gauge");
+assert.equal(addSlowCharge(80, 8), 100, "Slow Time charge is capped at 100 percent");
+assert.equal(addSlowCharge(40, 8, true), 40, "clears during Slow Time do not refill the active gauge");
+assert.equal(addSlowCharge(-10, 0), 0, "Slow Time charge never drops below zero");
 
 console.log("Color Chain logic: all tests passed");

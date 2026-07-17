@@ -255,6 +255,110 @@
   justify-self: stretch;
 }
 
+.color-chain-second-tools {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: calc(var(--chain-cell-size) * 8 + 24px);
+  width: 100%;
+}
+
+.color-chain-tool-card {
+  background: rgba(8, 19, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 15px;
+  display: grid;
+  gap: 8px;
+  grid-template-rows: auto minmax(32px, auto) auto;
+  min-width: 0;
+  padding: 10px;
+}
+
+.color-chain-tool-card.is-ready,
+.color-chain-tool-card.is-active {
+  border-color: #96e9ff;
+  box-shadow: 0 0 18px rgba(105, 220, 255, 0.16);
+}
+
+.color-chain-tool-heading {
+  align-items: center;
+  display: flex;
+  font-size: 0.78rem;
+  gap: 5px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.color-chain-tool-heading span {
+  align-items: center;
+  display: inline-flex;
+  gap: 5px;
+  min-width: 0;
+}
+
+.color-chain-tool-heading svg {
+  color: #8de8ff;
+  flex: 0 0 auto;
+  height: 17px;
+  width: 17px;
+}
+
+.color-chain-tool-heading strong {
+  color: #b9f2ff;
+  font-size: 0.72rem;
+  text-align: right;
+}
+
+.color-chain-slow-gauge {
+  align-self: center;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  height: 9px;
+  overflow: hidden;
+}
+
+.color-chain-slow-gauge i {
+  background: linear-gradient(90deg, #557cff, #78e7ff, #f5ffff);
+  display: block;
+  height: 100%;
+  transition: width 180ms linear;
+}
+
+.color-chain-tool-card > button {
+  font-size: 0.76rem;
+  justify-self: stretch;
+  min-width: 0;
+  padding: 8px 6px;
+  white-space: normal;
+}
+
+.color-chain-tool-card > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.color-chain-hold-slot {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 0.78rem;
+  justify-content: center;
+  min-height: 32px;
+}
+
+.color-chain-hold-slot .color-chain-next-pair {
+  grid-auto-flow: column;
+}
+
+.color-chain-hold-slot .color-chain-next-pair i {
+  height: 27px;
+  width: 27px;
+}
+
+.color-chain-hold.is-used {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
 .color-chain-laser-selector,
 .color-chain-laser-beams {
   display: grid;
@@ -320,6 +424,15 @@
   height: 19px;
   margin-top: 2px;
   width: 19px;
+}
+
+.color-chain-item-help.is-second {
+  background: rgba(91, 199, 255, 0.08);
+  border-color: rgba(116, 220, 255, 0.2);
+}
+
+.color-chain-item-help.is-second svg {
+  color: #86e8ff;
 }
 
 .color-chain-next > div {
@@ -471,6 +584,10 @@
   .color-chain-laser-panel {
     max-width: calc(var(--chain-cell-size) * 8 + 14px);
     padding: 9px 10px;
+  }
+
+  .color-chain-second-tools {
+    max-width: calc(var(--chain-cell-size) * 8 + 14px);
   }
 
   .color-chain-side {
