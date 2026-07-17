@@ -16,10 +16,13 @@ const {
   BOARD_COLUMNS,
   TOTAL_ROWS,
   applyGravity,
+  applyGravityStep,
   calculateClearScore,
   clearMatchedCells,
   createEmptyBoard,
   findMatches,
+  mergePair,
+  settlePair,
 } = logic;
 
 const expectMatchSize = (cells, expected, label) => {
@@ -44,6 +47,32 @@ floating[5][0] = "sky";
 const fallen = applyGravity(floating);
 assert.equal(fallen[TOTAL_ROWS - 2][0], "coral", "upper block keeps its order");
 assert.equal(fallen[TOTAL_ROWS - 1][0], "sky", "lower block lands at the bottom");
+
+const steppedBoard = createEmptyBoard();
+steppedBoard[TOTAL_ROWS - 1][0] = "sky";
+const horizontalPair = {
+  row: TOTAL_ROWS - 2,
+  column: 0,
+  orientation: 1,
+  colors: ["coral", "gold"],
+};
+const mergedPair = mergePair(steppedBoard, horizontalPair);
+assert.equal(mergedPair[TOTAL_ROWS - 2][1], "gold", "unsupported half initially floats beside the step");
+const settledPair = settlePair(steppedBoard, horizontalPair);
+assert.equal(settledPair[TOTAL_ROWS - 2][0], "coral", "supported half remains on the step");
+assert.equal(settledPair[TOTAL_ROWS - 1][1], "gold", "unsupported half falls independently");
+assert.equal(settledPair[TOTAL_ROWS - 2][1], null, "no floating half remains after landing");
+
+let animatedPair = mergedPair;
+let gravityFrames = 0;
+while (true) {
+  const step = applyGravityStep(animatedPair);
+  if (!step.moved) break;
+  animatedPair = step.board;
+  gravityFrames += 1;
+}
+assert.ok(gravityFrames > 0, "unsupported blocks animate through at least one gravity frame");
+assert.deepEqual(animatedPair, settledPair, "step animation reaches the same settled board");
 
 let chainBoard = createEmptyBoard();
 for (let column = 0; column < 4; column += 1) chainBoard[TOTAL_ROWS - 1][column] = "rose";

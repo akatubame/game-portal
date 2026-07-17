@@ -184,6 +184,29 @@ export function applyGravity(board: Board): Board {
   return nextBoard;
 }
 
+export function applyGravityStep(board: Board): { board: Board; moved: boolean } {
+  const nextBoard = board.map((row) => [...row]);
+  let moved = false;
+
+  for (let column = 0; column < BOARD_COLUMNS; column += 1) {
+    for (let row = TOTAL_ROWS - 2; row >= 0; row -= 1) {
+      const color = nextBoard[row][column];
+      if (color && nextBoard[row + 1][column] === null) {
+        nextBoard[row + 1][column] = color;
+        nextBoard[row][column] = null;
+        moved = true;
+      }
+    }
+  }
+
+  return { board: nextBoard, moved };
+}
+
+/** Locks a pair, then lets each block fall independently until supported. */
+export function settlePair(board: Board, pair: FallingPair): Board {
+  return applyGravity(mergePair(board, pair));
+}
+
 export function hasBlocksAboveTop(board: Board) {
   return board.slice(0, HIDDEN_ROWS).some((row) => row.some(Boolean));
 }

@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import {
-  applyGravity,
+  applyGravityStep,
   BOARD_COLUMNS,
   calculateClearScore,
   canPlacePair,
@@ -52,6 +52,7 @@ type BestResult = {
 const BEST_KEY = "game-shelf-color-chain-best";
 const CLEAR_DELAY = 220;
 const FALL_DELAY = 130;
+const GRAVITY_STEP_DELAY = 36;
 
 const difficultySettings: Record<Difficulty, { colors: number; baseSpeed: number }> = {
   easy: { colors: 4, baseSpeed: 860 },
@@ -83,7 +84,7 @@ const copy = {
     level: "レベル",
     next: "次のブロック",
     howTo: "遊び方",
-    rules: "2個1組のブロックを移動・回転して積みます。同色が縦・横・斜めに4個以上並ぶと一括消去。落下後に再び揃うと連鎖ボーナスです。ブロックが最上段を超えるとゲームオーバーです。",
+    rules: "2個1組のブロックを移動・回転して積みます。着地後、支えのないブロックは個別に下まで落下します。同色が縦・横・斜めに4個以上並ぶと一括消去。落下後に再び揃うと連鎖ボーナスです。ブロックが最上段を超えるとゲームオーバーです。",
     controls: "操作",
     keyboard: "PC: ←→で移動、↓で下降、Z/Xで回転、Spaceで即落下、Pで一時停止。",
     easy: "初級",
@@ -125,7 +126,7 @@ const copy = {
     level: "Level",
     next: "Next pairs",
     howTo: "How to Play",
-    rules: "Move and rotate each connected pair. Four or more matching colors in a vertical, horizontal, or diagonal line clear together. New matches formed after blocks fall create chain bonuses. The game ends when blocks rise beyond the top.",
+    rules: "Move and rotate each connected pair. After landing, unsupported blocks fall independently. Four or more matching colors in a vertical, horizontal, or diagonal line clear together. New matches formed after blocks fall create chain bonuses. The game ends when blocks rise beyond the top.",
     controls: "Controls",
     keyboard: "PC: Move with ←/→, soft drop with ↓, rotate with Z/X, hard drop with Space, and pause with P.",
     easy: "Easy",
@@ -275,9 +276,28 @@ export function ColorChain({ onBack }: ColorChainProps) {
     setMessage(t.playing);
   }
 
+  async function animateGravity(initialBoard: Board, token: number) {
+    let nextBoard = initialBoard;
+
+    while (token === resolutionToken.current) {
+      const gravity = applyGravityStep(nextBoard);
+      if (!gravity.moved) break;
+      nextBoard = gravity.board;
+      updateBoard(nextBoard);
+      await wait(GRAVITY_STEP_DELAY);
+    }
+
+    return nextBoard;
+  }
+
   async function resolveBoard(lockedBoard: Board, token: number) {
     let nextBoard = lockedBoard;
     let chain = 0;
+
+    await wait(GRAVITY_STEP_DELAY);
+    if (token !== resolutionToken.current) return;
+    nextBoard = await animateGravity(nextBoard, token);
+    if (token !== resolutionToken.current) return;
 
     while (token === resolutionToken.current) {
       const match = findMatches(nextBoard);
@@ -296,8 +316,8 @@ export function ColorChain({ onBack }: ColorChainProps) {
       await wait(FALL_DELAY);
       if (token !== resolutionToken.current) return;
 
-      nextBoard = applyGravity(nextBoard);
-      updateBoard(nextBoard);
+      nextBoard = await animateGravity(nextBoard, token);
+      if (token !== resolutionToken.current) return;
       const nextCleared = clearedRef.current + match.cells.size;
       const nextLevel = Math.floor(nextCleared / 24) + 1;
       const nextMaxChain = Math.max(maxChainRef.current, chain);
