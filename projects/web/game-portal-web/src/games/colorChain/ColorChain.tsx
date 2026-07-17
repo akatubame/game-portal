@@ -52,6 +52,7 @@ import {
 
 type ColorChainProps = {
   onBack: () => void;
+  presentation?: "public" | "mascot-test";
 };
 
 type Difficulty = "easy" | "normal" | "hard";
@@ -147,7 +148,7 @@ function chainCallName(chain: number, language: keyof typeof chainCallNames) {
 const copy = {
   ja: {
     eyebrow: "落ちものパズル / 内部ゲーム",
-    title: "クロマのマジカルチェイン",
+    title: "マジカルチェイン",
     idle: "2個1組のブロックを落とし、同じ色を4個以上並べてマジカルチェインを起こしましょう。",
     playing: "同じ色を4個以上つなげて、魔法のチェインを重ねましょう。",
     paused: "一時停止中です。再開すると落下が始まります。",
@@ -232,7 +233,7 @@ const copy = {
   },
   en: {
     eyebrow: "FALLING BLOCK PUZZLE / INTERNAL GAME",
-    title: "Chroma's Magical Chain",
+    title: "Magical Chain",
     idle: "Drop connected pairs and match four or more colors to cast a Magical Chain.",
     playing: "Connect four matching colors and weave magical chains.",
     paused: "Paused. Resume when you are ready to continue.",
@@ -338,9 +339,12 @@ function statusLabel(status: GameStatus, t: typeof copy.ja | typeof copy.en) {
   return t.ready;
 }
 
-export function ColorChain({ onBack }: ColorChainProps) {
+export function ColorChain({ onBack, presentation = "public" }: ColorChainProps) {
   const { language } = useI18n();
   const t = copy[language];
+  const title = presentation === "mascot-test"
+    ? language === "ja" ? "クロマのマジカルチェイン" : "Chroma's Magical Chain"
+    : t.title;
   const [difficulty, setDifficulty] = useState<Difficulty>("easy");
   const [board, setBoard] = useState<Board>(() => createEmptyBoard());
   const [activePair, setActivePair] = useState<FallingPair | null>(null);
@@ -1086,7 +1090,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
       <div className="puzzle-hero color-chain-hero">
         <div>
           <p className="eyebrow">{t.eyebrow}</p>
-          <h1 id="color-chain-title">{t.title}</h1>
+          <h1 id="color-chain-title">{title}</h1>
           <p className="lead">{message}</p>
         </div>
         <div className="score-panel color-chain-score" aria-label={t.status}>
@@ -1100,7 +1104,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
       <div className="puzzle-layout color-chain-layout">
         <div className="color-chain-play-area">
           <div className="color-chain-board-wrap">
-            <div className="color-chain-board" role="grid" aria-label={`${t.title} board`}>
+            <div className="color-chain-board" role="grid" aria-label={`${title} board`}>
               {visibleCells.map((cell) => (
                 <div
                   aria-label={cell.color ? `${cell.row - HIDDEN_ROWS + 1}, ${cell.column + 1}, ${cell.color}` : `${cell.row - HIDDEN_ROWS + 1}, ${cell.column + 1}, empty`}
@@ -1367,4 +1371,8 @@ export function ColorChain({ onBack }: ColorChainProps) {
       </div>
     </section>
   );
+}
+
+export function ColorChainMascotTest({ onBack }: Pick<ColorChainProps, "onBack">) {
+  return <ColorChain onBack={onBack} presentation="mascot-test" />;
 }

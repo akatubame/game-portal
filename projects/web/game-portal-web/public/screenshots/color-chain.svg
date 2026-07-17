@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-labelledby="title description">
-  <title id="title">Chroma's Magical Chain game screen</title>
+  <title id="title">Magical Chain game screen</title>
   <desc id="description">Jewel-like paired blocks and glowing magical chains in a falling-block puzzle.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
@@ -12,7 +12,7 @@
     </filter>
   </defs>
   <rect width="640" height="360" rx="28" fill="url(#bg)"/>
-  <text x="38" y="55" fill="#f7f7fa" font-family="system-ui,sans-serif" font-size="25" font-weight="800">CHROMA'S MAGICAL CHAIN</text>
+  <text x="38" y="55" fill="#f7f7fa" font-family="system-ui,sans-serif" font-size="25" font-weight="800">MAGICAL CHAIN</text>
   <text x="40" y="82" fill="#b8c3d1" font-family="system-ui,sans-serif" font-size="14">MATCH 4 · CAST A MAGICAL CHAIN</text>
   <g transform="translate(55 105)">
     <rect width="260" height="220" rx="16" fill="#080d12" stroke="#657384" stroke-width="3"/>

@@ -4,11 +4,14 @@
 
 - 基準画像: `reference/color-chain-witch-concept-v1.png`
 - 用途: 三面図、デフォルメ、表情差分、モーション原画、ドット絵の同一人物性を固定する
-- 正式ゲーム名: `クロマのマジカルチェイン`
-- 英語ゲーム名: `Chroma's Magical Chain`
+- 公開版ゲーム名: `マジカルチェイン` / `Magical Chain`
+- マスコットテスト版ゲーム名: `クロマのマジカルチェイン` / `Chroma's Magical Chain`
 - キャラクター名: 彩鎖の魔女「クロマ」
-- 将来キャラクター名を変更する場合は、日英ゲームタイトル内の `クロマ / Chroma` も同時に変更する
-- 内部ID `colorChain` と公開URL `/games/color-chain/` は名称変更後も維持する
+- 将来キャラクター名を変更する場合は、テスト版の日英ゲームタイトル内の `クロマ / Chroma` も同時に変更する
+- 公開版は `/play/colorChain/`、テスト版の正規URLは `/test/color-chain-mascot/` とする
+- 入力済みURLとの互換用に `/text/color-chain-mascot/` からも同じテスト版を開けるようにする
+- テスト版はポータル一覧とサイトマップには掲載せず、URLを知っている人が直接アクセスする形式とする
+- 内部ID `colorChain` は名称変更後も維持する
 
 ## 世界観と用語
 

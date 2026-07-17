@@ -43,7 +43,8 @@ const gameViews: Record<string, GameView> = {
   nonogram: lazy(() => import("./games/nonogram/Nonogram").then((module) => ({ default: module.Nonogram }))),
   wordGuess: lazy(() => import("./games/wordGuess/WordGuess").then((module) => ({ default: module.WordGuess }))),
   solitaire: lazy(() => import("./games/solitaire/Solitaire").then((module) => ({ default: module.Solitaire }))),
-  colorChain: lazy(() => import("./games/colorChain/ColorChain").then((module) => ({ default: module.ColorChain })))
+  colorChain: lazy(() => import("./games/colorChain/ColorChain").then((module) => ({ default: module.ColorChain }))),
+  colorChainMascotTest: lazy(() => import("./games/colorChain/ColorChain").then((module) => ({ default: module.ColorChainMascotTest })))
 };
 
 const recentGameIds = ["colorChain", "solitaire", "wordGuess", "nonogram"];
@@ -55,11 +56,28 @@ const recentlyPlayedStorageKey = "game-shelf-recently-played";
 const maxRecentlyPlayed = 8;
 const yonmaiMahjongId = "yonmai-mahjong";
 const yonmaiAndroidUrl = "https://play.google.com/store/apps/details?id=com.yonmai.mahjong";
+const colorChainMascotTestId = "colorChainMascotTest";
+const colorChainMascotTestPath = "/test/color-chain-mascot/";
+const colorChainMascotTestAliases = [colorChainMascotTestPath, "/text/color-chain-mascot/"];
+const colorChainMascotTestText = {
+  ja: {
+    title: "クロマのマジカルチェイン",
+    description: "マスコットキャラクターと演出を検証する、マジカルチェインの公開テスト版です。"
+  },
+  en: {
+    title: "Chroma's Magical Chain",
+    description: "A publicly accessible test version of Magical Chain for mascot character and presentation experiments."
+  }
+} as const;
 
 function getSelectedGameId() {
   const legacyQueryId = new URLSearchParams(window.location.search).get("game");
   if (legacyQueryId) {
     return legacyQueryId;
+  }
+
+  if (colorChainMascotTestAliases.includes(window.location.pathname)) {
+    return colorChainMascotTestId;
   }
 
   const routeMatch = window.location.pathname.match(/^\/play\/([^/]+)\/?$/);
@@ -96,6 +114,16 @@ function setMetaContent(selector: string, content: string) {
   if (element) {
     element.content = content;
   }
+}
+
+function setRobotsMetaContent(content: string) {
+  let element = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
+  if (!element) {
+    element = document.createElement("meta");
+    element.name = "robots";
+    document.head.appendChild(element);
+  }
+  element.content = content;
 }
 
 export function App() {
@@ -294,16 +322,21 @@ export function App() {
     }
 
     const selectedGame = selectedGameId ? getGameById(selectedGameId) : undefined;
-    const pageTitle = selectedGame
+    const pageTitle = selectedGameId === colorChainMascotTestId
+      ? `Game Shelf | ${colorChainMascotTestText[language].title}`
+      : selectedGame
       ? `Game Shelf | ${getGameText(selectedGame, language).title}`
       : "Game Shelf";
     trackPageView(pageTitle);
-  }, [selectedGameId]);
+  }, [language, selectedGameId]);
 
   useEffect(() => {
     document.documentElement.lang = language;
     const selectedGame = selectedGameId ? getGameById(selectedGameId) : undefined;
-    const selectedGameText = selectedGame ? getGameText(selectedGame, language) : undefined;
+    const isColorChainMascotTest = selectedGameId === colorChainMascotTestId;
+    const selectedGameText = isColorChainMascotTest
+      ? colorChainMascotTestText[language]
+      : selectedGame ? getGameText(selectedGame, language) : undefined;
     document.title = selectedGameText
       ? `Game Shelf | ${selectedGameText.title}`
       : language === "ja" ? "Game Shelf | ブラウザゲーム集" : "Game Shelf | Browser Games";
@@ -313,7 +346,11 @@ export function App() {
       description.content = selectedGameText?.description ?? t.metaDescription;
     }
 
-    const canonicalPath = selectedGame
+    setRobotsMetaContent(isColorChainMascotTest ? "noindex,nofollow" : "index,follow");
+
+    const canonicalPath = isColorChainMascotTest
+      ? colorChainMascotTestPath
+      : selectedGame
       ? selectedGame.kind === "internal" || selectedGame.id === yonmaiMahjongId
         ? getGameHref(selectedGame)
         : selectedGame.href
@@ -321,7 +358,10 @@ export function App() {
     const canonicalUrl = new URL(canonicalPath, window.location.origin).href;
     const socialTitle = selectedGameText ? `${selectedGameText.title} | Game Shelf` : "Game Shelf";
     const socialDescription = selectedGameText?.description ?? t.metaDescription;
-    const socialImage = new URL(selectedGame?.screenshot ?? "/screenshots/random-shogi.png", window.location.origin).href;
+    const socialImage = new URL(
+      isColorChainMascotTest ? "/screenshots/color-chain.svg" : selectedGame?.screenshot ?? "/screenshots/random-shogi.png",
+      window.location.origin
+    ).href;
 
     const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
     if (canonical) {
