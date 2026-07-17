@@ -2,7 +2,6 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowRight,
-  Bomb,
   ChevronsDown,
   Pause,
   Play,
@@ -10,8 +9,7 @@ import {
   RotateCw,
   Snowflake,
   Sparkles,
-  X,
-  Zap
+  X
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
@@ -77,15 +75,25 @@ const LASER_BLOCK_SCORE = 4;
 const VERTICAL_LASER_TRIGGER_SCORE = 20;
 const SUPER_VERTICAL_LASER_TRIGGER_SCORE = 80;
 const HORIZONTAL_LASER_TRIGGER_SCORE = 20;
+const SUPER_HORIZONTAL_LASER_TRIGGER_SCORE = 80;
 const COLOR_BREAKER_TRIGGER_SCORE = 45;
 const SUPER_COLOR_BREAKER_TRIGGER_SCORE = 180;
 const SLOW_DURATION = 10;
 const SLOW_TICK = 250;
 
-const difficultySettings: Record<Difficulty, { colors: number; baseSpeed: number; bombChance: number; verticalLaserChance: number; specialPity: number; laserBlocks: number }> = {
-  easy: { colors: 4, baseSpeed: 860, bombChance: 0.07, verticalLaserChance: 0.05, specialPity: 10, laserBlocks: 16 },
-  normal: { colors: 5, baseSpeed: 710, bombChance: 0.05, verticalLaserChance: 0.04, specialPity: 13, laserBlocks: 20 },
-  hard: { colors: 6, baseSpeed: 590, bombChance: 0.035, verticalLaserChance: 0.03, specialPity: 16, laserBlocks: 24 }
+const difficultySettings: Record<Difficulty, {
+  colors: number;
+  baseSpeed: number;
+  bombChance: number;
+  verticalLaserChance: number;
+  horizontalLaserChance: number;
+  colorBreakerChance: number;
+  specialPity: number;
+  laserBlocks: number;
+}> = {
+  easy: { colors: 4, baseSpeed: 860, bombChance: 0.07, verticalLaserChance: 0.05, horizontalLaserChance: 0.035, colorBreakerChance: 0.005, specialPity: 10, laserBlocks: 16 },
+  normal: { colors: 5, baseSpeed: 710, bombChance: 0.05, verticalLaserChance: 0.04, horizontalLaserChance: 0.03, colorBreakerChance: 0.004, specialPity: 13, laserBlocks: 20 },
+  hard: { colors: 6, baseSpeed: 590, bombChance: 0.035, verticalLaserChance: 0.03, horizontalLaserChance: 0.02, colorBreakerChance: 0.003, specialPity: 16, laserBlocks: 24 }
 };
 
 const symbols: Record<BlockToken, string> = {
@@ -100,6 +108,16 @@ const symbols: Record<BlockToken, string> = {
   "horizontal-laser": "↔",
   "color-breaker": "✺"
 };
+
+function blockIcon(token: BlockToken) {
+  return (
+    <i
+      aria-hidden="true"
+      className={`color-chain-block-icon is-${token}`}
+      data-symbol={symbols[token]}
+    />
+  );
+}
 
 const copy = {
   ja: {
@@ -156,6 +174,7 @@ const copy = {
     verticalLaserBlast: (count: number) => `縦レーザーが発動！ ${count}個のブロックを破壊しました。`,
     superVerticalLaserBlast: (count: number) => `スーパー縦レーザーが発動！ 縦3列から${count}個のブロックを破壊しました。`,
     horizontalLaserBlast: (count: number) => `横レーザーブロックが発動！ ${count}個のブロックを破壊しました。`,
+    superHorizontalLaserBlast: (count: number) => `スーパー横レーザーが発動！ 横3行から${count}個のブロックを破壊しました。`,
     colorBreakerBlast: (count: number) => `カラーブレイカーが発動！ 同じ色のブロックを${count}個破壊しました。`,
     superColorBreakerBlast: (count: number) => `スーパーカラーブレイカー発動！ すべての色ブロックを${count}個破壊しました。`,
     rewardCreated: (reward: string) => `${reward}を獲得！ 次の連鎖に活用しましょう。`,
@@ -166,9 +185,9 @@ const copy = {
     verticalLaserItem: "縦レーザー",
     verticalLaserDetail: "縦に5個以上を消すと報酬として出現します。上下左右に隣接するブロックが消えると、その列を消去します。縦レーザー同士が上下左右で接触すると、縦3列を消すスーパー縦レーザーが自動発動します。",
     horizontalLaserItem: "横レーザー",
-    horizontalLaserDetail: "横に5個以上を消すと報酬として出現します。上下左右に隣接するブロックが消えると、その行を消去します。さらに、ブロック消去数でたまるゲージでも横1行を選んで消去できます。",
+    horizontalLaserDetail: "横に5個以上を消した報酬、または低確率の落下ブロックとして出現します。隣接ブロックの消去で横1行を破壊。横レーザー同士が接触すると、横3行を消すスーパー横レーザーが自動発動します。ゲージ技でも横1行を選んで消去できます。",
     colorBreakerItem: "カラーブレイカー",
-    colorBreakerDetail: "斜めに5個以上を消すと報酬として出現します。隣接する色ブロックが消えると、その色のブロックを全消去します。爆発やレーザーに巻き込まれるとランダムな色を全消去。カラーブレイカー同士が接触すると、すべての色ブロックを消すスーパーカラーブレイカーになります。",
+    colorBreakerDetail: "斜めに5個以上を消した報酬、またはごく低確率のレア落下ブロックとして出現します。隣接する色ブロックが消えると、その色を全消去。爆発やレーザーに巻き込まれるとランダムな色を全消去し、同種同士の接触ですべての色を消します。",
     slowTimeItem: "スロータイム",
     slowTimeDetail: "10秒間、ブロックの落下速度を半分にします。16ブロック消去すると再使用できます。",
     holdItem: "ホールド",
@@ -240,6 +259,7 @@ const copy = {
     verticalLaserBlast: (count: number) => `Vertical laser activated! Destroyed ${count} blocks.`,
     superVerticalLaserBlast: (count: number) => `Super Vertical Laser! Destroyed ${count} blocks across three columns.`,
     horizontalLaserBlast: (count: number) => `Horizontal laser block activated! Destroyed ${count} blocks.`,
+    superHorizontalLaserBlast: (count: number) => `Super Horizontal Laser! Destroyed ${count} blocks across three rows.`,
     colorBreakerBlast: (count: number) => `Color Breaker activated! Destroyed ${count} matching-color blocks.`,
     superColorBreakerBlast: (count: number) => `Super Color Breaker activated! Destroyed all ${count} color blocks.`,
     rewardCreated: (reward: string) => `${reward} reward created! Set up your next chain with it.`,
@@ -250,9 +270,9 @@ const copy = {
     verticalLaserItem: "Vertical Laser",
     verticalLaserDetail: "Created as a reward for clearing five or more blocks vertically. Activates when an orthogonally adjacent block is cleared and erases its column. Orthogonally touching vertical lasers automatically trigger a three-column Super Vertical Laser.",
     horizontalLaserItem: "Horizontal Laser",
-    horizontalLaserDetail: "Created as a reward for clearing five or more blocks horizontally. It activates when an orthogonally adjacent block is cleared and erases its row. You can also charge the gauge by clearing blocks and erase one selected row.",
+    horizontalLaserDetail: "Appears after a horizontal five-block clear or as an occasional falling block. It erases its row when an adjacent block clears. Two touching horizontal lasers automatically erase three rows. The charged ability can also erase one selected row.",
     colorBreakerItem: "Color Breaker",
-    colorBreakerDetail: "Created as a reward for clearing five or more blocks diagonally. When an adjacent color block clears, it erases every block of that color. A blast or laser makes it erase a random color. Adjacent Color Breakers become a Super Color Breaker that erases every color block.",
+    colorBreakerDetail: "Appears after a diagonal five-block clear or, very rarely, as a falling block. An adjacent color clear erases that color; a blast or laser erases a random color. Touching Color Breakers erase every color block.",
     slowTimeItem: "Slow Time",
     slowTimeDetail: "Halves the falling speed for 10 seconds. Clear 16 blocks to recharge it.",
     holdItem: "Hold",
@@ -348,10 +368,10 @@ export function ColorChain({ onBack }: ColorChainProps) {
   const dropInterval = slowActive ? normalDropInterval * 2 : normalDropInterval;
   const laserBlocksRemaining = Math.max(0, Math.ceil(((100 - laserCharge) * settings.laserBlocks) / 100));
   const helpItems = [
-    { id: "bomb" as const, label: t.bombItem, detail: t.bombDetail, icon: <Bomb aria-hidden="true" /> },
-    { id: "verticalLaser" as const, label: t.verticalLaserItem, detail: t.verticalLaserDetail, icon: <Zap aria-hidden="true" /> },
-    { id: "horizontalLaser" as const, label: t.horizontalLaserItem, detail: t.horizontalLaserDetail, icon: <Zap aria-hidden="true" /> },
-    { id: "colorBreaker" as const, label: t.colorBreakerItem, detail: t.colorBreakerDetail, icon: <Sparkles aria-hidden="true" /> },
+    { id: "bomb" as const, label: t.bombItem, detail: t.bombDetail, icon: blockIcon(BOMB_BLOCK) },
+    { id: "verticalLaser" as const, label: t.verticalLaserItem, detail: t.verticalLaserDetail, icon: blockIcon(VERTICAL_LASER_BLOCK) },
+    { id: "horizontalLaser" as const, label: t.horizontalLaserItem, detail: t.horizontalLaserDetail, icon: blockIcon(HORIZONTAL_LASER_BLOCK) },
+    { id: "colorBreaker" as const, label: t.colorBreakerItem, detail: t.colorBreakerDetail, icon: blockIcon(COLOR_BREAKER_BLOCK) },
     { id: "slowTime" as const, label: t.slowTimeItem, detail: t.slowTimeDetail, icon: <Snowflake aria-hidden="true" /> },
     { id: "hold" as const, label: t.holdItem, detail: t.holdDetail, icon: <RotateCcw aria-hidden="true" /> }
   ];
@@ -445,15 +465,31 @@ export function ColorChain({ onBack }: ColorChainProps) {
   function createQueuedPair(nextDifficulty: Difficulty) {
     const nextSettings = difficultySettings[nextDifficulty];
     const forceSpecial = pairsWithoutSpecialRef.current >= nextSettings.specialPity;
-    const totalSpecialChance = nextSettings.bombChance + nextSettings.verticalLaserChance;
-    const forcedBombChance = nextSettings.bombChance / totalSpecialChance;
+    const specialChances = [
+      nextSettings.bombChance,
+      nextSettings.verticalLaserChance,
+      nextSettings.horizontalLaserChance,
+      nextSettings.colorBreakerChance
+    ] as const;
+    const totalSpecialChance = specialChances.reduce((sum, chance) => sum + chance, 0);
+    const appliedChances = forceSpecial
+      ? specialChances.map((chance) => chance / totalSpecialChance)
+      : specialChances;
+    const [bombChance, verticalLaserChance, horizontalLaserChance, colorBreakerChance] = appliedChances;
     const pair = createRandomPair(
       nextSettings.colors,
       Math.random,
-      forceSpecial ? forcedBombChance : nextSettings.bombChance,
-      forceSpecial ? 1 - forcedBombChance : nextSettings.verticalLaserChance
+      bombChance,
+      verticalLaserChance,
+      horizontalLaserChance,
+      colorBreakerChance
     );
-    if (pair.colors.includes(BOMB_BLOCK) || pair.colors.includes(VERTICAL_LASER_BLOCK)) pairsWithoutSpecialRef.current = 0;
+    if (
+      pair.colors.includes(BOMB_BLOCK)
+      || pair.colors.includes(VERTICAL_LASER_BLOCK)
+      || pair.colors.includes(HORIZONTAL_LASER_BLOCK)
+      || pair.colors.includes(COLOR_BREAKER_BLOCK)
+    ) pairsWithoutSpecialRef.current = 0;
     else pairsWithoutSpecialRef.current += 1;
     return pair;
   }
@@ -542,8 +578,10 @@ export function ColorChain({ onBack }: ColorChainProps) {
           superClear.superColorBreakers.size > 0
             ? t.superColorBreakerBlast(superClear.colorBreakerClearedCells.size)
             : superClear.superVerticalLasers.size > 0
-            ? t.superVerticalLaserBlast(superClear.cells.size)
-            : t.superBombBlast(superClear.cells.size)
+              ? t.superVerticalLaserBlast(superClear.cells.size)
+              : superClear.superHorizontalLasers.size > 0
+                ? t.superHorizontalLaserBlast(superClear.cells.size)
+                : t.superBombBlast(superClear.cells.size)
         );
         await wait(CLEAR_DELAY + 140);
         if (token !== resolutionToken.current) return;
@@ -562,6 +600,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
           + superClear.colorBreakers.size * COLOR_BREAKER_TRIGGER_SCORE
           + superClear.superBombs.size * SUPER_BOMB_TRIGGER_SCORE
           + superClear.superVerticalLasers.size * SUPER_VERTICAL_LASER_TRIGGER_SCORE
+          + superClear.superHorizontalLasers.size * SUPER_HORIZONTAL_LASER_TRIGGER_SCORE
           + superClear.superColorBreakers.size * SUPER_COLOR_BREAKER_TRIGGER_SCORE
         );
         await wait(FALL_DELAY);
@@ -584,6 +623,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
         || clearResult.colorBreakers.size > 0
         || clearResult.superBombs.size > 0
         || clearResult.superVerticalLasers.size > 0
+        || clearResult.superHorizontalLasers.size > 0
         || clearResult.superColorBreakers.size > 0
       );
       const extraCleared = Math.max(0, clearResult.cells.size - match.cells.size);
@@ -597,20 +637,22 @@ export function ColorChain({ onBack }: ColorChainProps) {
         clearResult.superColorBreakers.size > 0
           ? t.superColorBreakerBlast(clearResult.colorBreakerClearedCells.size)
           : clearResult.superVerticalLasers.size > 0
-          ? t.superVerticalLaserBlast(clearResult.cells.size)
-          : clearResult.superBombs.size > 0
-            ? t.superBombBlast(clearResult.cells.size)
-            : clearResult.verticalLasers.size > 0
-              ? t.verticalLaserBlast(clearResult.cells.size)
-              : clearResult.horizontalLasers.size > 0
-                ? t.horizontalLaserBlast(clearResult.cells.size)
-                : clearResult.colorBreakers.size > 0
-                  ? t.colorBreakerBlast(clearResult.colorBreakerClearedCells.size)
-              : clearResult.bombs.size > 0
-                ? t.bombBlast(clearResult.cells.size)
-                : rewards.length > 0
-                  ? t.rewardCreated(rewards.map((reward) => rewardLabel(reward.token)).filter(Boolean).join("・"))
-                  : t.resolving(chain, match.cells.size)
+            ? t.superVerticalLaserBlast(clearResult.cells.size)
+            : clearResult.superHorizontalLasers.size > 0
+              ? t.superHorizontalLaserBlast(clearResult.cells.size)
+              : clearResult.superBombs.size > 0
+                ? t.superBombBlast(clearResult.cells.size)
+                : clearResult.verticalLasers.size > 0
+                  ? t.verticalLaserBlast(clearResult.cells.size)
+                  : clearResult.horizontalLasers.size > 0
+                    ? t.horizontalLaserBlast(clearResult.cells.size)
+                    : clearResult.colorBreakers.size > 0
+                      ? t.colorBreakerBlast(clearResult.colorBreakerClearedCells.size)
+                      : clearResult.bombs.size > 0
+                        ? t.bombBlast(clearResult.cells.size)
+                        : rewards.length > 0
+                          ? t.rewardCreated(rewards.map((reward) => rewardLabel(reward.token)).filter(Boolean).join("・"))
+                          : t.resolving(chain, match.cells.size)
       );
       await wait(CLEAR_DELAY + (specialTriggered ? 80 : 0));
       if (token !== resolutionToken.current) return;
@@ -638,6 +680,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
         + clearResult.colorBreakers.size * COLOR_BREAKER_TRIGGER_SCORE
         + clearResult.superBombs.size * SUPER_BOMB_TRIGGER_SCORE
         + clearResult.superVerticalLasers.size * SUPER_VERTICAL_LASER_TRIGGER_SCORE
+        + clearResult.superHorizontalLasers.size * SUPER_HORIZONTAL_LASER_TRIGGER_SCORE
         + clearResult.superColorBreakers.size * SUPER_COLOR_BREAKER_TRIGGER_SCORE
       );
       await wait(FALL_DELAY);
@@ -717,6 +760,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
         + result.colorBreakers.size * COLOR_BREAKER_TRIGGER_SCORE
         + result.superBombs.size * SUPER_BOMB_TRIGGER_SCORE
         + result.superVerticalLasers.size * SUPER_VERTICAL_LASER_TRIGGER_SCORE
+        + result.superHorizontalLasers.size * SUPER_HORIZONTAL_LASER_TRIGGER_SCORE
         + result.superColorBreakers.size * SUPER_COLOR_BREAKER_TRIGGER_SCORE
       );
     }
@@ -1102,7 +1146,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
 
           <div className={`color-chain-laser-panel${laserCharge >= 100 ? " is-ready" : ""}`}>
             <div className="color-chain-laser-heading">
-              <span><Zap aria-hidden="true" /> {t.laser}</span>
+              <span>{blockIcon(HORIZONTAL_LASER_BLOCK)} {t.laser}</span>
               <strong>{laserCharge >= 100 ? t.laserReady : t.laserProgress(laserBlocksRemaining)}</strong>
             </div>
             <div
@@ -1120,7 +1164,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
               onClick={laserTargeting ? cancelLaserTargeting : beginLaserTargeting}
               type="button"
             >
-              {laserTargeting ? <X aria-hidden="true" /> : <Zap aria-hidden="true" />}
+              {laserTargeting ? <X aria-hidden="true" /> : blockIcon(HORIZONTAL_LASER_BLOCK)}
               {laserTargeting ? t.laserCancel : laserCharge >= 100 ? t.laserReady : t.laserCharging}
             </button>
           </div>

@@ -69,7 +69,8 @@
 }
 
 .color-chain-cell::after,
-.color-chain-next-pair i::after {
+.color-chain-next-pair i::after,
+.color-chain-block-icon::after {
   color: rgba(8, 13, 18, 0.52);
   content: attr(data-symbol);
   filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.3));
@@ -89,50 +90,58 @@
 .color-chain-cell.is-rose,
 .color-chain-next-pair i.is-rose { background: linear-gradient(145deg, #ffb5df, #eb66ad); }
 .color-chain-cell.is-bomb,
-.color-chain-next-pair i.is-bomb {
+.color-chain-next-pair i.is-bomb,
+.color-chain-block-icon.is-bomb {
   background: radial-gradient(circle at 38% 32%, #fff4b0 0 8%, #ff9f43 9% 20%, #dc3e3e 38%, #21151d 72%);
   border-color: #ffd166;
   color: #fff4b0;
 }
 
 .color-chain-cell.is-bomb::after,
-.color-chain-next-pair i.is-bomb::after {
+.color-chain-next-pair i.is-bomb::after,
+.color-chain-block-icon.is-bomb::after {
   color: #fff7c7;
   filter: drop-shadow(0 0 4px #ff7a35);
 }
 
 .color-chain-cell.is-vertical-laser,
-.color-chain-next-pair i.is-vertical-laser {
+.color-chain-next-pair i.is-vertical-laser,
+.color-chain-block-icon.is-vertical-laser {
   background: linear-gradient(135deg, #082a4a, #1ca7d9 42%, #d8fbff 50%, #1ca7d9 58%, #082a4a);
   border-color: #9cf4ff;
 }
 
 .color-chain-cell.is-vertical-laser::after,
-.color-chain-next-pair i.is-vertical-laser::after {
+.color-chain-next-pair i.is-vertical-laser::after,
+.color-chain-block-icon.is-vertical-laser::after {
   color: #f4feff;
   filter: drop-shadow(0 0 4px #67e8ff);
 }
 
 .color-chain-cell.is-horizontal-laser,
-.color-chain-next-pair i.is-horizontal-laser {
+.color-chain-next-pair i.is-horizontal-laser,
+.color-chain-block-icon.is-horizontal-laser {
   background: linear-gradient(45deg, #4a123e, #f057bd 42%, #fff1fa 50%, #f057bd 58%, #4a123e);
   border-color: #ff9add;
 }
 
 .color-chain-cell.is-horizontal-laser::after,
-.color-chain-next-pair i.is-horizontal-laser::after {
+.color-chain-next-pair i.is-horizontal-laser::after,
+.color-chain-block-icon.is-horizontal-laser::after {
   color: #fff5fc;
   filter: drop-shadow(0 0 4px #ff75ce);
 }
 
 .color-chain-cell.is-color-breaker,
-.color-chain-next-pair i.is-color-breaker {
+.color-chain-next-pair i.is-color-breaker,
+.color-chain-block-icon.is-color-breaker {
   background: conic-gradient(from 25deg, #ff7798, #ffd66a, #78eaa8, #6fdfff, #a98bff, #ff83d5, #ff7798);
   border-color: #fff2a6;
 }
 
 .color-chain-cell.is-color-breaker::after,
-.color-chain-next-pair i.is-color-breaker::after {
+.color-chain-next-pair i.is-color-breaker::after,
+.color-chain-block-icon.is-color-breaker::after {
   color: #fff;
   filter: drop-shadow(0 0 4px #6d2e9f);
 }
@@ -141,6 +150,21 @@
   border-color: rgba(255, 255, 255, 0.35);
   border-radius: 29%;
   box-shadow: inset 0 2px 3px rgba(255, 255, 255, 0.35), inset 0 -3px 4px rgba(0, 0, 0, 0.15);
+}
+
+.color-chain-block-icon {
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 29%;
+  box-shadow: inset 0 2px 3px rgba(255, 255, 255, 0.35), inset 0 -3px 4px rgba(0, 0, 0, 0.15);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-style: normal;
+  height: 27px;
+  justify-content: center;
+  position: relative;
+  width: 27px;
 }
 
 .color-chain-cell.is-active {
@@ -513,19 +537,6 @@
   min-height: 2.4em;
   overflow-wrap: anywhere;
   text-align: center;
-}
-
-.color-chain-help-icon.is-verticalLaser svg {
-  color: #86e8ff;
-}
-
-.color-chain-help-icon.is-horizontalLaser svg {
-  color: #ff8fd8;
-  transform: rotate(90deg);
-}
-
-.color-chain-help-icon.is-colorBreaker svg {
-  color: #ffe782;
 }
 
 .color-chain-help-icon.is-slowTime svg {

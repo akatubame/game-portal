@@ -82,19 +82,44 @@ export function createRandomPair(
   colorCount: number,
   random = Math.random,
   bombChance = 0,
-  verticalLaserChance = 0
+  verticalLaserChance = 0,
+  horizontalLaserChance = 0,
+  colorBreakerChance = 0
 ): FallingPair {
   const availableColors = blockColors.slice(0, Math.max(1, Math.min(colorCount, blockColors.length)));
   const randomColor = () => availableColors[Math.floor(random() * availableColors.length)] ?? availableColors[0];
 
   const colors: [BlockToken, BlockToken] = [randomColor(), randomColor()];
   const normalizedBombChance = Math.max(0, Math.min(1, bombChance));
-  const normalizedLaserChance = Math.max(0, Math.min(1 - normalizedBombChance, verticalLaserChance));
+  const normalizedVerticalLaserChance = Math.max(0, Math.min(1 - normalizedBombChance, verticalLaserChance));
+  const normalizedHorizontalLaserChance = Math.max(
+    0,
+    Math.min(1 - normalizedBombChance - normalizedVerticalLaserChance, horizontalLaserChance)
+  );
+  const normalizedColorBreakerChance = Math.max(
+    0,
+    Math.min(
+      1 - normalizedBombChance - normalizedVerticalLaserChance - normalizedHorizontalLaserChance,
+      colorBreakerChance
+    )
+  );
   const specialRoll = random();
   if (specialRoll < normalizedBombChance) {
     colors[random() < 0.5 ? 0 : 1] = BOMB_BLOCK;
-  } else if (specialRoll < normalizedBombChance + normalizedLaserChance) {
+  } else if (specialRoll < normalizedBombChance + normalizedVerticalLaserChance) {
     colors[random() < 0.5 ? 0 : 1] = VERTICAL_LASER_BLOCK;
+  } else if (
+    specialRoll < normalizedBombChance + normalizedVerticalLaserChance + normalizedHorizontalLaserChance
+  ) {
+    colors[random() < 0.5 ? 0 : 1] = HORIZONTAL_LASER_BLOCK;
+  } else if (
+    specialRoll
+      < normalizedBombChance
+      + normalizedVerticalLaserChance
+      + normalizedHorizontalLaserChance
+      + normalizedColorBreakerChance
+  ) {
+    colors[random() < 0.5 ? 0 : 1] = COLOR_BREAKER_BLOCK;
   }
 
   return {
@@ -384,6 +409,7 @@ export type SpecialClearResult = {
   horizontalLasers: Set<string>;
   colorBreakers: Set<string>;
   superBombs: Set<string>;
+  superHorizontalLasers: Set<string>;
   superVerticalLasers: Set<string>;
   superColorBreakers: Set<string>;
   verticalLaserColumns: Set<number>;
@@ -392,7 +418,11 @@ export type SpecialClearResult = {
   colorBreakerClearedCells: Set<string>;
 };
 
-type SuperSpecialToken = typeof BOMB_BLOCK | typeof VERTICAL_LASER_BLOCK | typeof COLOR_BREAKER_BLOCK;
+type SuperSpecialToken =
+  | typeof BOMB_BLOCK
+  | typeof VERTICAL_LASER_BLOCK
+  | typeof HORIZONTAL_LASER_BLOCK
+  | typeof COLOR_BREAKER_BLOCK;
 type SpecialTrigger = "adjacent" | "effect";
 type QueuedSpecial = { key: string; token: SpecialBlock; trigger: SpecialTrigger; triggerColor?: BlockColor };
 type SuperSpecialGroup = {
@@ -418,7 +448,10 @@ function isSpecialBlock(token: BoardCell): token is SpecialBlock {
 }
 
 function isSuperSpecialBlock(token: BoardCell): token is SuperSpecialToken {
-  return token === BOMB_BLOCK || token === VERTICAL_LASER_BLOCK || token === COLOR_BREAKER_BLOCK;
+  return token === BOMB_BLOCK
+    || token === VERTICAL_LASER_BLOCK
+    || token === HORIZONTAL_LASER_BLOCK
+    || token === COLOR_BREAKER_BLOCK;
 }
 
 function findSuperSpecialGroups(board: Board): SuperSpecialGroup[] {
@@ -488,6 +521,7 @@ function emptySpecialClearResult(): SpecialClearResult {
     horizontalLasers: new Set<string>(),
     superBombs: new Set<string>(),
     superColorBreakers: new Set<string>(),
+    superHorizontalLasers: new Set<string>(),
     superVerticalLasers: new Set<string>(),
     verticalLaserColumns: new Set<number>(),
     verticalLasers: new Set<string>()
@@ -595,6 +629,7 @@ function findSpecialCascade(
         queueCell(key);
         if (group.token === BOMB_BLOCK) result.bombs.add(key);
         else if (group.token === VERTICAL_LASER_BLOCK) result.verticalLasers.add(key);
+        else if (group.token === HORIZONTAL_LASER_BLOCK) result.horizontalLasers.add(key);
         else result.colorBreakers.add(key);
       });
 
@@ -614,6 +649,17 @@ function findSpecialCascade(
           if (targetColumn < 0 || targetColumn >= BOARD_COLUMNS) continue;
           result.verticalLaserColumns.add(targetColumn);
           for (let targetRow = 0; targetRow < TOTAL_ROWS; targetRow += 1) {
+            queueCell(cellKey(targetRow, targetColumn));
+          }
+        }
+      } else if (group.token === HORIZONTAL_LASER_BLOCK) {
+        if (result.superHorizontalLasers.has(group.id)) continue;
+        result.superHorizontalLasers.add(group.id);
+        for (let rowOffset = -1; rowOffset <= 1; rowOffset += 1) {
+          const targetRow = group.centerRow + rowOffset;
+          if (targetRow < 0 || targetRow >= TOTAL_ROWS) continue;
+          result.horizontalLaserRows.add(targetRow);
+          for (let targetColumn = 0; targetColumn < BOARD_COLUMNS; targetColumn += 1) {
             queueCell(cellKey(targetRow, targetColumn));
           }
         }

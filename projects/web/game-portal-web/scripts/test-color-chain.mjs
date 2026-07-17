@@ -198,6 +198,26 @@ assert.equal(
   "a special pair can contain one vertical laser",
 );
 
+const generatedHorizontalLaserPair = createRandomPair(4, (() => {
+  const values = [0, 0.3, 0.5, 0.9];
+  return () => values.shift() ?? 0;
+})(), 0, 0, 1);
+assert.equal(
+  generatedHorizontalLaserPair.colors.filter((token) => token === HORIZONTAL_LASER_BLOCK).length,
+  1,
+  "a falling pair can contain one horizontal laser",
+);
+
+const generatedColorBreakerPair = createRandomPair(4, (() => {
+  const values = [0, 0.3, 0.5, 0.1];
+  return () => values.shift() ?? 0;
+})(), 0, 0, 0, 1);
+assert.equal(
+  generatedColorBreakerPair.colors.filter((token) => token === COLOR_BREAKER_BLOCK).length,
+  1,
+  "a falling pair can contain one Color Breaker",
+);
+
 const bombBoard = createEmptyBoard();
 for (let row = 8; row <= 10; row += 1) {
   for (let column = 2; column <= 4; column += 1) bombBoard[row][column] = "coral";
@@ -350,6 +370,26 @@ assert.ok(superVerticalLaserClear.cells.has("5:2"), "the super vertical laser cl
 assert.ok(superVerticalLaserClear.cells.has("5:3"), "the super vertical laser clears its center column");
 assert.ok(superVerticalLaserClear.cells.has("5:4"), "the super vertical laser clears its right column");
 assert.ok(!superVerticalLaserClear.cells.has("5:1"), "the super vertical laser does not clear a fourth column");
+
+const superHorizontalLaserBoard = createEmptyBoard();
+superHorizontalLaserBoard[10][3] = HORIZONTAL_LASER_BLOCK;
+superHorizontalLaserBoard[10][4] = HORIZONTAL_LASER_BLOCK;
+superHorizontalLaserBoard[9][0] = "coral";
+superHorizontalLaserBoard[10][7] = "gold";
+superHorizontalLaserBoard[11][2] = "mint";
+superHorizontalLaserBoard[8][1] = "sky";
+const superHorizontalLaserClear = findSuperSpecialClearCells(superHorizontalLaserBoard);
+assert.equal(superHorizontalLaserClear.superHorizontalLasers.size, 1, "adjacent horizontal lasers create one super laser");
+assert.equal(superHorizontalLaserClear.horizontalLasers.size, 2, "both adjacent horizontal-laser blocks are consumed");
+assert.deepEqual(
+  [...superHorizontalLaserClear.horizontalLaserRows].sort((a, b) => a - b),
+  [9, 10, 11],
+  "a super horizontal laser targets exactly three rows",
+);
+assert.ok(superHorizontalLaserClear.cells.has("9:0"), "the super horizontal laser clears its upper row");
+assert.ok(superHorizontalLaserClear.cells.has("10:7"), "the super horizontal laser clears its center row");
+assert.ok(superHorizontalLaserClear.cells.has("11:2"), "the super horizontal laser clears its lower row");
+assert.ok(!superHorizontalLaserClear.cells.has("8:1"), "the super horizontal laser does not clear a fourth row");
 
 const superColorBreakerBoard = createEmptyBoard();
 superColorBreakerBoard[10][3] = COLOR_BREAKER_BLOCK;
