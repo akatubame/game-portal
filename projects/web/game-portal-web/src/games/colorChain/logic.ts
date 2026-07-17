@@ -786,9 +786,15 @@ export function hasBlocksAboveTop(board: Board) {
   return board.slice(0, HIDDEN_ROWS).some((row) => row.some(Boolean));
 }
 
+const CHAIN_MULTIPLIERS = [1, 3, 10, 25, 60, 120] as const;
+
+export function getChainMultiplier(chain: number) {
+  const normalizedChain = Math.max(1, Math.floor(chain));
+  return CHAIN_MULTIPLIERS[Math.min(normalizedChain, CHAIN_MULTIPLIERS.length) - 1];
+}
+
 export function calculateClearScore(match: MatchResult, chain: number) {
-  const chainMultipliers = [1, 2, 4, 8, 12];
-  const multiplier = chainMultipliers[Math.min(Math.max(chain, 1), chainMultipliers.length) - 1];
+  const multiplier = getChainMultiplier(chain);
   const sizeBonus = Math.max(0, match.cells.size - 4) * 20;
   const lineBonus = Math.max(0, match.lines - 1) * 40;
   const colorBonus = Math.max(0, match.colors.size - 1) * 60;

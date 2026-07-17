@@ -31,6 +31,7 @@ import {
   findHorizontalLaserClearCells,
   findSuperSpecialClearCells,
   findTriggeredSpecialClearCells,
+  getChainMultiplier,
   getGhostPair,
   getPairCells,
   getSpawnPreviewTokens,
@@ -134,7 +135,7 @@ const copy = {
     level: "レベル",
     next: "次のブロック",
     howTo: "遊び方",
-    rules: "2個1組のブロックを移動・回転して積みます。着地後、支えのないブロックは個別に下まで落下します。同色が縦・横・斜めに4個以上並ぶと一括消去。落下後に再び揃うと連鎖ボーナスです。ブロックが最上段を超えるとゲームオーバーです。",
+    rules: "2個1組のブロックを移動・回転して積みます。着地後、支えのないブロックは個別に下まで落下します。同色が縦・横・斜めに4個以上並ぶと一括消去。落下後に再び揃うと連鎖ボーナスになり、特に3連鎖以上はスコア倍率が大幅に上がります。ブロックが最上段を超えるとゲームオーバーです。",
     controls: "操作",
     keyboard: "PC: ←→で移動、↓で下降、Z/Xで回転、Spaceで即落下、Hでホールド、Sでスロータイム、Lで横レーザー、Pで一時停止。レーザー照準中は↑↓で行を選び、Enterで発射します。1列幅の縦穴では、回転入力でブロックの上下を反転できます。",
     easy: "初級",
@@ -219,7 +220,7 @@ const copy = {
     level: "Level",
     next: "Next pairs",
     howTo: "How to Play",
-    rules: "Move and rotate each connected pair. After landing, unsupported blocks fall independently. Four or more matching colors in a vertical, horizontal, or diagonal line clear together. New matches formed after blocks fall create chain bonuses. The game ends when blocks rise beyond the top.",
+    rules: "Move and rotate each connected pair. After landing, unsupported blocks fall independently. Four or more matching colors in a vertical, horizontal, or diagonal line clear together. New matches formed after blocks fall create chain bonuses, with a major score boost from the third chain onward. The game ends when blocks rise beyond the top.",
     controls: "Controls",
     keyboard: "PC: Move with ←/→, soft drop with ↓, rotate with Z/X, hard drop with Space, hold with H, use Slow Time with S, target the horizontal laser with L, and pause with P. While targeting, choose a row with ↑/↓ and fire with Enter. In a one-cell-wide shaft, rotate to flip a vertical pair by 180 degrees.",
     easy: "Easy",
@@ -592,7 +593,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
         setVerticalLaserColumns([]);
         setHorizontalLaserRows([]);
         recordClearedBlocks(superClear.cells.size);
-        addScore(
+        const superClearScore = (
           superClear.cells.size * BOMB_BLOCK_SCORE
           + superClear.bombs.size * BOMB_TRIGGER_SCORE
           + superClear.verticalLasers.size * VERTICAL_LASER_TRIGGER_SCORE
@@ -603,6 +604,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
           + superClear.superHorizontalLasers.size * SUPER_HORIZONTAL_LASER_TRIGGER_SCORE
           + superClear.superColorBreakers.size * SUPER_COLOR_BREAKER_TRIGGER_SCORE
         );
+        addScore(superClearScore * getChainMultiplier(chain));
         await wait(FALL_DELAY);
         if (token !== resolutionToken.current) return;
         nextBoard = await animateGravity(nextBoard, token);
@@ -671,9 +673,8 @@ export function ColorChain({ onBack }: ColorChainProps) {
       maxChainRef.current = nextMaxChain;
       setMaxChain(nextMaxChain);
       recordClearedBlocks(clearedCount);
-      addScore(
-        calculateClearScore(match, chain)
-        + extraCleared * BOMB_BLOCK_SCORE
+      const specialClearScore = (
+        extraCleared * BOMB_BLOCK_SCORE
         + clearResult.bombs.size * BOMB_TRIGGER_SCORE
         + clearResult.verticalLasers.size * VERTICAL_LASER_TRIGGER_SCORE
         + clearResult.horizontalLasers.size * HORIZONTAL_LASER_TRIGGER_SCORE
@@ -682,6 +683,10 @@ export function ColorChain({ onBack }: ColorChainProps) {
         + clearResult.superVerticalLasers.size * SUPER_VERTICAL_LASER_TRIGGER_SCORE
         + clearResult.superHorizontalLasers.size * SUPER_HORIZONTAL_LASER_TRIGGER_SCORE
         + clearResult.superColorBreakers.size * SUPER_COLOR_BREAKER_TRIGGER_SCORE
+      );
+      addScore(
+        calculateClearScore(match, chain)
+        + specialClearScore * getChainMultiplier(chain)
       );
       await wait(FALL_DELAY);
     }
@@ -1120,7 +1125,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
             {currentChain >= 2 && status === "resolving" && (
               <div className="color-chain-burst" aria-live="polite">
                 <Sparkles aria-hidden="true" />
-                <strong>{currentChain} CHAIN!</strong>
+                <strong>{currentChain} CHAIN! ×{getChainMultiplier(currentChain)}</strong>
               </div>
             )}
 

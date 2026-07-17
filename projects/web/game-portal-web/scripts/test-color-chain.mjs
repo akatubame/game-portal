@@ -33,6 +33,7 @@ const {
   findTriggeredSpecialClearCells,
   findVerticalLaserClearCells,
   findMatches,
+  getChainMultiplier,
   getPairCells,
   getSpawnPreviewTokens,
   mergePair,
@@ -167,6 +168,14 @@ assert.equal(secondClear.cells.size, 4, "gravity creates a second-chain group");
 const firstScore = calculateClearScore(secondClear, 1);
 const chainScore = calculateClearScore(secondClear, 2);
 assert.ok(chainScore > firstScore, "a chain awards a score bonus");
+assert.equal(getChainMultiplier(1), 1, "the first clear uses the base score");
+assert.equal(getChainMultiplier(2), 3, "the second chain triples its score");
+assert.equal(getChainMultiplier(3), 10, "the rare third chain awards a tenfold score");
+assert.equal(getChainMultiplier(4), 25, "the fourth chain awards a major score bonus");
+assert.equal(getChainMultiplier(5), 60, "the fifth chain awards a jackpot score bonus");
+assert.equal(getChainMultiplier(6), 120, "the sixth chain reaches the maximum multiplier");
+assert.equal(getChainMultiplier(99), 120, "the chain multiplier remains capped after the sixth chain");
+assert.equal(calculateClearScore(secondClear, 3), firstScore * 10, "clear scoring uses the boosted third-chain multiplier");
 assert.equal(BOARD_COLUMNS, 8, "board width remains fixed");
 
 const previewPair = {
