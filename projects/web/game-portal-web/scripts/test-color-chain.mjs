@@ -21,7 +21,9 @@ const {
   clearMatchedCells,
   createEmptyBoard,
   findMatches,
+  getPairCells,
   mergePair,
+  rotatePair,
   settlePair,
 } = logic;
 
@@ -87,5 +89,27 @@ const firstScore = calculateClearScore(secondClear, 1);
 const chainScore = calculateClearScore(secondClear, 2);
 assert.ok(chainScore > firstScore, "a chain awards a score bonus");
 assert.equal(BOARD_COLUMNS, 8, "board width remains fixed");
+
+const shaftBoard = createEmptyBoard();
+const shaftRow = TOTAL_ROWS - 4;
+const shaftColumn = 3;
+for (const row of [shaftRow - 1, shaftRow, shaftRow + 1]) {
+  shaftBoard[row][shaftColumn - 1] = "violet";
+  shaftBoard[row][shaftColumn + 1] = "violet";
+}
+const verticalPair = {
+  row: shaftRow,
+  column: shaftColumn,
+  orientation: 0,
+  colors: ["coral", "gold"],
+};
+const halfTurnedPair = rotatePair(shaftBoard, verticalPair, 1);
+assert.equal(halfTurnedPair.orientation, 2, "blocked quarter turn falls back to a half turn");
+assert.equal(halfTurnedPair.row, shaftRow - 1, "half turn stays in the same two shaft cells");
+assert.deepEqual(
+  getPairCells(halfTurnedPair).map(({ row, column, color }) => [row, column, color]),
+  [[shaftRow - 1, shaftColumn, "coral"], [shaftRow, shaftColumn, "gold"]],
+  "half turn swaps the colors vertically without leaving the shaft",
+);
 
 console.log("Color Chain logic: all tests passed");

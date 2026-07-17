@@ -104,6 +104,15 @@ export function rotatePair(board: Board, pair: FallingPair, direction: -1 | 1): 
     if (canPlacePair(board, candidate)) return candidate;
   }
 
+  // In a one-cell-wide shaft a vertical pair cannot pass through a horizontal
+  // orientation. Fall back to a half turn that swaps the two colors in place.
+  if (pair.orientation === 0 || pair.orientation === 2) {
+    const halfTurn: FallingPair = pair.orientation === 0
+      ? { ...pair, row: pair.row - 1, orientation: 2 }
+      : { ...pair, row: pair.row + 1, orientation: 0 };
+    if (canPlacePair(board, halfTurn)) return halfTurn;
+  }
+
   return pair;
 }
 
