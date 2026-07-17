@@ -55,7 +55,7 @@ type ColorChainProps = {
   presentation?: "public" | "mascot-test";
 };
 
-type Difficulty = "easy" | "normal" | "hard";
+type Difficulty = "easy" | "normal";
 type GameStatus = "idle" | "playing" | "paused" | "resolving" | "gameover";
 type HelpItemId = "bomb" | "verticalLaser" | "horizontalLaser" | "colorBreaker" | "slowTime" | "hold";
 
@@ -94,8 +94,7 @@ const difficultySettings: Record<Difficulty, {
   laserBlocks: number;
 }> = {
   easy: { colors: 4, baseSpeed: 860, bombChance: 0.07, verticalLaserChance: 0.05, horizontalLaserChance: 0.035, colorBreakerChance: 0.005, specialPity: 10, laserBlocks: 16 },
-  normal: { colors: 5, baseSpeed: 710, bombChance: 0.05, verticalLaserChance: 0.04, horizontalLaserChance: 0.03, colorBreakerChance: 0.004, specialPity: 13, laserBlocks: 20 },
-  hard: { colors: 6, baseSpeed: 590, bombChance: 0.035, verticalLaserChance: 0.03, horizontalLaserChance: 0.02, colorBreakerChance: 0.003, specialPity: 16, laserBlocks: 24 }
+  normal: { colors: 5, baseSpeed: 710, bombChance: 0.05, verticalLaserChance: 0.04, horizontalLaserChance: 0.03, colorBreakerChance: 0.004, specialPity: 13, laserBlocks: 20 }
 };
 
 const symbols: Record<BlockToken, string> = {
@@ -162,13 +161,11 @@ const copy = {
     howTo: "遊び方",
     rules: "2個1組のブロックを移動・回転して積みます。同色が縦・横・斜めに4個以上並ぶと、魔法の鎖が結ばれる『マジカルチェイン』が発生します。落下後に続けて揃えるとWチェイン、トリプルチェインと発展し、特に3段階目以降はスコア倍率が大幅に上がります。ブロックが最上段を超えるとゲームオーバーです。",
     controls: "操作",
-    keyboard: "PC: ←→で移動、↓で下降、Z/Xで回転、Spaceで即落下、Hでホールド、Sでスロータイム、Lで横レーザー、Pで一時停止。レーザー照準中は↑↓で行を選び、Enterで発射します。1列幅の縦穴では、回転入力でブロックの上下を反転できます。",
+    keyboard: "PC: ←→で移動、↓で下降、Z/Xで回転、Spaceで即落下、Hでホールド、Sでスロータイム、Lでチェインウェーブ、Pで一時停止。チェインウェーブ照準中は↑↓で行を選び、Enterで発動します。1列幅の縦穴では、回転入力でブロックの上下を反転できます。",
     easy: "初級",
     normal: "中級",
-    hard: "上級",
     easyDetail: "4色・ゆっくり",
     normalDetail: "5色・標準速度",
-    hardDetail: "6色・速め",
     start: "ゲーム開始",
     restart: "最初から",
     pause: "一時停止",
@@ -187,33 +184,33 @@ const copy = {
     rotate: "右回転",
     down: "1段下げる",
     hardDrop: "即落下",
-    bombBlast: (count: number) => `爆弾が炸裂！ ${count}個のブロックを破壊しました。`,
-    superBombBlast: (count: number) => `スーパー爆弾が炸裂！ 5×5の範囲から${count}個のブロックを破壊しました。`,
-    laser: "横レーザー",
+    bombBlast: (count: number) => `チェインボム発動！ ${count}個のブロックを破壊しました。`,
+    superBombBlast: (count: number) => `グランドチェインボム発動！ 5×5の範囲から${count}個のブロックを破壊しました。`,
+    laser: "チェインウェーブ",
     laserReady: "発射可能",
     laserCharging: "ブロック消去で充填",
     laserProgress: (count: number) => `あと${count}個`,
     laserSelect: "消したい行を選んでください。上下キーで移動し、Enterで発射できます。",
     laserCancel: "選択をやめる",
-    laserRow: (row: number) => `${row}行目へ横レーザー発射！`,
-    laserMiss: "空の行に横レーザーを発射しました。",
-    verticalLaserBlast: (count: number) => `縦レーザーが発動！ ${count}個のブロックを破壊しました。`,
-    superVerticalLaserBlast: (count: number) => `スーパー縦レーザーが発動！ 縦3列から${count}個のブロックを破壊しました。`,
-    horizontalLaserBlast: (count: number) => `横レーザーブロックが発動！ ${count}個のブロックを破壊しました。`,
-    superHorizontalLaserBlast: (count: number) => `スーパー横レーザーが発動！ 横3行から${count}個のブロックを破壊しました。`,
-    colorBreakerBlast: (count: number) => `カラーブレイカーが発動！ 同じ色のブロックを${count}個破壊しました。`,
-    superColorBreakerBlast: (count: number) => `スーパーカラーブレイカー発動！ すべての色ブロックを${count}個破壊しました。`,
+    laserRow: (row: number) => `${row}行目へチェインウェーブ発動！`,
+    laserMiss: "空の行にチェインウェーブを発動しました。",
+    verticalLaserBlast: (count: number) => `チェインピラー発動！ ${count}個のブロックを破壊しました。`,
+    superVerticalLaserBlast: (count: number) => `トリニティピラー発動！ 縦3列から${count}個のブロックを破壊しました。`,
+    horizontalLaserBlast: (count: number) => `チェインウェーブ発動！ ${count}個のブロックを破壊しました。`,
+    superHorizontalLaserBlast: (count: number) => `トリニティウェーブ発動！ 横3行から${count}個のブロックを破壊しました。`,
+    colorBreakerBlast: (count: number) => `プリズムブレイク発動！ 同じ色のブロックを${count}個破壊しました。`,
+    superColorBreakerBlast: (count: number) => `プリズムノヴァ発動！ すべての色ブロックを${count}個破壊しました。`,
     rewardCreated: (reward: string) => `${reward}を獲得！ 次のマジカルチェインに活用しましょう。`,
     itemHelpTitle: "特殊ブロック・補助技",
     itemHelpHint: "アイコンにマウスを重ねるか、タップすると詳しい説明を表示します。",
-    bombItem: "爆弾",
-    bombDetail: "縦と横のラインを同時に消すと報酬として出現します。上下左右に隣接するブロックが消えると、周囲3×3を破壊します。爆弾同士が上下左右で接触すると、5×5を消すスーパー爆弾が自動発動します。",
-    verticalLaserItem: "縦レーザー",
-    verticalLaserDetail: "縦に5個以上を消すと報酬として出現します。上下左右に隣接するブロックが消えると、その列を消去します。縦レーザー同士が上下左右で接触すると、縦3列を消すスーパー縦レーザーが自動発動します。",
-    horizontalLaserItem: "横レーザー",
-    horizontalLaserDetail: "横に5個以上を消した報酬、または低確率の落下ブロックとして出現します。隣接ブロックの消去で横1行を破壊。横レーザー同士が接触すると、横3行を消すスーパー横レーザーが自動発動します。ゲージ技でも横1行を選んで消去できます。",
-    colorBreakerItem: "カラーブレイカー",
-    colorBreakerDetail: "斜めに5個以上を消した報酬、またはごく低確率のレア落下ブロックとして出現します。隣接する色ブロックが消えると、その色を全消去。爆発やレーザーに巻き込まれるとランダムな色を全消去し、同種同士の接触ですべての色を消します。",
+    bombItem: "チェインボム",
+    bombDetail: "縦と横のラインを同時に消すと報酬として出現します。上下左右に隣接するブロックが消えると、周囲3×3を破壊します。チェインボム同士が上下左右で接触すると、5×5を消すグランドチェインボムが自動発動します。",
+    verticalLaserItem: "チェインピラー",
+    verticalLaserDetail: "縦に5個以上を消すと報酬として出現します。上下左右に隣接するブロックが消えると、その縦1列を消去します。チェインピラー同士が上下左右で接触すると、縦3列を消すトリニティピラーが自動発動します。",
+    horizontalLaserItem: "チェインウェーブ",
+    horizontalLaserDetail: "横に5個以上を消した報酬、または低確率の落下ブロックとして出現します。隣接ブロックの消去で横1行を破壊。チェインウェーブ同士が接触すると、横3行を消すトリニティウェーブが自動発動します。ゲージ技でも横1行を選んで消去できます。",
+    colorBreakerItem: "プリズムブレイク",
+    colorBreakerDetail: "斜めに5個以上を消した報酬、またはごく低確率のレア落下ブロックとして出現します。隣接する色ブロックが消えると、その色を全消去。チェインボム、チェインピラー、チェインウェーブに巻き込まれるとランダムな色を全消去し、同種同士の接触で全色を消すプリズムノヴァが発動します。",
     slowTimeItem: "スロータイム",
     slowTimeDetail: "10秒間、ブロックの落下速度を半分にします。16ブロック消去すると再使用できます。",
     holdItem: "ホールド",
@@ -247,13 +244,11 @@ const copy = {
     howTo: "How to Play",
     rules: "Move and rotate each connected pair. Matching four or more colors vertically, horizontally, or diagonally casts a Magical Chain of glowing links. Matches formed after blocks fall advance to Double Chain, Triple Chain, and stronger calls, with a major score boost from the third stage onward. The game ends when blocks rise beyond the top.",
     controls: "Controls",
-    keyboard: "PC: Move with ←/→, soft drop with ↓, rotate with Z/X, hard drop with Space, hold with H, use Slow Time with S, target the horizontal laser with L, and pause with P. While targeting, choose a row with ↑/↓ and fire with Enter. In a one-cell-wide shaft, rotate to flip a vertical pair by 180 degrees.",
+    keyboard: "PC: Move with ←/→, soft drop with ↓, rotate with Z/X, hard drop with Space, hold with H, use Slow Time with S, target Chain Wave with L, and pause with P. While targeting Chain Wave, choose a row with ↑/↓ and cast with Enter. In a one-cell-wide shaft, rotate to flip a vertical pair by 180 degrees.",
     easy: "Easy",
     normal: "Normal",
-    hard: "Hard",
     easyDetail: "4 colors · slow",
     normalDetail: "5 colors · standard",
-    hardDetail: "6 colors · fast",
     start: "Start game",
     restart: "Restart",
     pause: "Pause",
@@ -272,33 +267,33 @@ const copy = {
     rotate: "Rotate clockwise",
     down: "Soft drop",
     hardDrop: "Hard drop",
-    bombBlast: (count: number) => `Bomb blast! Destroyed ${count} blocks.`,
-    superBombBlast: (count: number) => `Super Bomb! Destroyed ${count} blocks in a 5×5 area.`,
-    laser: "Horizontal laser",
+    bombBlast: (count: number) => `Chain Bomb! Destroyed ${count} blocks.`,
+    superBombBlast: (count: number) => `Grand Chain Bomb! Destroyed ${count} blocks in a 5×5 area.`,
+    laser: "Chain Wave",
     laserReady: "Ready",
     laserCharging: "Charge by clearing blocks",
     laserProgress: (count: number) => `${count} blocks left`,
     laserSelect: "Select a row to clear. Use Up/Down and Enter on a keyboard.",
     laserCancel: "Cancel selection",
-    laserRow: (row: number) => `Horizontal laser fired at row ${row}!`,
-    laserMiss: "The horizontal laser was fired at an empty row.",
-    verticalLaserBlast: (count: number) => `Vertical laser activated! Destroyed ${count} blocks.`,
-    superVerticalLaserBlast: (count: number) => `Super Vertical Laser! Destroyed ${count} blocks across three columns.`,
-    horizontalLaserBlast: (count: number) => `Horizontal laser block activated! Destroyed ${count} blocks.`,
-    superHorizontalLaserBlast: (count: number) => `Super Horizontal Laser! Destroyed ${count} blocks across three rows.`,
-    colorBreakerBlast: (count: number) => `Color Breaker activated! Destroyed ${count} matching-color blocks.`,
-    superColorBreakerBlast: (count: number) => `Super Color Breaker activated! Destroyed all ${count} color blocks.`,
+    laserRow: (row: number) => `Chain Wave cast at row ${row}!`,
+    laserMiss: "Chain Wave was cast at an empty row.",
+    verticalLaserBlast: (count: number) => `Chain Pillar! Destroyed ${count} blocks.`,
+    superVerticalLaserBlast: (count: number) => `Trinity Pillar! Destroyed ${count} blocks across three columns.`,
+    horizontalLaserBlast: (count: number) => `Chain Wave! Destroyed ${count} blocks.`,
+    superHorizontalLaserBlast: (count: number) => `Trinity Wave! Destroyed ${count} blocks across three rows.`,
+    colorBreakerBlast: (count: number) => `Prism Break! Destroyed ${count} matching-color blocks.`,
+    superColorBreakerBlast: (count: number) => `Prism Nova! Destroyed all ${count} color blocks.`,
     rewardCreated: (reward: string) => `${reward} reward created! Set up your next chain with it.`,
     itemHelpTitle: "Special Blocks & Abilities",
     itemHelpHint: "Hover over an icon or tap it to see the full description.",
-    bombItem: "Bomb",
-    bombDetail: "Created as a reward when horizontal and vertical lines clear together. Activates when an orthogonally adjacent block is cleared, destroying a 3×3 area. Orthogonally touching bombs automatically trigger a 5×5 Super Bomb.",
-    verticalLaserItem: "Vertical Laser",
-    verticalLaserDetail: "Created as a reward for clearing five or more blocks vertically. Activates when an orthogonally adjacent block is cleared and erases its column. Orthogonally touching vertical lasers automatically trigger a three-column Super Vertical Laser.",
-    horizontalLaserItem: "Horizontal Laser",
-    horizontalLaserDetail: "Appears after a horizontal five-block clear or as an occasional falling block. It erases its row when an adjacent block clears. Two touching horizontal lasers automatically erase three rows. The charged ability can also erase one selected row.",
-    colorBreakerItem: "Color Breaker",
-    colorBreakerDetail: "Appears after a diagonal five-block clear or, very rarely, as a falling block. An adjacent color clear erases that color; a blast or laser erases a random color. Touching Color Breakers erase every color block.",
+    bombItem: "Chain Bomb",
+    bombDetail: "Created as a reward when horizontal and vertical lines clear together. It destroys a 3×3 area when an orthogonally adjacent block clears. Two touching Chain Bombs automatically cast a 5×5 Grand Chain Bomb.",
+    verticalLaserItem: "Chain Pillar",
+    verticalLaserDetail: "Created as a reward for clearing five or more blocks vertically. It erases its column when an orthogonally adjacent block clears. Two touching Chain Pillars automatically cast a three-column Trinity Pillar.",
+    horizontalLaserItem: "Chain Wave",
+    horizontalLaserDetail: "Appears after a horizontal five-block clear or as an occasional falling block. It erases its row when an adjacent block clears. Two touching Chain Waves automatically cast a three-row Trinity Wave. The charged ability can also erase one selected row.",
+    colorBreakerItem: "Prism Break",
+    colorBreakerDetail: "Appears after a diagonal five-block clear or, very rarely, as a falling block. An adjacent color clear erases that color; Chain Bomb, Chain Pillar, or Chain Wave erases a random color. Touching Prism Breaks casts Prism Nova to erase every color block.",
     slowTimeItem: "Slow Time",
     slowTimeDetail: "Halves the falling speed for 10 seconds. Clear 16 blocks to recharge it.",
     holdItem: "Hold",
@@ -1323,7 +1318,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
           </div>
 
           <div className="color-chain-difficulties" aria-label="Difficulty">
-            {(["easy", "normal", "hard"] as Difficulty[]).map((entry) => (
+            {(["easy", "normal"] as Difficulty[]).map((entry) => (
               <button
                 className={difficulty === entry ? "is-selected" : ""}
                 disabled={status === "playing" || status === "resolving" || status === "paused"}
@@ -1332,7 +1327,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
                 onClick={() => startGame(entry)}
               >
                 <strong>{t[entry]}</strong>
-                <small>{t[`${entry}Detail` as "easyDetail" | "normalDetail" | "hardDetail"]}</small>
+                <small>{t[`${entry}Detail` as "easyDetail" | "normalDetail"]}</small>
               </button>
             ))}
           </div>

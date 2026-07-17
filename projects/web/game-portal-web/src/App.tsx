@@ -58,7 +58,6 @@ const yonmaiMahjongId = "yonmai-mahjong";
 const yonmaiAndroidUrl = "https://play.google.com/store/apps/details?id=com.yonmai.mahjong";
 const colorChainMascotTestId = "colorChainMascotTest";
 const colorChainMascotTestPath = "/test/color-chain-mascot/";
-const colorChainMascotTestAliases = [colorChainMascotTestPath, "/text/color-chain-mascot/"];
 const colorChainMascotTestText = {
   ja: {
     title: "クロマのマジカルチェイン",
@@ -76,7 +75,7 @@ function getSelectedGameId() {
     return legacyQueryId;
   }
 
-  if (colorChainMascotTestAliases.includes(window.location.pathname)) {
+  if (window.location.pathname === colorChainMascotTestPath) {
     return colorChainMascotTestId;
   }
 

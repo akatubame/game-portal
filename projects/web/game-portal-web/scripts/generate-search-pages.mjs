@@ -167,31 +167,28 @@ for (const game of portalGames) {
 }
 
 const mascotTestPath = "/test/color-chain-mascot/";
-const mascotTestPaths = [mascotTestPath, "/text/color-chain-mascot/"];
 const mascotTestCanonicalUrl = `${productionOrigin}${mascotTestPath}`;
 const mascotTestTitle = "Chroma's Magical Chain Test | Game Shelf";
 const mascotTestDescription = "A publicly accessible test version of Magical Chain for mascot character and presentation experiments.";
 
-for (const pathname of mascotTestPaths) {
-  let html = baseHtml.replace(/<html\s+lang=["'][^"']+["']>/i, '<html lang="en">');
-  html = html.replace(/<title>[^<]*<\/title>/i, `<title>${htmlEscape(mascotTestTitle)}</title>`);
-  html = replaceMeta(html, "name", "description", mascotTestDescription);
-  html = replaceMeta(html, "name", "robots", "noindex,nofollow");
-  html = replaceMeta(html, "property", "og:title", mascotTestTitle);
-  html = replaceMeta(html, "property", "og:description", mascotTestDescription);
-  html = replaceMeta(html, "property", "og:url", mascotTestCanonicalUrl);
-  html = replaceMeta(html, "property", "og:image", `${productionOrigin}/screenshots/color-chain.svg`);
-  html = replaceMeta(html, "name", "twitter:title", mascotTestTitle);
-  html = replaceMeta(html, "name", "twitter:description", mascotTestDescription);
-  html = replaceMeta(html, "name", "twitter:image", `${productionOrigin}/screenshots/color-chain.svg`);
-  html = html.replace(
-    /<link\s+rel=["']canonical["'][^>]*>/i,
-    `<link rel="canonical" href="${htmlEscape(mascotTestCanonicalUrl)}" />`
-  );
+let mascotTestHtml = baseHtml.replace(/<html\s+lang=["'][^"']+["']>/i, '<html lang="en">');
+mascotTestHtml = mascotTestHtml.replace(/<title>[^<]*<\/title>/i, `<title>${htmlEscape(mascotTestTitle)}</title>`);
+mascotTestHtml = replaceMeta(mascotTestHtml, "name", "description", mascotTestDescription);
+mascotTestHtml = replaceMeta(mascotTestHtml, "name", "robots", "noindex,nofollow");
+mascotTestHtml = replaceMeta(mascotTestHtml, "property", "og:title", mascotTestTitle);
+mascotTestHtml = replaceMeta(mascotTestHtml, "property", "og:description", mascotTestDescription);
+mascotTestHtml = replaceMeta(mascotTestHtml, "property", "og:url", mascotTestCanonicalUrl);
+mascotTestHtml = replaceMeta(mascotTestHtml, "property", "og:image", `${productionOrigin}/screenshots/color-chain.svg`);
+mascotTestHtml = replaceMeta(mascotTestHtml, "name", "twitter:title", mascotTestTitle);
+mascotTestHtml = replaceMeta(mascotTestHtml, "name", "twitter:description", mascotTestDescription);
+mascotTestHtml = replaceMeta(mascotTestHtml, "name", "twitter:image", `${productionOrigin}/screenshots/color-chain.svg`);
+mascotTestHtml = mascotTestHtml.replace(
+  /<link\s+rel=["']canonical["'][^>]*>/i,
+  `<link rel="canonical" href="${htmlEscape(mascotTestCanonicalUrl)}" />`
+);
 
-  const outputDirectory = resolve(distRoot, pathname.replace(/^\/+|\/+$/g, ""));
-  mkdirSync(outputDirectory, { recursive: true });
-  writeFileSync(resolve(outputDirectory, "index.html"), html, "utf8");
-}
+const mascotTestOutputDirectory = resolve(distRoot, mascotTestPath.replace(/^\/+|\/+$/g, ""));
+mkdirSync(mascotTestOutputDirectory, { recursive: true });
+writeFileSync(resolve(mascotTestOutputDirectory, "index.html"), mascotTestHtml, "utf8");
 
-console.log(`Generated ${portalGames.length} search landing pages, ${mascotTestPaths.length} test aliases, and ${sitemapPaths.length} sitemap URLs.`);
+console.log(`Generated ${portalGames.length} search landing pages, 1 mascot test page, and ${sitemapPaths.length} sitemap URLs.`);
