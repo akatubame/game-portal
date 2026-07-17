@@ -101,6 +101,18 @@
   filter: drop-shadow(0 0 4px #ff7a35);
 }
 
+.color-chain-cell.is-vertical-laser,
+.color-chain-next-pair i.is-vertical-laser {
+  background: linear-gradient(135deg, #082a4a, #1ca7d9 42%, #d8fbff 50%, #1ca7d9 58%, #082a4a);
+  border-color: #9cf4ff;
+}
+
+.color-chain-cell.is-vertical-laser::after,
+.color-chain-next-pair i.is-vertical-laser::after {
+  color: #f4feff;
+  filter: drop-shadow(0 0 4px #67e8ff);
+}
+
 .color-chain-cell[class*=" is-"]:not(.is-ghost) {
   border-color: rgba(255, 255, 255, 0.35);
   border-radius: 29%;
@@ -360,28 +372,39 @@
 }
 
 .color-chain-laser-selector,
-.color-chain-laser-beams {
+.color-chain-horizontal-laser-beams,
+.color-chain-vertical-laser-beams {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
   inset: 12px;
   pointer-events: none;
   position: absolute;
   z-index: 8;
 }
 
+.color-chain-laser-selector,
+.color-chain-horizontal-laser-beams {
+  grid-template-rows: repeat(16, 1fr);
+}
+
+.color-chain-vertical-laser-beams {
+  grid-template-columns: repeat(8, 1fr);
+}
+
 .color-chain-laser-selector button {
-  align-items: flex-start;
+  align-items: center;
   background: rgba(54, 199, 255, 0.05);
   border: 1px solid rgba(113, 224, 255, 0.18);
   color: #dffaff;
   display: flex;
-  justify-content: center;
-  padding-top: 8px;
+  justify-content: flex-start;
+  min-height: 0;
+  padding: 0 0 0 5px;
   pointer-events: auto;
 }
 
 .color-chain-laser-selector button:hover,
-.color-chain-laser-selector button:focus-visible {
+.color-chain-laser-selector button:focus-visible,
+.color-chain-laser-selector button.is-selected {
   background: linear-gradient(rgba(192, 249, 255, 0.32), rgba(54, 199, 255, 0.12));
   border-color: #bcefff;
   outline: 2px solid #fff;
@@ -392,20 +415,32 @@
   background: rgba(3, 17, 27, 0.8);
   border-radius: 999px;
   display: grid;
-  height: 24px;
+  font-size: 0.62rem;
+  height: 18px;
   place-items: center;
-  width: 24px;
+  width: 18px;
 }
 
-.color-chain-laser-beams i.is-active {
-  animation: color-chain-laser 300ms ease-out infinite alternate;
+.color-chain-horizontal-laser-beams i.is-active {
+  animation: color-chain-horizontal-laser 300ms ease-out infinite alternate;
   background: linear-gradient(90deg, transparent, #9cf4ff 30%, #fff 50%, #9cf4ff 70%, transparent);
   box-shadow: 0 0 22px #59dfff;
 }
 
-@keyframes color-chain-laser {
+.color-chain-vertical-laser-beams i.is-active {
+  animation: color-chain-vertical-laser 300ms ease-out infinite alternate;
+  background: linear-gradient(180deg, transparent, #9cf4ff 30%, #fff 50%, #9cf4ff 70%, transparent);
+  box-shadow: 0 0 22px #59dfff;
+}
+
+@keyframes color-chain-horizontal-laser {
   from { opacity: 0.6; transform: scaleX(0.65); }
   to { opacity: 1; transform: scaleX(1); }
+}
+
+@keyframes color-chain-vertical-laser {
+  from { opacity: 0.6; transform: scaleY(0.65); }
+  to { opacity: 1; transform: scaleY(1); }
 }
 
 .color-chain-item-help {
@@ -567,7 +602,8 @@
   }
 
   .color-chain-laser-selector,
-  .color-chain-laser-beams {
+  .color-chain-horizontal-laser-beams,
+  .color-chain-vertical-laser-beams {
     inset: 7px;
   }
 
@@ -609,7 +645,8 @@
 @media (prefers-reduced-motion: reduce) {
   .color-chain-cell.is-clearing,
   .color-chain-burst,
-  .color-chain-laser-beams i.is-active {
+  .color-chain-horizontal-laser-beams i.is-active,
+  .color-chain-vertical-laser-beams i.is-active {
     animation: none;
   }
 }

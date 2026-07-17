@@ -14,8 +14,10 @@ const logic = await import(`data:text/javascript;base64,${Buffer.from(compiled).
 
 const {
   BOMB_BLOCK,
+  VERTICAL_LASER_BLOCK,
   BOARD_COLUMNS,
   TOTAL_ROWS,
+  addLaserCharge,
   addSlowCharge,
   applyGravity,
   applyGravityStep,
@@ -24,7 +26,9 @@ const {
   createEmptyBoard,
   createRandomPair,
   findBombBlastCells,
-  findLaserClearCells,
+  findHorizontalLaserClearCells,
+  findSpecialClearCells,
+  findVerticalLaserClearCells,
   findMatches,
   getPairCells,
   mergePair,
@@ -102,6 +106,16 @@ const generatedBombPair = createRandomPair(4, (() => {
 })(), 1);
 assert.equal(generatedBombPair.colors.filter((token) => token === BOMB_BLOCK).length, 1, "a special pair contains one bomb");
 
+const generatedVerticalLaserPair = createRandomPair(4, (() => {
+  const values = [0, 0.3, 0, 0.9];
+  return () => values.shift() ?? 0;
+})(), 0, 1);
+assert.equal(
+  generatedVerticalLaserPair.colors.filter((token) => token === VERTICAL_LASER_BLOCK).length,
+  1,
+  "a special pair can contain one vertical laser",
+);
+
 const bombBoard = createEmptyBoard();
 for (let row = 8; row <= 10; row += 1) {
   for (let column = 2; column <= 4; column += 1) bombBoard[row][column] = "coral";
@@ -130,15 +144,29 @@ const bombLine = createEmptyBoard();
 for (let column = 0; column < 4; column += 1) bombLine[12][column] = BOMB_BLOCK;
 assert.equal(findMatches(bombLine).cells.size, 0, "bombs never form a color match");
 
-const laserBoard = createEmptyBoard();
-laserBoard[8][3] = "coral";
-laserBoard[9][3] = BOMB_BLOCK;
-laserBoard[10][3] = "gold";
-laserBoard[9][4] = "mint";
-const laserClear = findLaserClearCells(laserBoard, 3);
-assert.equal(laserClear.bombs.size, 1, "a laser triggers a bomb in its column");
-assert.ok(laserClear.cells.has("9:4"), "laser-triggered bomb clears an adjacent block");
-assert.equal(findLaserClearCells(laserBoard, -1).cells.size, 0, "an invalid laser column clears nothing");
+const verticalLaserBoard = createEmptyBoard();
+verticalLaserBoard[8][3] = "coral";
+verticalLaserBoard[9][3] = VERTICAL_LASER_BLOCK;
+verticalLaserBoard[10][3] = BOMB_BLOCK;
+verticalLaserBoard[10][4] = "mint";
+const verticalLaserClear = findVerticalLaserClearCells(verticalLaserBoard);
+assert.equal(verticalLaserClear.verticalLasers.size, 1, "a vertical laser special block triggers once");
+assert.equal(verticalLaserClear.bombs.size, 1, "a vertical laser triggers a bomb in its column");
+assert.ok(verticalLaserClear.cells.has("10:4"), "a bomb hit by a vertical laser clears an adjacent block");
+
+const horizontalLaserBoard = createEmptyBoard();
+horizontalLaserBoard[12][1] = "coral";
+horizontalLaserBoard[12][3] = BOMB_BLOCK;
+horizontalLaserBoard[11][3] = "gold";
+horizontalLaserBoard[12][6] = VERTICAL_LASER_BLOCK;
+horizontalLaserBoard[9][6] = "sky";
+const horizontalLaserClear = findHorizontalLaserClearCells(horizontalLaserBoard, 12);
+assert.equal(horizontalLaserClear.bombs.size, 1, "a horizontal laser triggers a bomb in its row");
+assert.equal(horizontalLaserClear.verticalLasers.size, 1, "a horizontal laser triggers a vertical-laser block in its row");
+assert.ok(horizontalLaserClear.cells.has("11:3"), "the triggered bomb expands the horizontal laser clear area");
+assert.ok(horizontalLaserClear.cells.has("9:6"), "the triggered vertical laser clears its column");
+assert.equal(findHorizontalLaserClearCells(horizontalLaserBoard, -1).cells.size, 0, "an invalid laser row clears nothing");
+assert.equal(findSpecialClearCells(horizontalLaserBoard).verticalLasers.size, 1, "all landed special blocks are resolved together");
 
 const shaftBoard = createEmptyBoard();
 const shaftRow = TOTAL_ROWS - 4;
@@ -177,5 +205,9 @@ assert.equal(addSlowCharge(0, 16), 100, "clearing 16 blocks fills the Slow Time 
 assert.equal(addSlowCharge(80, 8), 100, "Slow Time charge is capped at 100 percent");
 assert.equal(addSlowCharge(40, 8, true), 40, "clears during Slow Time do not refill the active gauge");
 assert.equal(addSlowCharge(-10, 0), 0, "Slow Time charge never drops below zero");
+
+assert.equal(addLaserCharge(0, 20, 20), 100, "clearing the target block count fills the horizontal laser gauge");
+assert.equal(addLaserCharge(50, 5, 20), 75, "horizontal laser charge follows cleared block count");
+assert.equal(addLaserCharge(90, 5, 20), 100, "horizontal laser charge is capped at 100 percent");
 
 console.log("Color Chain logic: all tests passed");

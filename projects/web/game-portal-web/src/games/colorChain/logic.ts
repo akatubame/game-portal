@@ -5,9 +5,10 @@ export const TOTAL_ROWS = VISIBLE_ROWS + HIDDEN_ROWS;
 
 export const blockColors = ["coral", "gold", "mint", "sky", "violet", "rose"] as const;
 export const BOMB_BLOCK = "bomb" as const;
+export const VERTICAL_LASER_BLOCK = "vertical-laser" as const;
 
 export type BlockColor = (typeof blockColors)[number];
-export type BlockToken = BlockColor | typeof BOMB_BLOCK;
+export type BlockToken = BlockColor | typeof BOMB_BLOCK | typeof VERTICAL_LASER_BLOCK;
 export type BoardCell = BlockToken | null;
 export type Board = BoardCell[][];
 export type Orientation = 0 | 1 | 2 | 3;
@@ -54,16 +55,26 @@ export function createEmptyBoard(): Board {
 }
 
 export function isBlockColor(token: BoardCell): token is BlockColor {
-  return token !== null && token !== BOMB_BLOCK;
+  return token !== null && token !== BOMB_BLOCK && token !== VERTICAL_LASER_BLOCK;
 }
 
-export function createRandomPair(colorCount: number, random = Math.random, bombChance = 0): FallingPair {
+export function createRandomPair(
+  colorCount: number,
+  random = Math.random,
+  bombChance = 0,
+  verticalLaserChance = 0
+): FallingPair {
   const availableColors = blockColors.slice(0, Math.max(1, Math.min(colorCount, blockColors.length)));
   const randomColor = () => availableColors[Math.floor(random() * availableColors.length)] ?? availableColors[0];
 
   const colors: [BlockToken, BlockToken] = [randomColor(), randomColor()];
-  if (random() < Math.max(0, Math.min(1, bombChance))) {
+  const normalizedBombChance = Math.max(0, Math.min(1, bombChance));
+  const normalizedLaserChance = Math.max(0, Math.min(1 - normalizedBombChance, verticalLaserChance));
+  const specialRoll = random();
+  if (specialRoll < normalizedBombChance) {
     colors[random() < 0.5 ? 0 : 1] = BOMB_BLOCK;
+  } else if (specialRoll < normalizedBombChance + normalizedLaserChance) {
+    colors[random() < 0.5 ? 0 : 1] = VERTICAL_LASER_BLOCK;
   }
 
   return {
@@ -86,6 +97,11 @@ export function preparePairForSpawn(pair: FallingPair): FallingPair {
 export function addSlowCharge(current: number, clearedBlocks: number, active = false, chargePerBlock = 6.25) {
   if (active || clearedBlocks <= 0) return Math.max(0, Math.min(100, current));
   return Math.max(0, Math.min(100, current + clearedBlocks * chargePerBlock));
+}
+
+export function addLaserCharge(current: number, clearedBlocks: number, blocksToReady: number) {
+  if (clearedBlocks <= 0 || blocksToReady <= 0) return Math.max(0, Math.min(100, current));
+  return Math.max(0, Math.min(100, current + (clearedBlocks * 100) / blocksToReady));
 }
 
 export function getPairCells(pair: FallingPair): [PairCell, PairCell] {
@@ -249,55 +265,96 @@ function parseCellKey(key: string) {
 export type SpecialClearResult = {
   cells: Set<string>;
   bombs: Set<string>;
+  verticalLasers: Set<string>;
 };
 
-export function findBombBlastCells(board: Board, initialBombs?: Iterable<string>): SpecialClearResult {
-  const queued = initialBombs
-    ? [...initialBombs]
-    : board.flatMap((row, rowIndex) => row.flatMap((cell, columnIndex) => (
-      cell === BOMB_BLOCK ? [cellKey(rowIndex, columnIndex)] : []
-    )));
+type QueuedSpecial = { key: string; token: typeof BOMB_BLOCK | typeof VERTICAL_LASER_BLOCK };
+
+function findSpecialCascade(board: Board, initialCells: Iterable<string>, initialSpecials: Iterable<QueuedSpecial>): SpecialClearResult {
   const cells = new Set<string>();
   const bombs = new Set<string>();
+  const verticalLasers = new Set<string>();
+  const queued = [...initialSpecials];
+
+  const queueCell = (key: string) => {
+    const { row, column } = parseCellKey(key);
+    if (!isInside(row, column) || board[row][column] === null) return;
+    cells.add(key);
+    const token = board[row][column];
+    if (token === BOMB_BLOCK && !bombs.has(key)) queued.push({ key, token });
+    if (token === VERTICAL_LASER_BLOCK && !verticalLasers.has(key)) queued.push({ key, token });
+  };
+
+  for (const key of initialCells) queueCell(key);
 
   while (queued.length > 0) {
-    const bombKey = queued.shift();
-    if (!bombKey || bombs.has(bombKey)) continue;
-    const { row, column } = parseCellKey(bombKey);
-    if (!isInside(row, column) || board[row][column] !== BOMB_BLOCK) continue;
-    bombs.add(bombKey);
+    const special = queued.shift();
+    if (!special) continue;
+    const { row, column } = parseCellKey(special.key);
+    if (!isInside(row, column) || board[row][column] !== special.token) continue;
 
-    for (let rowOffset = -1; rowOffset <= 1; rowOffset += 1) {
-      for (let columnOffset = -1; columnOffset <= 1; columnOffset += 1) {
-        const targetRow = row + rowOffset;
-        const targetColumn = column + columnOffset;
-        if (!isInside(targetRow, targetColumn) || board[targetRow][targetColumn] === null) continue;
-        const targetKey = cellKey(targetRow, targetColumn);
-        cells.add(targetKey);
-        if (board[targetRow][targetColumn] === BOMB_BLOCK && !bombs.has(targetKey)) queued.push(targetKey);
+    if (special.token === BOMB_BLOCK) {
+      if (bombs.has(special.key)) continue;
+      bombs.add(special.key);
+      for (let rowOffset = -1; rowOffset <= 1; rowOffset += 1) {
+        for (let columnOffset = -1; columnOffset <= 1; columnOffset += 1) {
+          queueCell(cellKey(row + rowOffset, column + columnOffset));
+        }
+      }
+    } else {
+      if (verticalLasers.has(special.key)) continue;
+      verticalLasers.add(special.key);
+      for (let targetRow = 0; targetRow < TOTAL_ROWS; targetRow += 1) {
+        queueCell(cellKey(targetRow, column));
       }
     }
   }
 
-  return { cells, bombs };
+  return { cells, bombs, verticalLasers };
 }
 
-export function findLaserClearCells(board: Board, column: number): SpecialClearResult {
-  const cells = new Set<string>();
-  const triggeredBombs = new Set<string>();
-  if (column < 0 || column >= BOARD_COLUMNS) return { cells, bombs: triggeredBombs };
+function collectSpecials(board: Board, token?: typeof BOMB_BLOCK | typeof VERTICAL_LASER_BLOCK) {
+  return board.flatMap((row, rowIndex) => row.flatMap((cell, columnIndex) => (
+    (cell === BOMB_BLOCK || cell === VERTICAL_LASER_BLOCK) && (!token || cell === token)
+      ? [{ key: cellKey(rowIndex, columnIndex), token: cell }]
+      : []
+  )));
+}
 
-  for (let row = 0; row < TOTAL_ROWS; row += 1) {
+export function findSpecialClearCells(board: Board): SpecialClearResult {
+  return findSpecialCascade(board, [], collectSpecials(board));
+}
+
+export function findBombBlastCells(board: Board, initialBombs?: Iterable<string>): SpecialClearResult {
+  const specials = initialBombs
+    ? [...initialBombs].map((key) => ({ key, token: BOMB_BLOCK as typeof BOMB_BLOCK }))
+    : collectSpecials(board, BOMB_BLOCK);
+  return findSpecialCascade(board, [], specials);
+}
+
+export function findVerticalLaserClearCells(board: Board, initialLasers?: Iterable<string>): SpecialClearResult {
+  const specials = initialLasers
+    ? [...initialLasers].map((key) => ({ key, token: VERTICAL_LASER_BLOCK as typeof VERTICAL_LASER_BLOCK }))
+    : collectSpecials(board, VERTICAL_LASER_BLOCK);
+  return findSpecialCascade(board, [], specials);
+}
+
+export function findHorizontalLaserClearCells(board: Board, row: number): SpecialClearResult {
+  const empty = { cells: new Set<string>(), bombs: new Set<string>(), verticalLasers: new Set<string>() };
+  if (row < 0 || row >= TOTAL_ROWS) return empty;
+
+  const cells: string[] = [];
+  const specials: QueuedSpecial[] = [];
+
+  for (let column = 0; column < BOARD_COLUMNS; column += 1) {
     const cell = board[row][column];
     if (cell === null) continue;
     const key = cellKey(row, column);
-    cells.add(key);
-    if (cell === BOMB_BLOCK) triggeredBombs.add(key);
+    cells.push(key);
+    if (cell === BOMB_BLOCK || cell === VERTICAL_LASER_BLOCK) specials.push({ key, token: cell });
   }
 
-  const blast = findBombBlastCells(board, triggeredBombs);
-  blast.cells.forEach((key) => cells.add(key));
-  return { cells, bombs: blast.bombs };
+  return findSpecialCascade(board, cells, specials);
 }
 
 export function hasBlocksAboveTop(board: Board) {

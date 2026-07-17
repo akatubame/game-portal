@@ -18,6 +18,7 @@ import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import {
   applyGravityStep,
+  addLaserCharge,
   addSlowCharge,
   BOMB_BLOCK,
   BOARD_COLUMNS,
@@ -28,8 +29,8 @@ import {
   createEmptyBoard,
   createRandomPair,
   findMatches,
-  findBombBlastCells,
-  findLaserClearCells,
+  findHorizontalLaserClearCells,
+  findSpecialClearCells,
   getGhostPair,
   getPairCells,
   hasBlocksAboveTop,
@@ -38,6 +39,8 @@ import {
   movePair,
   preparePairForSpawn,
   rotatePair,
+  TOTAL_ROWS,
+  VERTICAL_LASER_BLOCK,
   VISIBLE_ROWS,
   type BlockToken,
   type Board,
@@ -62,17 +65,17 @@ const BEST_KEY = "game-shelf-color-chain-best";
 const CLEAR_DELAY = 220;
 const FALL_DELAY = 130;
 const GRAVITY_STEP_DELAY = 36;
-const LASER_TICK = 250;
 const BOMB_BLOCK_SCORE = 5;
 const BOMB_TRIGGER_SCORE = 25;
 const LASER_BLOCK_SCORE = 4;
+const VERTICAL_LASER_TRIGGER_SCORE = 20;
 const SLOW_DURATION = 10;
 const SLOW_TICK = 250;
 
-const difficultySettings: Record<Difficulty, { colors: number; baseSpeed: number; bombChance: number; bombPity: number; laserSeconds: number }> = {
-  easy: { colors: 4, baseSpeed: 860, bombChance: 0.09, bombPity: 11, laserSeconds: 35 },
-  normal: { colors: 5, baseSpeed: 710, bombChance: 0.06, bombPity: 14, laserSeconds: 40 },
-  hard: { colors: 6, baseSpeed: 590, bombChance: 0.04, bombPity: 17, laserSeconds: 45 }
+const difficultySettings: Record<Difficulty, { colors: number; baseSpeed: number; bombChance: number; verticalLaserChance: number; specialPity: number; laserBlocks: number }> = {
+  easy: { colors: 4, baseSpeed: 860, bombChance: 0.07, verticalLaserChance: 0.05, specialPity: 10, laserBlocks: 16 },
+  normal: { colors: 5, baseSpeed: 710, bombChance: 0.05, verticalLaserChance: 0.04, specialPity: 13, laserBlocks: 20 },
+  hard: { colors: 6, baseSpeed: 590, bombChance: 0.035, verticalLaserChance: 0.03, specialPity: 16, laserBlocks: 24 }
 };
 
 const symbols: Record<BlockToken, string> = {
@@ -82,7 +85,8 @@ const symbols: Record<BlockToken, string> = {
   sky: "★",
   violet: "＋",
   rose: "✦",
-  bomb: "✹"
+  bomb: "✹",
+  "vertical-laser": "↕"
 };
 
 const copy = {
@@ -102,7 +106,7 @@ const copy = {
     howTo: "遊び方",
     rules: "2個1組のブロックを移動・回転して積みます。着地後、支えのないブロックは個別に下まで落下します。同色が縦・横・斜めに4個以上並ぶと一括消去。落下後に再び揃うと連鎖ボーナスです。ブロックが最上段を超えるとゲームオーバーです。",
     controls: "操作",
-    keyboard: "PC: ←→で移動、↓で下降、Z/Xで回転、Spaceで即落下、Hでホールド、Sでスロータイム、Lでレーザー、Pで一時停止。1列幅の縦穴では、回転入力でブロックの上下を反転できます。",
+    keyboard: "PC: ←→で移動、↓で下降、Z/Xで回転、Spaceで即落下、Hでホールド、Sでスロータイム、Lで横レーザー、Pで一時停止。レーザー照準中は↑↓で行を選び、Enterで発射します。1列幅の縦穴では、回転入力でブロックの上下を反転できます。",
     easy: "初級",
     normal: "中級",
     hard: "上級",
@@ -128,15 +132,17 @@ const copy = {
     down: "1段下げる",
     hardDrop: "即落下",
     bombBlast: (count: number) => `爆弾が炸裂！ ${count}個のブロックを破壊しました。`,
-    laser: "縦レーザー",
+    laser: "横レーザー",
     laserReady: "発射可能",
-    laserCharging: "充填中",
-    laserSelect: "消したい列を選んでください。",
+    laserCharging: "ブロック消去で充填",
+    laserProgress: (count: number) => `あと${count}個`,
+    laserSelect: "消したい行を選んでください。上下キーで移動し、Enterで発射できます。",
     laserCancel: "選択をやめる",
-    laserColumn: (column: number) => `${column}列目へレーザー発射！`,
-    laserMiss: "空の列にレーザーを発射しました。",
-    bombHelp: "爆弾は着地後に周囲3×3を破壊します。レーザーはゲージが満タンになると縦1列を消去できます。",
-    selectColumn: (column: number) => `${column}列目を消す`,
+    laserRow: (row: number) => `${row}行目へ横レーザー発射！`,
+    laserMiss: "空の行に横レーザーを発射しました。",
+    verticalLaserBlast: (count: number) => `縦レーザーが発動！ ${count}個のブロックを破壊しました。`,
+    bombHelp: "爆弾ブロックは着地後に周囲3×3を破壊し、縦レーザーブロックは着地した列を消去します。互いを巻き込むと連動して発動します。横レーザーはブロック消去数でゲージがたまり、選んだ横1行を消去できます。",
+    selectRow: (row: number) => `${row}行目を消す`,
     slow: "スロータイム",
     slowReady: "使用可能",
     slowCharging: "消去で充填",
@@ -166,7 +172,7 @@ const copy = {
     howTo: "How to Play",
     rules: "Move and rotate each connected pair. After landing, unsupported blocks fall independently. Four or more matching colors in a vertical, horizontal, or diagonal line clear together. New matches formed after blocks fall create chain bonuses. The game ends when blocks rise beyond the top.",
     controls: "Controls",
-    keyboard: "PC: Move with ←/→, soft drop with ↓, rotate with Z/X, hard drop with Space, hold with H, use Slow Time with S, target the laser with L, and pause with P. In a one-cell-wide shaft, rotate to flip a vertical pair by 180 degrees.",
+    keyboard: "PC: Move with ←/→, soft drop with ↓, rotate with Z/X, hard drop with Space, hold with H, use Slow Time with S, target the horizontal laser with L, and pause with P. While targeting, choose a row with ↑/↓ and fire with Enter. In a one-cell-wide shaft, rotate to flip a vertical pair by 180 degrees.",
     easy: "Easy",
     normal: "Normal",
     hard: "Hard",
@@ -192,15 +198,17 @@ const copy = {
     down: "Soft drop",
     hardDrop: "Hard drop",
     bombBlast: (count: number) => `Bomb blast! Destroyed ${count} blocks.`,
-    laser: "Column laser",
+    laser: "Horizontal laser",
     laserReady: "Ready",
-    laserCharging: "Charging",
-    laserSelect: "Select a column to clear.",
+    laserCharging: "Charge by clearing blocks",
+    laserProgress: (count: number) => `${count} blocks left`,
+    laserSelect: "Select a row to clear. Use Up/Down and Enter on a keyboard.",
     laserCancel: "Cancel selection",
-    laserColumn: (column: number) => `Laser fired at column ${column}!`,
-    laserMiss: "The laser was fired at an empty column.",
-    bombHelp: "Bombs destroy a 3×3 area after landing. When the laser gauge is full, it can clear an entire column.",
-    selectColumn: (column: number) => `Clear column ${column}`,
+    laserRow: (row: number) => `Horizontal laser fired at row ${row}!`,
+    laserMiss: "The horizontal laser was fired at an empty row.",
+    verticalLaserBlast: (count: number) => `Vertical laser activated! Destroyed ${count} blocks.`,
+    bombHelp: "Bomb blocks destroy a 3×3 area after landing. Vertical-laser blocks clear the column where they land, and special blocks can trigger one another. Clear blocks to charge the horizontal laser, then use it to erase one selected row.",
+    selectRow: (row: number) => `Clear row ${row}`,
     slow: "Slow Time",
     slowReady: "Ready",
     slowCharging: "Charge by clearing",
@@ -254,7 +262,9 @@ export function ColorChain({ onBack }: ColorChainProps) {
   const [message, setMessage] = useState<string>(t.idle);
   const [laserCharge, setLaserCharge] = useState(0);
   const [laserTargeting, setLaserTargeting] = useState(false);
-  const [laserColumn, setLaserColumn] = useState<number | null>(null);
+  const [laserTargetRow, setLaserTargetRow] = useState(HIDDEN_ROWS + VISIBLE_ROWS - 1);
+  const [horizontalLaserRow, setHorizontalLaserRow] = useState<number | null>(null);
+  const [verticalLaserColumns, setVerticalLaserColumns] = useState<number[]>([]);
   const [holdPair, setHoldPair] = useState<FallingPair | null>(null);
   const [holdUsed, setHoldUsed] = useState(false);
   const [slowCharge, setSlowCharge] = useState(0);
@@ -273,11 +283,12 @@ export function ColorChain({ onBack }: ColorChainProps) {
   const maxChainRef = useRef(maxChain);
   const laserChargeRef = useRef(laserCharge);
   const laserTargetingRef = useRef(laserTargeting);
+  const laserTargetRowRef = useRef(laserTargetRow);
   const holdPairRef = useRef(holdPair);
   const holdUsedRef = useRef(holdUsed);
   const slowChargeRef = useRef(slowCharge);
   const slowActiveRef = useRef(slowActive);
-  const pairsWithoutBombRef = useRef(0);
+  const pairsWithoutSpecialRef = useRef(0);
   const resolutionToken = useRef(0);
 
   const settings = difficultySettings[difficulty];
@@ -285,6 +296,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
   const best = bestResults[difficulty];
   const normalDropInterval = Math.max(180, settings.baseSpeed - (level - 1) * 65);
   const dropInterval = slowActive ? normalDropInterval * 2 : normalDropInterval;
+  const laserBlocksRemaining = Math.max(0, Math.ceil(((100 - laserCharge) * settings.laserBlocks) / 100));
 
   const updateBoard = (next: Board) => {
     boardRef.current = next;
@@ -318,6 +330,12 @@ export function ColorChain({ onBack }: ColorChainProps) {
     setLaserTargeting(next);
   };
 
+  const updateLaserTargetRow = (next: number) => {
+    const normalized = Math.max(HIDDEN_ROWS, Math.min(TOTAL_ROWS - 1, next));
+    laserTargetRowRef.current = normalized;
+    setLaserTargetRow(normalized);
+  };
+
   const updateHoldUsed = (next: boolean) => {
     holdUsedRef.current = next;
     setHoldUsed(next);
@@ -339,7 +357,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
     setSlowActive(next);
   };
 
-  const recordClearedBlocks = (count: number) => {
+  const recordClearedBlocks = (count: number, chargeHorizontalLaser = true) => {
     if (count <= 0) return;
     const nextCleared = clearedRef.current + count;
     const nextLevel = Math.floor(nextCleared / 24) + 1;
@@ -348,18 +366,28 @@ export function ColorChain({ onBack }: ColorChainProps) {
     setCleared(nextCleared);
     setLevel(nextLevel);
     updateSlowCharge(addSlowCharge(slowChargeRef.current, count, slowActiveRef.current));
+    if (chargeHorizontalLaser) {
+      updateLaserCharge(addLaserCharge(
+        laserChargeRef.current,
+        count,
+        difficultySettings[difficultyRef.current].laserBlocks
+      ));
+    }
   };
 
   function createQueuedPair(nextDifficulty: Difficulty) {
     const nextSettings = difficultySettings[nextDifficulty];
-    const forceBomb = pairsWithoutBombRef.current >= nextSettings.bombPity;
+    const forceSpecial = pairsWithoutSpecialRef.current >= nextSettings.specialPity;
+    const totalSpecialChance = nextSettings.bombChance + nextSettings.verticalLaserChance;
+    const forcedBombChance = nextSettings.bombChance / totalSpecialChance;
     const pair = createRandomPair(
       nextSettings.colors,
       Math.random,
-      forceBomb ? 1 : nextSettings.bombChance
+      forceSpecial ? forcedBombChance : nextSettings.bombChance,
+      forceSpecial ? 1 - forcedBombChance : nextSettings.verticalLaserChance
     );
-    if (pair.colors.includes(BOMB_BLOCK)) pairsWithoutBombRef.current = 0;
-    else pairsWithoutBombRef.current += 1;
+    if (pair.colors.includes(BOMB_BLOCK) || pair.colors.includes(VERTICAL_LASER_BLOCK)) pairsWithoutSpecialRef.current = 0;
+    else pairsWithoutSpecialRef.current += 1;
     return pair;
   }
 
@@ -371,7 +399,8 @@ export function ColorChain({ onBack }: ColorChainProps) {
     updateLaserTargeting(false);
     updateSlowActive(false);
     setSlowRemaining(0);
-    setLaserColumn(null);
+    setHorizontalLaserRow(null);
+    setVerticalLaserColumns([]);
     setMessage(t.gameover);
 
     const result: BestResult = {
@@ -436,18 +465,25 @@ export function ColorChain({ onBack }: ColorChainProps) {
     nextBoard = await animateGravity(nextBoard, token);
     if (token !== resolutionToken.current) return;
 
-    const blast = findBombBlastCells(nextBoard);
+    const blast = findSpecialClearCells(nextBoard);
     if (blast.cells.size > 0) {
+      const triggeredLaserColumns = [...blast.verticalLasers].map((key) => Number(key.split(":")[1]));
+      setVerticalLaserColumns([...new Set(triggeredLaserColumns)]);
       setClearingCells(new Set(blast.cells));
-      setMessage(t.bombBlast(blast.cells.size));
+      setMessage(blast.verticalLasers.size > 0 ? t.verticalLaserBlast(blast.cells.size) : t.bombBlast(blast.cells.size));
       await wait(CLEAR_DELAY + 80);
       if (token !== resolutionToken.current) return;
 
       nextBoard = clearMatchedCells(nextBoard, blast.cells);
       updateBoard(nextBoard);
       setClearingCells(new Set());
+      setVerticalLaserColumns([]);
       recordClearedBlocks(blast.cells.size);
-      addScore(blast.cells.size * BOMB_BLOCK_SCORE + blast.bombs.size * BOMB_TRIGGER_SCORE);
+      addScore(
+        blast.cells.size * BOMB_BLOCK_SCORE
+        + blast.bombs.size * BOMB_TRIGGER_SCORE
+        + blast.verticalLasers.size * VERTICAL_LASER_TRIGGER_SCORE
+      );
       await wait(FALL_DELAY);
       if (token !== resolutionToken.current) return;
       nextBoard = await animateGravity(nextBoard, token);
@@ -508,6 +544,16 @@ export function ColorChain({ onBack }: ColorChainProps) {
 
   function beginLaserTargeting() {
     if (statusRef.current !== "playing" || laserChargeRef.current < 100) return;
+    let bestRow = HIDDEN_ROWS + VISIBLE_ROWS - 1;
+    let bestCount = -1;
+    for (let row = HIDDEN_ROWS; row < TOTAL_ROWS; row += 1) {
+      const count = boardRef.current[row].filter(Boolean).length;
+      if (count >= bestCount) {
+        bestRow = row;
+        bestCount = count;
+      }
+    }
+    updateLaserTargetRow(bestRow);
     updateLaserTargeting(true);
     setMessage(t.laserSelect);
   }
@@ -518,10 +564,16 @@ export function ColorChain({ onBack }: ColorChainProps) {
     setMessage(t.playing);
   }
 
-  async function resolveLaser(column: number, token: number) {
-    const result = findLaserClearCells(boardRef.current, column);
-    setLaserColumn(column);
-    setMessage(result.cells.size > 0 ? t.laserColumn(column + 1) : t.laserMiss);
+  function moveLaserTarget(direction: -1 | 1) {
+    if (!laserTargetingRef.current) return;
+    updateLaserTargetRow(laserTargetRowRef.current + direction);
+  }
+
+  async function resolveLaser(row: number, token: number) {
+    const result = findHorizontalLaserClearCells(boardRef.current, row);
+    setHorizontalLaserRow(row);
+    setVerticalLaserColumns([...new Set([...result.verticalLasers].map((key) => Number(key.split(":")[1]))) ]);
+    setMessage(result.cells.size > 0 ? t.laserRow(row - HIDDEN_ROWS + 1) : t.laserMiss);
     setClearingCells(new Set(result.cells));
     await wait(CLEAR_DELAY + 80);
     if (token !== resolutionToken.current) return;
@@ -530,24 +582,30 @@ export function ColorChain({ onBack }: ColorChainProps) {
     if (result.cells.size > 0) {
       nextBoard = clearMatchedCells(nextBoard, result.cells);
       updateBoard(nextBoard);
-      recordClearedBlocks(result.cells.size);
-      addScore(result.cells.size * LASER_BLOCK_SCORE + result.bombs.size * BOMB_TRIGGER_SCORE);
+      recordClearedBlocks(result.cells.size, false);
+      addScore(
+        result.cells.size * LASER_BLOCK_SCORE
+        + result.bombs.size * BOMB_TRIGGER_SCORE
+        + result.verticalLasers.size * VERTICAL_LASER_TRIGGER_SCORE
+      );
     }
     setClearingCells(new Set());
-    setLaserColumn(null);
+    setHorizontalLaserRow(null);
+    setVerticalLaserColumns([]);
     await wait(FALL_DELAY);
     if (token !== resolutionToken.current) return;
     await resolveBoard(nextBoard, token, false);
   }
 
-  function fireLaser(column: number) {
+  function fireLaser(row: number) {
     if (!laserTargetingRef.current || statusRef.current !== "playing") return;
+    if (row < HIDDEN_ROWS || row >= TOTAL_ROWS) return;
     updateLaserTargeting(false);
     updateLaserCharge(0);
     updateStatus("resolving");
     const token = resolutionToken.current + 1;
     resolutionToken.current = token;
-    void resolveLaser(column, token);
+    void resolveLaser(row, token);
   }
 
   function startGame(nextDifficulty: Difficulty = difficulty) {
@@ -555,7 +613,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
     difficultyRef.current = nextDifficulty;
     setDifficulty(nextDifficulty);
     const nextBoard = createEmptyBoard();
-    pairsWithoutBombRef.current = 0;
+    pairsWithoutSpecialRef.current = 0;
     const firstPair = createQueuedPair(nextDifficulty);
     const queue = Array.from({ length: 3 }, () => createQueuedPair(nextDifficulty));
 
@@ -569,6 +627,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
     maxChainRef.current = 0;
     laserChargeRef.current = 0;
     laserTargetingRef.current = false;
+    laserTargetRowRef.current = HIDDEN_ROWS + VISIBLE_ROWS - 1;
     holdPairRef.current = null;
     holdUsedRef.current = false;
     slowChargeRef.current = 100;
@@ -585,7 +644,9 @@ export function ColorChain({ onBack }: ColorChainProps) {
     setClearingCells(new Set());
     setLaserCharge(0);
     setLaserTargeting(false);
-    setLaserColumn(null);
+    setLaserTargetRow(HIDDEN_ROWS + VISIBLE_ROWS - 1);
+    setHorizontalLaserRow(null);
+    setVerticalLaserColumns([]);
     setHoldPair(null);
     setHoldUsed(false);
     setSlowCharge(100);
@@ -708,15 +769,6 @@ export function ColorChain({ onBack }: ColorChainProps) {
   }, [dropInterval, laserTargeting, status]);
 
   useEffect(() => {
-    if (status !== "playing" || laserTargeting || laserCharge >= 100) return;
-    const timer = window.setInterval(() => {
-      const seconds = difficultySettings[difficultyRef.current].laserSeconds;
-      updateLaserCharge(laserChargeRef.current + (100 * LASER_TICK) / (seconds * 1000));
-    }, LASER_TICK);
-    return () => window.clearInterval(timer);
-  }, [laserCharge, laserTargeting, status]);
-
-  useEffect(() => {
     if (!slowActive || status !== "playing" || laserTargeting) return;
     const timer = window.setInterval(() => {
       setSlowRemaining((current) => {
@@ -731,13 +783,15 @@ export function ColorChain({ onBack }: ColorChainProps) {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement) return;
-      const controlKeys = ["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", " ", "z", "Z", "x", "X", "h", "H", "s", "S", "p", "P", "l", "L", "Escape", "1", "2", "3", "4", "5", "6", "7", "8"];
+      const controlKeys = ["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", " ", "Enter", "z", "Z", "x", "X", "h", "H", "s", "S", "p", "P", "l", "L", "Escape"];
       if (!controlKeys.includes(event.key)) return;
       event.preventDefault();
 
       if (laserTargetingRef.current) {
         if (event.key === "Escape") cancelLaserTargeting();
-        if (/^[1-8]$/.test(event.key)) fireLaser(Number(event.key) - 1);
+        if (event.key === "ArrowUp") moveLaserTarget(-1);
+        if (event.key === "ArrowDown") moveLaserTarget(1);
+        if (event.key === "Enter" || event.key === " ") fireLaser(laserTargetRowRef.current);
         return;
       }
 
@@ -856,21 +910,34 @@ export function ColorChain({ onBack }: ColorChainProps) {
 
             {laserTargeting && (
               <div className="color-chain-laser-selector" aria-label={t.laserSelect}>
-                {Array.from({ length: BOARD_COLUMNS }, (_, column) => (
+                {Array.from({ length: VISIBLE_ROWS }, (_, visibleRow) => {
+                  const boardRow = visibleRow + HIDDEN_ROWS;
+                  return (
                   <button
-                    aria-label={t.selectColumn(column + 1)}
-                    key={column}
-                    onClick={() => fireLaser(column)}
+                    aria-label={t.selectRow(visibleRow + 1)}
+                    className={laserTargetRow === boardRow ? "is-selected" : ""}
+                    key={boardRow}
+                    onClick={() => fireLaser(boardRow)}
+                    onPointerEnter={() => updateLaserTargetRow(boardRow)}
                     type="button"
-                  ><span>{column + 1}</span></button>
+                  ><span>{visibleRow + 1}</span></button>
+                  );
+                })}
+              </div>
+            )}
+
+            {horizontalLaserRow !== null && (
+              <div className="color-chain-horizontal-laser-beams" aria-hidden="true">
+                {Array.from({ length: VISIBLE_ROWS }, (_, visibleRow) => (
+                  <i className={horizontalLaserRow === visibleRow + HIDDEN_ROWS ? "is-active" : ""} key={visibleRow} />
                 ))}
               </div>
             )}
 
-            {laserColumn !== null && (
-              <div className="color-chain-laser-beams" aria-hidden="true">
+            {verticalLaserColumns.length > 0 && (
+              <div className="color-chain-vertical-laser-beams" aria-hidden="true">
                 {Array.from({ length: BOARD_COLUMNS }, (_, column) => (
-                  <i className={laserColumn === column ? "is-active" : ""} key={column} />
+                  <i className={verticalLaserColumns.includes(column) ? "is-active" : ""} key={column} />
                 ))}
               </div>
             )}
@@ -905,7 +972,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
           <div className={`color-chain-laser-panel${laserCharge >= 100 ? " is-ready" : ""}`}>
             <div className="color-chain-laser-heading">
               <span><Zap aria-hidden="true" /> {t.laser}</span>
-              <strong>{laserCharge >= 100 ? t.laserReady : `${Math.floor(laserCharge)}%`}</strong>
+              <strong>{laserCharge >= 100 ? t.laserReady : t.laserProgress(laserBlocksRemaining)}</strong>
             </div>
             <div
               aria-label={t.laser}
@@ -917,6 +984,7 @@ export function ColorChain({ onBack }: ColorChainProps) {
             ><i style={{ width: `${laserCharge}%` }} /></div>
             <button
               className={laserTargeting ? "ghost-button" : "primary-button"}
+              data-testid="color-chain-horizontal-laser-button"
               disabled={!laserTargeting && (status !== "playing" || laserCharge < 100)}
               onClick={laserTargeting ? cancelLaserTargeting : beginLaserTargeting}
               type="button"
