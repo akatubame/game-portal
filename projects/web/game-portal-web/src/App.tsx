@@ -47,7 +47,7 @@ const gameViews: Record<string, GameView> = {
 };
 
 const recentGameIds = ["colorChain", "solitaire", "wordGuess", "nonogram"];
-const popularGameIds = ["random-shogi", "yonmai-mahjong", "2048", "sudoku", "minesweeper", "nonogram", "snake", "reversi"];
+const popularGameIds = ["random-shogi", "yonmai-mahjong", "colorChain", "2048", "minesweeper", "nonogram", "snake", "reversi"];
 const maxPopularGames = 4;
 const allGenresKey = "__all__";
 const favoriteStorageKey = "game-shelf-favorites";
