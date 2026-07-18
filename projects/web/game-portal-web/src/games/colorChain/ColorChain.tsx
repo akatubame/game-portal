@@ -49,7 +49,8 @@ import {
   VISIBLE_ROWS,
   type BlockToken,
   type Board,
-  type FallingPair
+  type FallingPair,
+  type SpecialClearResult
 } from "./logic";
 
 type ColorChainProps = {
@@ -61,6 +62,23 @@ type Difficulty = "easy" | "normal";
 type GameStatus = "idle" | "playing" | "paused" | "resolving" | "gameover";
 type HelpItemId = "bomb" | "verticalLaser" | "horizontalLaser" | "colorBreaker" | "slowTime" | "hold";
 type MascotMood = "idle" | "chain" | "danger" | "defeat";
+type MascotAction = "none" | "staff-spin" | "hat-pop" | "grand-spell";
+type MascotIdleMotion = Exclude<MascotAction, "grand-spell">;
+type SpecialMoveId =
+  | "chain-bomb"
+  | "grand-chain-bomb"
+  | "chain-pillar"
+  | "trinity-pillar"
+  | "chain-wave"
+  | "trinity-wave"
+  | "prism-break"
+  | "prism-nova";
+type ActiveSpecialMove = {
+  id: SpecialMoveId;
+  name: string;
+  tier: "standard" | "super";
+  nonce: number;
+};
 
 type BestResult = {
   score: number;
@@ -86,6 +104,9 @@ const COLOR_BREAKER_TRIGGER_SCORE = 45;
 const SUPER_COLOR_BREAKER_TRIGGER_SCORE = 180;
 const SLOW_DURATION = 10;
 const SLOW_TICK = 250;
+const IDLE_MOTION_MIN_DELAY = 9_000;
+const IDLE_MOTION_DELAY_RANGE = 6_000;
+const IDLE_MOTION_DURATION = 2_300;
 
 const difficultySettings: Record<Difficulty, {
   colors: number;
@@ -146,6 +167,47 @@ const chainCallNames = {
 function chainCallName(chain: number, language: keyof typeof chainCallNames) {
   const names = chainCallNames[language];
   return names[Math.min(Math.max(Math.floor(chain), 1), names.length) - 1];
+}
+
+const specialMoveNames: Record<"ja" | "en", Record<SpecialMoveId, string>> = {
+  ja: {
+    "chain-bomb": "チェインボム",
+    "grand-chain-bomb": "グランドチェインボム",
+    "chain-pillar": "チェインピラー",
+    "trinity-pillar": "トリニティピラー",
+    "chain-wave": "チェインウェーブ",
+    "trinity-wave": "トリニティウェーブ",
+    "prism-break": "プリズムブレイク",
+    "prism-nova": "プリズムノヴァ"
+  },
+  en: {
+    "chain-bomb": "Chain Bomb",
+    "grand-chain-bomb": "Grand Chain Bomb",
+    "chain-pillar": "Chain Pillar",
+    "trinity-pillar": "Trinity Pillar",
+    "chain-wave": "Chain Wave",
+    "trinity-wave": "Trinity Wave",
+    "prism-break": "Prism Break",
+    "prism-nova": "Prism Nova"
+  }
+};
+
+function specialMoveFromResult(result: SpecialClearResult, language: "ja" | "en") {
+  let id: SpecialMoveId | null = null;
+  if (result.superColorBreakers.size > 0) id = "prism-nova";
+  else if (result.superVerticalLasers.size > 0) id = "trinity-pillar";
+  else if (result.superHorizontalLasers.size > 0) id = "trinity-wave";
+  else if (result.superBombs.size > 0) id = "grand-chain-bomb";
+  else if (result.verticalLasers.size > 0) id = "chain-pillar";
+  else if (result.horizontalLasers.size > 0) id = "chain-wave";
+  else if (result.colorBreakers.size > 0) id = "prism-break";
+  else if (result.bombs.size > 0) id = "chain-bomb";
+
+  if (!id) return null;
+  const tier = id === "grand-chain-bomb" || id === "trinity-pillar" || id === "trinity-wave" || id === "prism-nova"
+    ? "super" as const
+    : "standard" as const;
+  return { id, name: specialMoveNames[language][id], tier };
 }
 
 const copy = {
@@ -236,6 +298,9 @@ const copy = {
     mascotHide: "キャラクターを非表示",
     mascotHidden: "キャラクター表示はOFFです。",
     mascotIdle: "次のマジカルチェインを見守っています。",
+    mascotStaffSpin: "待ち時間に杖回しの練習中です。",
+    mascotHatPop: "帽子がふわり！ 慌てて押さえました。",
+    mascotGrandSpell: (spell: string) => `${spell}を詠唱！`,
     mascotChain: "マジカルチェイン成功！",
     mascotDanger: "上まで積み上がっています。気をつけて！",
     mascotDefeat: "次はもっと大きなチェインを作りましょう。"
@@ -327,6 +392,9 @@ const copy = {
     mascotHide: "Hide character",
     mascotHidden: "Character display is off.",
     mascotIdle: "Watching for the next Magical Chain.",
+    mascotStaffSpin: "Passing the time with a quick wand spin.",
+    mascotHatPop: "Her hat floated up! She caught it just in time.",
+    mascotGrandSpell: (spell: string) => `Casting ${spell}!`,
     mascotChain: "Magical Chain complete!",
     mascotDanger: "The stack is near the top. Be careful!",
     mascotDefeat: "Let's weave an even bigger chain next time."
@@ -352,12 +420,14 @@ function readMascotVisible() {
 function ChromaMascotPanel({
   language,
   mood,
+  action,
   visible,
   onToggle,
   labels
 }: {
   language: "ja" | "en";
   mood: MascotMood;
+  action: MascotAction;
   visible: boolean;
   onToggle: () => void;
   labels: {
@@ -371,7 +441,7 @@ function ChromaMascotPanel({
   const alt = language === "ja" ? `クロマ：${labels.status}` : `Chroma: ${labels.status}`;
 
   return (
-    <section className={`color-chain-mascot-panel is-${mood}${visible ? "" : " is-hidden"}`} aria-label={labels.name}>
+    <section className={`color-chain-mascot-panel is-${mood} is-action-${action}${visible ? "" : " is-hidden"}`} aria-label={labels.name}>
       <div className="color-chain-mascot-heading">
         <div>
           <span>{language === "ja" ? "CHARACTER" : "MASCOT"}</span>
@@ -392,6 +462,9 @@ function ChromaMascotPanel({
       {visible ? (
         <>
           <div className="color-chain-mascot-portrait">
+            <i className="color-chain-mascot-motion-fx is-staff" aria-hidden="true" />
+            <i className="color-chain-mascot-motion-fx is-hat" aria-hidden="true" />
+            <i className="color-chain-mascot-motion-fx is-grand-spell" aria-hidden="true" />
             {(Object.keys(mascotAssets) as Array<keyof typeof mascotAssets>).map((assetMood) => {
               const isIdleLayer = assetMood === "idle" || assetMood === "blink";
               const isActive = isIdleLayer ? mood === "idle" : assetMood === mood;
@@ -474,6 +547,8 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   const [hoveredHelpItem, setHoveredHelpItem] = useState<HelpItemId | null>(null);
   const [bestResults, setBestResults] = useState<Partial<Record<Difficulty, BestResult>>>(() => readBestResults());
   const [mascotVisible, setMascotVisible] = useState(readMascotVisible);
+  const [mascotIdleMotion, setMascotIdleMotion] = useState<MascotIdleMotion>("none");
+  const [activeSpecialMove, setActiveSpecialMove] = useState<ActiveSpecialMove | null>(null);
 
   const boardRef = useRef(board);
   const activePairRef = useRef(activePair);
@@ -493,6 +568,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   const slowActiveRef = useRef(slowActive);
   const pairsWithoutSpecialRef = useRef(0);
   const resolutionToken = useRef(0);
+  const specialMoveNonceRef = useRef(0);
 
   const settings = difficultySettings[difficulty];
   const ranking = useRanking({ gameId: `color-chain-${difficulty}`, metricLabel: "Score", mode: "higher" });
@@ -577,6 +653,15 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     setSlowActive(next);
   };
 
+  const showSpecialMove = (move: Omit<ActiveSpecialMove, "nonce"> | null) => {
+    if (!move) {
+      setActiveSpecialMove(null);
+      return;
+    }
+    specialMoveNonceRef.current += 1;
+    setActiveSpecialMove({ ...move, nonce: specialMoveNonceRef.current });
+  };
+
   const recordClearedBlocks = (count: number, chargeHorizontalLaser = true) => {
     if (count <= 0) return;
     const nextCleared = clearedRef.current + count;
@@ -637,6 +722,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     setSlowRemaining(0);
     setHorizontalLaserRows([]);
     setVerticalLaserColumns([]);
+    showSpecialMove(null);
     setMessage(t.gameover);
 
     const result: BestResult = {
@@ -675,6 +761,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     updateHoldUsed(false);
     updateStatus("playing");
     setCurrentChain(0);
+    showSpecialMove(null);
     setMessage(t.playing);
   }
 
@@ -704,6 +791,8 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     while (token === resolutionToken.current) {
       const superClear = findSuperSpecialClearCells(nextBoard);
       if (superClear.cells.size > 0) {
+        const superMove = specialMoveFromResult(superClear, language);
+        showSpecialMove(superMove);
         setVerticalLaserColumns([...superClear.verticalLaserColumns]);
         setHorizontalLaserRows([...superClear.horizontalLaserRows]);
         setClearingCells(new Set(superClear.cells));
@@ -716,7 +805,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
                 ? t.superHorizontalLaserBlast(superClear.cells.size)
                 : t.superBombBlast(superClear.cells.size)
         );
-        await wait(CLEAR_DELAY + 140);
+        await wait(CLEAR_DELAY + (superMove?.tier === "super" ? 420 : 140));
         if (token !== resolutionToken.current) return;
 
         nextBoard = clearMatchedCells(nextBoard, superClear.cells);
@@ -724,6 +813,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
         setClearingCells(new Set());
         setVerticalLaserColumns([]);
         setHorizontalLaserRows([]);
+        showSpecialMove(null);
         recordClearedBlocks(superClear.cells.size);
         const superClearScore = (
           superClear.cells.size * BOMB_BLOCK_SCORE
@@ -760,10 +850,12 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
         || clearResult.superHorizontalLasers.size > 0
         || clearResult.superColorBreakers.size > 0
       );
+      const specialMove = specialMoveFromResult(clearResult, language);
       const extraCleared = Math.max(0, clearResult.cells.size - match.cells.size);
       const rewards = match.rewardBlocks.filter((reward) => clearResult.cells.has(reward.key));
       const clearedCount = Math.max(0, clearResult.cells.size - rewards.length);
       setCurrentChain(chain);
+      showSpecialMove(specialMove);
       setVerticalLaserColumns([...clearResult.verticalLaserColumns]);
       setHorizontalLaserRows([...clearResult.horizontalLaserRows]);
       setClearingCells(new Set(clearResult.cells));
@@ -796,6 +888,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
       setClearingCells(new Set());
       setVerticalLaserColumns([]);
       setHorizontalLaserRows([]);
+      showSpecialMove(null);
       await wait(FALL_DELAY);
       if (token !== resolutionToken.current) return;
 
@@ -877,11 +970,17 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
 
   async function resolveLaser(row: number, token: number) {
     const result = findHorizontalLaserClearCells(boardRef.current, row);
+    const specialMove = specialMoveFromResult(result, language) ?? {
+      id: "chain-wave" as const,
+      name: specialMoveNames[language]["chain-wave"],
+      tier: "standard" as const
+    };
+    showSpecialMove(specialMove);
     setHorizontalLaserRows([...new Set([row, ...result.horizontalLaserRows])]);
     setVerticalLaserColumns([...result.verticalLaserColumns]);
     setMessage(result.cells.size > 0 ? t.laserRow(row - HIDDEN_ROWS + 1) : t.laserMiss);
     setClearingCells(new Set(result.cells));
-    await wait(CLEAR_DELAY + 80);
+    await wait(CLEAR_DELAY + (specialMove.tier === "super" ? 420 : 80));
     if (token !== resolutionToken.current) return;
 
     let nextBoard = boardRef.current;
@@ -904,6 +1003,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     setClearingCells(new Set());
     setHorizontalLaserRows([]);
     setVerticalLaserColumns([]);
+    showSpecialMove(null);
     await wait(FALL_DELAY);
     if (token !== resolutionToken.current) return;
     await resolveBoard(nextBoard, token, false);
@@ -964,6 +1064,8 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     setSlowCharge(100);
     setSlowActive(false);
     setSlowRemaining(0);
+    setMascotIdleMotion("none");
+    showSpecialMove(null);
     setMessage(t.playing);
   }
 
@@ -1162,13 +1264,50 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   );
   const mascotMood: MascotMood = status === "gameover"
     ? "defeat"
-    : status === "resolving" && currentChain > 0
+    : status === "resolving" && (currentChain > 0 || activeSpecialMove !== null)
       ? "chain"
       : boardIsDangerous
         ? "danger"
         : "idle";
-  const mascotStatus = mascotMood === "chain"
-    ? t.mascotChain
+  const mascotCanUseIdleMotion = mascotMood === "idle" && (status === "playing" || status === "resolving");
+
+  useEffect(() => {
+    setMascotIdleMotion("none");
+    if (!isMascotTest || !mascotVisible || !mascotCanUseIdleMotion) return;
+
+    let timer = 0;
+    let cancelled = false;
+    const scheduleMotion = () => {
+      const delay = IDLE_MOTION_MIN_DELAY + Math.random() * IDLE_MOTION_DELAY_RANGE;
+      timer = window.setTimeout(() => {
+        if (cancelled) return;
+        setMascotIdleMotion(Math.random() < 0.55 ? "staff-spin" : "hat-pop");
+        timer = window.setTimeout(() => {
+          if (cancelled) return;
+          setMascotIdleMotion("none");
+          scheduleMotion();
+        }, IDLE_MOTION_DURATION);
+      }, delay);
+    };
+    scheduleMotion();
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [isMascotTest, mascotCanUseIdleMotion, mascotVisible]);
+
+  const mascotAction: MascotAction = activeSpecialMove?.tier === "super"
+    ? "grand-spell"
+    : mascotIdleMotion;
+  const mascotStatus = activeSpecialMove?.tier === "super"
+    ? t.mascotGrandSpell(activeSpecialMove.name)
+    : mascotIdleMotion === "staff-spin"
+      ? t.mascotStaffSpin
+      : mascotIdleMotion === "hat-pop"
+        ? t.mascotHatPop
+        : mascotMood === "chain"
+          ? t.mascotChain
     : mascotMood === "danger"
       ? t.mascotDanger
       : mascotMood === "defeat"
@@ -1235,7 +1374,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
       </div>
 
       <div className="puzzle-layout color-chain-layout">
-        <div className={`color-chain-play-area${isMascotTest ? " has-mascot" : ""}`}>
+        <div className={`color-chain-play-area${isMascotTest ? " has-mascot" : ""}${isMascotTest && activeSpecialMove?.tier === "super" ? " is-grand-spell-active" : ""}`}>
           <div className="color-chain-board-wrap">
             <div className="color-chain-board" role="grid" aria-label={`${title} board`}>
               {visibleCells.map((cell) => (
@@ -1290,10 +1429,31 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
               </div>
             )}
 
-            {currentChain >= 1 && status === "resolving" && (
-              <div className="color-chain-burst" aria-live="polite">
+            {isMascotTest && activeSpecialMove?.tier === "super" && status === "resolving" && (
+              <div
+                aria-hidden="true"
+                className={`color-chain-grand-spell-effect is-${activeSpecialMove.id}`}
+                key={`grand-spell-${activeSpecialMove.nonce}`}
+              >
+                <i />
+                <i />
+                <i />
+              </div>
+            )}
+
+            {(currentChain >= 1 || activeSpecialMove) && status === "resolving" && (
+              <div
+                className={`color-chain-burst${activeSpecialMove ? " is-special-move" : ""}${activeSpecialMove?.tier === "super" ? " is-super-move" : ""}`}
+                aria-live="polite"
+                key={activeSpecialMove ? `special-${activeSpecialMove.nonce}` : `chain-${currentChain}`}
+              >
                 <Sparkles aria-hidden="true" />
-                <strong>{chainCallName(currentChain, language)} ×{getChainMultiplier(currentChain)}</strong>
+                <span>
+                  <strong>{activeSpecialMove?.name ?? chainCallName(currentChain, language)}</strong>
+                  {activeSpecialMove && currentChain >= 1 && (
+                    <small>{chainCallName(currentChain, language)} ×{getChainMultiplier(currentChain)}</small>
+                  )}
+                </span>
               </div>
             )}
 
@@ -1311,6 +1471,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
 
           {isMascotTest && (
             <ChromaMascotPanel
+              action={mascotAction}
               labels={{
                 name: t.mascotName,
                 show: t.mascotShow,

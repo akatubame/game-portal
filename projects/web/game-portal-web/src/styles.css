@@ -95,6 +95,21 @@
   box-shadow: 0 18px 54px rgba(255, 92, 197, 0.18);
 }
 
+.color-chain-mascot-panel.is-action-grand-spell {
+  border-color: rgba(141, 232, 255, 0.94);
+  box-shadow: 0 0 28px rgba(80, 217, 255, 0.28), 0 18px 64px rgba(240, 87, 189, 0.26);
+}
+
+.color-chain-mascot-panel.is-action-grand-spell::before {
+  animation: color-chain-grand-panel-flash 720ms ease-out both;
+  background: radial-gradient(circle at 50% 54%, rgba(255, 241, 164, 0.44), rgba(89, 221, 255, 0.16) 35%, transparent 67%);
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+}
+
 .color-chain-mascot-panel.is-danger {
   border-color: rgba(255, 136, 107, 0.62);
 }
@@ -175,6 +190,88 @@
   animation: color-chain-mascot-chain-pop 560ms cubic-bezier(0.2, 0.9, 0.32, 1.2) both;
 }
 
+.color-chain-mascot-panel.is-action-staff-spin .color-chain-mascot-portrait {
+  animation: color-chain-mascot-staff-spin 2.3s ease-in-out both;
+}
+
+.color-chain-mascot-panel.is-action-hat-pop .color-chain-mascot-portrait {
+  animation: color-chain-mascot-hat-catch 2.3s ease-in-out both;
+}
+
+.color-chain-mascot-panel.is-action-grand-spell .color-chain-mascot-portrait {
+  animation: color-chain-mascot-grand-cast 680ms cubic-bezier(0.16, 0.86, 0.25, 1.18) both;
+}
+
+.color-chain-mascot-motion-fx {
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 4;
+}
+
+.color-chain-mascot-motion-fx.is-staff {
+  border: 4px solid transparent;
+  border-left-color: #ffdc72;
+  border-radius: 50%;
+  border-right-color: #8de8ff;
+  box-shadow: 0 0 13px rgba(141, 232, 255, 0.72), inset 0 0 10px rgba(240, 87, 189, 0.36);
+  height: 46%;
+  left: 22%;
+  top: 34%;
+  width: 58%;
+}
+
+.color-chain-mascot-panel.is-action-staff-spin .color-chain-mascot-motion-fx.is-staff {
+  animation: color-chain-staff-trail 2.3s ease-in-out both;
+}
+
+.color-chain-mascot-motion-fx.is-hat {
+  height: 34px;
+  left: 53%;
+  top: 8%;
+  transform: translateX(-50%);
+  width: 58px;
+}
+
+.color-chain-mascot-motion-fx.is-hat::before {
+  background: linear-gradient(145deg, #30204d, #111a3a 72%);
+  clip-path: polygon(50% 0, 92% 78%, 9% 78%);
+  content: "";
+  height: 30px;
+  left: 13px;
+  position: absolute;
+  top: 0;
+  width: 34px;
+}
+
+.color-chain-mascot-motion-fx.is-hat::after {
+  background: linear-gradient(90deg, #ff55bb, #7758ff, #47dfff);
+  border-radius: 50%;
+  box-shadow: 0 0 10px rgba(255, 92, 197, 0.64);
+  content: "";
+  height: 8px;
+  inset: auto 0 0;
+  position: absolute;
+}
+
+.color-chain-mascot-panel.is-action-hat-pop .color-chain-mascot-motion-fx.is-hat {
+  animation: color-chain-floating-hat 2.3s ease-in-out both;
+}
+
+.color-chain-mascot-motion-fx.is-grand-spell {
+  border: 4px solid rgba(255, 222, 117, 0.94);
+  border-radius: 50%;
+  box-shadow: 0 0 8px #fff, 0 0 18px #8de8ff, 0 0 30px rgba(240, 87, 189, 0.88), inset 0 0 18px rgba(141, 232, 255, 0.54);
+  height: 72%;
+  left: 10%;
+  top: 18%;
+  width: 80%;
+}
+
+.color-chain-mascot-panel.is-action-grand-spell .color-chain-mascot-motion-fx.is-grand-spell {
+  animation: color-chain-grand-spell-ring 700ms ease-out both;
+}
+
 .color-chain-mascot-image {
   inset: 0;
   opacity: 0;
@@ -241,6 +338,53 @@
 @keyframes color-chain-mascot-blink {
   0%, 88%, 91%, 100% { opacity: 0; }
   89%, 90% { opacity: 1; }
+}
+
+@keyframes color-chain-mascot-staff-spin {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  20% { transform: translateY(-4px) rotate(-3deg); }
+  48% { transform: translateY(-7px) rotate(4deg); }
+  72% { transform: translateY(-3px) rotate(-2deg); }
+}
+
+@keyframes color-chain-staff-trail {
+  0%, 8%, 92%, 100% { opacity: 0; transform: rotate(-80deg) scale(0.72); }
+  22%, 76% { opacity: 0.92; }
+  88% { opacity: 0.2; transform: rotate(620deg) scale(1.03); }
+}
+
+@keyframes color-chain-mascot-hat-catch {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  20% { transform: translateY(2px) rotate(0); }
+  42% { transform: translateY(-7px) rotate(3deg); }
+  58% { transform: translateY(-4px) rotate(-4deg); }
+  76% { transform: translateY(1px) rotate(1deg); }
+}
+
+@keyframes color-chain-floating-hat {
+  0%, 10%, 92%, 100% { opacity: 0; transform: translate(-50%, 18px) rotate(-8deg) scale(0.72); }
+  26% { opacity: 1; transform: translate(-50%, -20px) rotate(8deg) scale(1); }
+  52% { opacity: 1; transform: translate(-42%, -34px) rotate(-12deg) scale(1.04); }
+  78% { opacity: 0.9; transform: translate(-50%, 4px) rotate(4deg) scale(0.9); }
+}
+
+@keyframes color-chain-mascot-grand-cast {
+  0% { transform: translateY(5px) scale(0.9) rotate(-3deg); }
+  34% { transform: translateY(-9px) scale(1.04) rotate(3deg); }
+  68% { transform: translateY(-3px) scale(1.08) rotate(-1deg); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes color-chain-grand-spell-ring {
+  0% { opacity: 0; transform: rotate(-65deg) scale(0.3); }
+  45% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(90deg) scale(1.18); }
+}
+
+@keyframes color-chain-grand-panel-flash {
+  0% { opacity: 0; transform: scale(0.72); }
+  42% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.2); }
 }
 
 .color-chain-board-wrap {
@@ -509,8 +653,95 @@
   z-index: 7;
 }
 
+.color-chain-burst > span {
+  display: grid;
+  gap: 2px;
+}
+
 .color-chain-burst strong {
   font-size: clamp(0.72rem, 2.8vw, 1rem);
+}
+
+.color-chain-burst small {
+  color: #fff4c8;
+  font-size: clamp(0.58rem, 2.2vw, 0.72rem);
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
+.color-chain-burst.is-special-move {
+  background: linear-gradient(125deg, rgba(27, 18, 49, 0.96), rgba(8, 27, 42, 0.96));
+  border-color: #8de8ff;
+  box-shadow: 0 0 18px rgba(141, 232, 255, 0.42), 0 0 30px rgba(240, 87, 189, 0.22);
+  color: #fff2a8;
+}
+
+.color-chain-burst.is-super-move {
+  animation: color-chain-super-burst 620ms cubic-bezier(0.16, 0.88, 0.28, 1.16) both;
+  border-color: #fff4b8;
+  box-shadow: 0 0 12px #fff, 0 0 28px rgba(141, 232, 255, 0.78), 0 0 46px rgba(240, 87, 189, 0.52);
+  padding: 12px 18px;
+}
+
+.color-chain-grand-spell-effect {
+  animation: color-chain-grand-board-flash 640ms ease-out both;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.68), transparent 22%),
+    conic-gradient(from 40deg, transparent, rgba(141, 232, 255, 0.34), transparent, rgba(240, 87, 189, 0.38), transparent);
+  border-radius: 12px;
+  inset: 12px;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  z-index: 6;
+}
+
+.color-chain-grand-spell-effect i {
+  border: 3px solid rgba(255, 238, 151, 0.92);
+  border-radius: 50%;
+  box-shadow: 0 0 10px #fff, 0 0 22px #8de8ff, inset 0 0 16px rgba(240, 87, 189, 0.54);
+  height: 46%;
+  left: 27%;
+  position: absolute;
+  top: 27%;
+  width: 46%;
+}
+
+.color-chain-grand-spell-effect i:nth-child(1) {
+  animation: color-chain-grand-board-ring 620ms ease-out both;
+}
+
+.color-chain-grand-spell-effect i:nth-child(2) {
+  animation: color-chain-grand-board-ring 620ms 60ms ease-out reverse both;
+  transform: scale(0.62);
+}
+
+.color-chain-grand-spell-effect i:nth-child(3) {
+  animation: color-chain-grand-board-sweep 560ms ease-out both;
+  border-radius: 18%;
+  height: 12%;
+  left: -10%;
+  top: 44%;
+  width: 120%;
+}
+
+.color-chain-grand-spell-effect.is-trinity-pillar i:nth-child(3) {
+  height: 120%;
+  left: 44%;
+  top: -10%;
+  width: 12%;
+}
+
+.color-chain-grand-spell-effect.is-prism-nova {
+  filter: hue-rotate(28deg) saturate(1.3);
+}
+
+.color-chain-grand-spell-effect.is-grand-chain-bomb {
+  background: radial-gradient(circle, rgba(255, 249, 189, 0.92), rgba(255, 111, 178, 0.48) 28%, transparent 68%);
+}
+
+.color-chain-play-area.is-grand-spell-active .color-chain-board-wrap {
+  animation: color-chain-grand-board-impact 620ms ease-out both;
 }
 
 .color-chain-magic-chain-effect {
@@ -585,6 +816,38 @@
 @keyframes color-chain-burst {
   from { opacity: 0; transform: translate(-50%, -50%) scale(0.55); }
   to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes color-chain-super-burst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.38) rotate(-4deg); }
+  58% { opacity: 1; transform: translate(-50%, -50%) scale(1.1) rotate(1deg); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes color-chain-grand-board-flash {
+  0% { opacity: 0; transform: scale(0.78); }
+  38% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.08); }
+}
+
+@keyframes color-chain-grand-board-ring {
+  from { opacity: 0; transform: rotate(-70deg) scale(0.25); }
+  44% { opacity: 1; }
+  to { opacity: 0; transform: rotate(90deg) scale(1.75); }
+}
+
+@keyframes color-chain-grand-board-sweep {
+  from { opacity: 0; transform: scaleX(0.12); }
+  45% { opacity: 1; }
+  to { opacity: 0; transform: scaleX(1.08); }
+}
+
+@keyframes color-chain-grand-board-impact {
+  0%, 100% { transform: translate(0); }
+  20% { transform: translate(-3px, 1px); }
+  40% { transform: translate(3px, -2px); }
+  60% { transform: translate(-2px, -1px); }
+  80% { transform: translate(2px, 1px); }
 }
 
 .color-chain-touch-controls {
@@ -1205,6 +1468,9 @@
 @media (prefers-reduced-motion: reduce) {
   .color-chain-cell.is-clearing,
   .color-chain-burst,
+  .color-chain-grand-spell-effect,
+  .color-chain-grand-spell-effect i,
+  .color-chain-play-area.is-grand-spell-active .color-chain-board-wrap,
   .color-chain-magic-chain-effect i,
   .color-chain-horizontal-laser-beams i.is-active,
   .color-chain-vertical-laser-beams i.is-active {
@@ -1213,6 +1479,13 @@
 
   .color-chain-mascot-portrait,
   .color-chain-mascot-panel.is-chain .color-chain-mascot-portrait,
+  .color-chain-mascot-panel.is-action-staff-spin .color-chain-mascot-portrait,
+  .color-chain-mascot-panel.is-action-hat-pop .color-chain-mascot-portrait,
+  .color-chain-mascot-panel.is-action-grand-spell .color-chain-mascot-portrait,
+  .color-chain-mascot-panel.is-action-grand-spell::before,
+  .color-chain-mascot-panel.is-action-staff-spin .color-chain-mascot-motion-fx.is-staff,
+  .color-chain-mascot-panel.is-action-hat-pop .color-chain-mascot-motion-fx.is-hat,
+  .color-chain-mascot-panel.is-action-grand-spell .color-chain-mascot-motion-fx.is-grand-spell,
   .color-chain-mascot-image.is-blink.is-active {
     animation: none;
   }
