@@ -151,7 +151,7 @@ function chainCallName(chain: number, language: keyof typeof chainCallNames) {
 const copy = {
   ja: {
     eyebrow: "落ちものパズル / 内部ゲーム",
-    title: "マジカルチェイン",
+    title: "カラーチェイン",
     idle: "2個1組のブロックを落とし、同じ色を4個以上並べてマジカルチェインを起こしましょう。",
     playing: "同じ色を4個以上つなげて、魔法のチェインを重ねましょう。",
     paused: "一時停止中です。再開すると落下が始まります。",
@@ -242,7 +242,7 @@ const copy = {
   },
   en: {
     eyebrow: "FALLING BLOCK PUZZLE / INTERNAL GAME",
-    title: "Magical Chain",
+    title: "Color Chain",
     idle: "Drop connected pairs and match four or more colors to cast a Magical Chain.",
     playing: "Connect four matching colors and weave magical chains.",
     paused: "Paused. Resume when you are ready to continue.",
