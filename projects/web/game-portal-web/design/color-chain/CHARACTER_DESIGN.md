@@ -167,7 +167,7 @@
 ## 非公開テスト版での運用
 
 - 本番版とは別オリジンのCloudflare Pagesテスト環境で確認する
-- Cloudflare Accessで認証を掛ける
+- Cloudflare Accessで認証を掛ける（※現在、アクセスがまったくないため認証停止中）
 - 本番版とゲームロジックは共有し、キャラクターUIだけを分岐する
 - テスト版は `noindex`、Analytics除外、別LocalStorageキー、別Service Workerスコープとする
 - キャラクター表示、アニメーション、画面効果、ボイスを個別に無効化できる設計にする

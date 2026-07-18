@@ -3,6 +3,8 @@ import {
   ArrowLeft,
   ArrowRight,
   ChevronsDown,
+  Eye,
+  EyeOff,
   Pause,
   Play,
   RotateCcw,
@@ -58,6 +60,7 @@ type ColorChainProps = {
 type Difficulty = "easy" | "normal";
 type GameStatus = "idle" | "playing" | "paused" | "resolving" | "gameover";
 type HelpItemId = "bomb" | "verticalLaser" | "horizontalLaser" | "colorBreaker" | "slowTime" | "hold";
+type MascotMood = "idle" | "chain" | "danger" | "defeat";
 
 type BestResult = {
   score: number;
@@ -67,6 +70,7 @@ type BestResult = {
 };
 
 const BEST_KEY = "game-shelf-color-chain-best";
+const MASCOT_VISIBLE_KEY = "game-shelf-color-chain-mascot-visible";
 const CLEAR_DELAY = 220;
 const FALL_DELAY = 130;
 const GRAVITY_STEP_DELAY = 36;
@@ -226,7 +230,15 @@ const copy = {
     holdUse: "ペアを保存・交換",
     holdUsed: "次のペアまで使用済み",
     holdStored: "現在のペアをホールドしました。",
-    holdSwapped: "ホールド中のペアと交換しました。"
+    holdSwapped: "ホールド中のペアと交換しました。",
+    mascotName: "彩鎖の魔女 クロマ",
+    mascotShow: "キャラクターを表示",
+    mascotHide: "キャラクターを非表示",
+    mascotHidden: "キャラクター表示はOFFです。",
+    mascotIdle: "次のマジカルチェインを見守っています。",
+    mascotChain: "マジカルチェイン成功！",
+    mascotDanger: "上まで積み上がっています。気をつけて！",
+    mascotDefeat: "次はもっと大きなチェインを作りましょう。"
   },
   en: {
     eyebrow: "FALLING BLOCK PUZZLE / INTERNAL GAME",
@@ -309,9 +321,104 @@ const copy = {
     holdUse: "Store or swap pair",
     holdUsed: "Used until next pair",
     holdStored: "The current pair was moved to Hold.",
-    holdSwapped: "Swapped with the held pair."
+    holdSwapped: "Swapped with the held pair.",
+    mascotName: "Chroma, Witch of Color Chains",
+    mascotShow: "Show character",
+    mascotHide: "Hide character",
+    mascotHidden: "Character display is off.",
+    mascotIdle: "Watching for the next Magical Chain.",
+    mascotChain: "Magical Chain complete!",
+    mascotDanger: "The stack is near the top. Be careful!",
+    mascotDefeat: "Let's weave an even bigger chain next time."
   }
 } as const;
+
+const mascotAssets: Record<Exclude<MascotMood, "idle"> | "idle" | "blink", string> = {
+  idle: "/characters/chroma/chroma-idle",
+  blink: "/characters/chroma/chroma-blink",
+  chain: "/characters/chroma/chroma-chain",
+  danger: "/characters/chroma/chroma-danger",
+  defeat: "/characters/chroma/chroma-defeat"
+};
+
+function readMascotVisible() {
+  try {
+    return window.localStorage.getItem(MASCOT_VISIBLE_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
+
+function ChromaMascotPanel({
+  language,
+  mood,
+  visible,
+  onToggle,
+  labels
+}: {
+  language: "ja" | "en";
+  mood: MascotMood;
+  visible: boolean;
+  onToggle: () => void;
+  labels: {
+    name: string;
+    show: string;
+    hide: string;
+    hidden: string;
+    status: string;
+  };
+}) {
+  const alt = language === "ja" ? `クロマ：${labels.status}` : `Chroma: ${labels.status}`;
+
+  return (
+    <section className={`color-chain-mascot-panel is-${mood}${visible ? "" : " is-hidden"}`} aria-label={labels.name}>
+      <div className="color-chain-mascot-heading">
+        <div>
+          <span>{language === "ja" ? "CHARACTER" : "MASCOT"}</span>
+          <strong>{labels.name}</strong>
+        </div>
+        <button
+          aria-label={visible ? labels.hide : labels.show}
+          aria-pressed={visible}
+          className="color-chain-mascot-toggle"
+          onClick={onToggle}
+          type="button"
+        >
+          {visible ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}
+          <span>{visible ? "ON" : "OFF"}</span>
+        </button>
+      </div>
+
+      {visible ? (
+        <>
+          <div className="color-chain-mascot-portrait">
+            {(Object.keys(mascotAssets) as Array<keyof typeof mascotAssets>).map((assetMood) => {
+              const isIdleLayer = assetMood === "idle" || assetMood === "blink";
+              const isActive = isIdleLayer ? mood === "idle" : assetMood === mood;
+              return (
+                <picture
+                  aria-hidden={assetMood === "blink" || !isActive}
+                  className={`color-chain-mascot-image is-${assetMood}${isActive ? " is-active" : ""}`}
+                  key={assetMood}
+                >
+                  <source srcSet={`${mascotAssets[assetMood]}.webp`} type="image/webp" />
+                  <img
+                    alt={assetMood === "blink" || !isActive ? "" : alt}
+                    draggable="false"
+                    height="1254"
+                    src={`${mascotAssets[assetMood]}.png`}
+                    width="1254"
+                  />
+                </picture>
+              );
+            })}
+          </div>
+          <p aria-live="polite">{labels.status}</p>
+        </>
+      ) : <p className="color-chain-mascot-hidden-copy">{labels.hidden}</p>}
+    </section>
+  );
+}
 
 function readBestResults(): Partial<Record<Difficulty, BestResult>> {
   try {
@@ -337,7 +444,8 @@ function statusLabel(status: GameStatus, t: typeof copy.ja | typeof copy.en) {
 export function ColorChain({ onBack, presentation = "public" }: ColorChainProps) {
   const { language } = useI18n();
   const t = copy[language];
-  const title = presentation === "mascot-test"
+  const isMascotTest = presentation === "mascot-test";
+  const title = isMascotTest
     ? language === "ja" ? "クロマのマジカルチェイン" : "Chroma's Magical Chain"
     : t.title;
   const [difficulty, setDifficulty] = useState<Difficulty>("easy");
@@ -365,6 +473,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   const [selectedHelpItem, setSelectedHelpItem] = useState<HelpItemId | null>(null);
   const [hoveredHelpItem, setHoveredHelpItem] = useState<HelpItemId | null>(null);
   const [bestResults, setBestResults] = useState<Partial<Record<Difficulty, BestResult>>>(() => readBestResults());
+  const [mascotVisible, setMascotVisible] = useState(readMascotVisible);
 
   const boardRef = useRef(board);
   const activePairRef = useRef(activePair);
@@ -1035,7 +1144,36 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     if (status === "gameover") setMessage(t.gameover);
   }, [language, laserTargeting, status, t.gameover, t.idle, t.laserSelect, t.paused, t.playing]);
 
+  useEffect(() => {
+    if (!isMascotTest) return;
+    try {
+      window.localStorage.setItem(MASCOT_VISIBLE_KEY, String(mascotVisible));
+    } catch {
+      // Storage may be unavailable in privacy modes; the in-memory setting still works.
+    }
+  }, [isMascotTest, mascotVisible]);
+
   const ghostPair = activePair ? getGhostPair(board, activePair) : null;
+  const boardIsDangerous = useMemo(
+    () => board
+      .slice(HIDDEN_ROWS, HIDDEN_ROWS + 4)
+      .some((row) => row.some((cell) => cell !== null)),
+    [board]
+  );
+  const mascotMood: MascotMood = status === "gameover"
+    ? "defeat"
+    : status === "resolving" && currentChain > 0
+      ? "chain"
+      : boardIsDangerous
+        ? "danger"
+        : "idle";
+  const mascotStatus = mascotMood === "chain"
+    ? t.mascotChain
+    : mascotMood === "danger"
+      ? t.mascotDanger
+      : mascotMood === "defeat"
+        ? t.mascotDefeat
+        : t.mascotIdle;
   const visibleCells = useMemo(() => {
     const cells = Array.from({ length: VISIBLE_ROWS * BOARD_COLUMNS }, (_, index) => {
       const visibleRow = Math.floor(index / BOARD_COLUMNS);
@@ -1081,7 +1219,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   };
 
   return (
-    <section className="puzzle-shell color-chain-shell" aria-labelledby="color-chain-title">
+    <section className={`puzzle-shell color-chain-shell${isMascotTest ? " is-mascot-test" : ""}`} aria-labelledby="color-chain-title">
       <div className="puzzle-hero color-chain-hero">
         <div>
           <p className="eyebrow">{t.eyebrow}</p>
@@ -1097,7 +1235,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
       </div>
 
       <div className="puzzle-layout color-chain-layout">
-        <div className="color-chain-play-area">
+        <div className={`color-chain-play-area${isMascotTest ? " has-mascot" : ""}`}>
           <div className="color-chain-board-wrap">
             <div className="color-chain-board" role="grid" aria-label={`${title} board`}>
               {visibleCells.map((cell) => (
@@ -1170,6 +1308,22 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
               </div>
             )}
           </div>
+
+          {isMascotTest && (
+            <ChromaMascotPanel
+              labels={{
+                name: t.mascotName,
+                show: t.mascotShow,
+                hide: t.mascotHide,
+                hidden: t.mascotHidden,
+                status: mascotStatus
+              }}
+              language={language}
+              mood={mascotMood}
+              onToggle={() => setMascotVisible((current) => !current)}
+              visible={mascotVisible}
+            />
+          )}
 
           <div className="color-chain-touch-controls" aria-label={t.controls}>
             <button type="button" disabled={status !== "playing" || laserTargeting} onClick={() => moveHorizontal(-1)} aria-label={t.moveLeft}><ArrowLeft /></button>
