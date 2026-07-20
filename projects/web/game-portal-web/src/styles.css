@@ -407,6 +407,24 @@
   touch-action: none;
 }
 
+.color-chain-board.is-gesture-enabled {
+  -webkit-tap-highlight-color: transparent;
+  cursor: grab;
+  user-select: none;
+}
+
+.color-chain-board.is-gesture-enabled:active {
+  cursor: grabbing;
+}
+
+.color-chain-board.is-gesture-horizontal {
+  box-shadow: inset 16px 0 22px -20px #8de8ff, inset -16px 0 22px -20px #8de8ff;
+}
+
+.color-chain-board.is-gesture-vertical {
+  box-shadow: inset 0 -18px 24px -21px #ffdc72;
+}
+
 .color-chain-cell {
   align-items: center;
   background: rgba(255, 255, 255, 0.018);
@@ -1203,6 +1221,21 @@
   align-items: center;
   color: var(--muted);
   display: flex;
+}
+
+.color-chain-gesture-guide {
+  background: linear-gradient(135deg, rgba(141, 232, 255, 0.1), rgba(240, 87, 189, 0.08));
+  border: 1px solid rgba(141, 232, 255, 0.2);
+  border-radius: 12px;
+  color: #dcecf4;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  margin-top: 9px;
+  padding: 9px 11px;
+}
+
+.color-chain-gesture-guide strong {
+  color: #9cf4ff;
 }
 
 .color-chain-next > div {

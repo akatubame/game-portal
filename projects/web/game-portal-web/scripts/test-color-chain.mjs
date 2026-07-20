@@ -2,15 +2,20 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
 
-const sourceUrl = new URL("../src/games/colorChain/logic.ts", import.meta.url);
-const source = fs.readFileSync(sourceUrl, "utf8");
-const compiled = ts.transpileModule(source, {
-  compilerOptions: {
-    module: ts.ModuleKind.ESNext,
-    target: ts.ScriptTarget.ES2022,
-  },
-}).outputText;
-const logic = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
+async function importTypeScriptSource(relativePath) {
+  const sourceUrl = new URL(relativePath, import.meta.url);
+  const source = fs.readFileSync(sourceUrl, "utf8");
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+  return import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
+}
+
+const logic = await importTypeScriptSource("../src/games/colorChain/logic.ts");
+const gesture = await importTypeScriptSource("../src/games/colorChain/gesture.ts");
 
 const {
   BOMB_BLOCK,
@@ -47,6 +52,31 @@ const expectMatchSize = (cells, expected, label) => {
   for (const [row, column] of cells) board[row][column] = "coral";
   assert.equal(findMatches(board).cells.size, expected, label);
 };
+
+const {
+  detectGestureAxis,
+  gestureStepCount,
+  isHardDropGesture,
+  isTapGesture,
+  shouldDeferSoftDrop,
+} = gesture;
+
+assert.equal(detectGestureAxis(7, 5), "none", "small pointer movement remains undecided");
+assert.equal(detectGestureAxis(28, 4), "horizontal", "a clear sideways drag locks to horizontal input");
+assert.equal(detectGestureAxis(-28, 4), "horizontal", "leftward drags also lock to horizontal input");
+assert.equal(detectGestureAxis(3, 30), "vertical", "a clear downward drag locks to vertical input");
+assert.equal(detectGestureAxis(3, -30), "none", "upward drags do not become drop gestures");
+assert.equal(detectGestureAxis(2, 30, "horizontal"), "horizontal", "a locked axis never changes mid-gesture");
+assert.equal(gestureStepCount(71, 24), 2, "drag distance converts into repeated cell steps");
+assert.equal(gestureStepCount(-71, 24), -2, "negative drag distance preserves its direction");
+assert.equal(isTapGesture(4, 5, 180), true, "a short steady touch rotates the pair");
+assert.equal(isTapGesture(16, 0, 180), false, "a moved pointer is not treated as a tap");
+assert.equal(isTapGesture(0, 0, 500), false, "a long press is not treated as a tap");
+assert.equal(isHardDropGesture(4, 62, 80, 28), true, "a fast downward flick performs a hard drop");
+assert.equal(isHardDropGesture(4, 62, 400, 28), false, "a slow downward drag does not perform a hard drop");
+assert.equal(isHardDropGesture(60, 62, 80, 28), false, "a diagonal swipe does not perform a hard drop");
+assert.equal(shouldDeferSoftDrop(45, 60), true, "fast early movement waits for flick classification");
+assert.equal(shouldDeferSoftDrop(45, 220), false, "slow movement can emit soft-drop steps");
 
 expectMatchSize([[17, 0], [17, 1], [17, 2], [17, 3]], 4, "horizontal match");
 expectMatchSize([[14, 2], [15, 2], [16, 2], [17, 2]], 4, "vertical match");

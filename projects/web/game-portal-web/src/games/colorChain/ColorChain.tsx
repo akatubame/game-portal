@@ -13,10 +13,19 @@ import {
   Sparkles,
   X
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import { ColorChainLandscapeNotice, ColorChainOpponentPlaceholder } from "./BattleShellSupport";
+import {
+  detectGestureAxis,
+  GESTURE_CONFIG,
+  gestureStepCount,
+  isHardDropGesture,
+  isTapGesture,
+  shouldDeferSoftDrop,
+  type GestureAxis
+} from "./gesture";
 import {
   applyGravityStep,
   addLaserCharge,
@@ -79,6 +88,16 @@ type ActiveSpecialMove = {
   name: string;
   tier: "standard" | "super";
   nonce: number;
+};
+
+type ActiveBoardGesture = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  startTime: number;
+  axis: GestureAxis;
+  horizontalSteps: number;
+  verticalSteps: number;
 };
 
 type BestResult = {
@@ -229,6 +248,8 @@ const copy = {
     rules: "2個1組のブロックを移動・回転して積みます。同色が縦・横・斜めに4個以上並ぶと、魔法の鎖が結ばれる『マジカルチェイン』が発生します。落下後に続けて揃えるとWチェイン、トリプルチェインと発展し、特に3段階目以降はスコア倍率が大幅に上がります。ブロックが最上段を超えるとゲームオーバーです。",
     controls: "操作",
     keyboard: "PC: ←→で移動、↓で下降、Z/Xで回転、Spaceで即落下、Hでホールド、Sでスロータイム、Lでチェインウェーブ、Pで一時停止。チェインウェーブ照準中は↑↓で行を選び、Enterで発動します。1列幅の縦穴では、回転入力でブロックの上下を反転できます。",
+    touchTitle: "タッチ操作",
+    touchGuide: "盤面をタップで右回転、左右スワイプで横移動、ゆっくり下へなぞるとソフトドロップ、素早く下へ払うと即落下します。",
     easy: "初級",
     normal: "中級",
     easyDetail: "4色・ゆっくり",
@@ -323,6 +344,8 @@ const copy = {
     rules: "Move and rotate each connected pair. Matching four or more colors vertically, horizontally, or diagonally casts a Magical Chain of glowing links. Matches formed after blocks fall advance to Double Chain, Triple Chain, and stronger calls, with a major score boost from the third stage onward. The game ends when blocks rise beyond the top.",
     controls: "Controls",
     keyboard: "PC: Move with ←/→, soft drop with ↓, rotate with Z/X, hard drop with Space, hold with H, use Slow Time with S, target Chain Wave with L, and pause with P. While targeting Chain Wave, choose a row with ↑/↓ and cast with Enter. In a one-cell-wide shaft, rotate to flip a vertical pair by 180 degrees.",
+    touchTitle: "Touch controls",
+    touchGuide: "Tap the board to rotate clockwise, swipe sideways to move, drag down slowly to soft drop, or flick down quickly to hard drop.",
     easy: "Easy",
     normal: "Normal",
     easyDetail: "4 colors · slow",
@@ -550,6 +573,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   const [mascotVisible, setMascotVisible] = useState(readMascotVisible);
   const [mascotIdleMotion, setMascotIdleMotion] = useState<MascotIdleMotion>("none");
   const [activeSpecialMove, setActiveSpecialMove] = useState<ActiveSpecialMove | null>(null);
+  const [gestureAxis, setGestureAxis] = useState<GestureAxis>("none");
 
   const boardRef = useRef(board);
   const activePairRef = useRef(activePair);
@@ -570,6 +594,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   const pairsWithoutSpecialRef = useRef(0);
   const resolutionToken = useRef(0);
   const specialMoveNonceRef = useRef(0);
+  const activeBoardGestureRef = useRef<ActiveBoardGesture | null>(null);
 
   const settings = difficultySettings[difficulty];
   const ranking = useRanking({ gameId: `color-chain-${difficulty}`, metricLabel: "Score", mode: "higher" });
@@ -1177,6 +1202,134 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     }
   }
 
+  function clearBoardGesture(pointerId?: number) {
+    const gesture = activeBoardGestureRef.current;
+    if (gesture && pointerId !== undefined && gesture.pointerId !== pointerId) return;
+    activeBoardGestureRef.current = null;
+    setGestureAxis("none");
+  }
+
+  function updateGestureAxis(gesture: ActiveBoardGesture, deltaX: number, deltaY: number) {
+    const nextAxis = detectGestureAxis(deltaX, deltaY, gesture.axis);
+    if (nextAxis !== gesture.axis) {
+      gesture.axis = nextAxis;
+      setGestureAxis(nextAxis);
+    }
+    return nextAxis;
+  }
+
+  function applyHorizontalGestureSteps(gesture: ActiveBoardGesture, deltaX: number, boardWidth: number) {
+    const cellWidth = boardWidth / BOARD_COLUMNS;
+    const totalSteps = gestureStepCount(
+      deltaX,
+      Math.max(18, cellWidth * GESTURE_CONFIG.horizontalStepRatio)
+    );
+    const pendingSteps = totalSteps - gesture.horizontalSteps;
+    if (pendingSteps === 0) return;
+    const direction = pendingSteps > 0 ? 1 : -1;
+    for (let index = 0; index < Math.abs(pendingSteps); index += 1) moveHorizontal(direction);
+    gesture.horizontalSteps = totalSteps;
+  }
+
+  function applyVerticalGestureSteps(
+    gesture: ActiveBoardGesture,
+    deltaY: number,
+    duration: number,
+    boardHeight: number,
+    force = false
+  ) {
+    if (!force && shouldDeferSoftDrop(deltaY, duration)) return;
+    const cellHeight = boardHeight / VISIBLE_ROWS;
+    const totalSteps = Math.max(0, gestureStepCount(
+      deltaY,
+      Math.max(16, cellHeight * GESTURE_CONFIG.softDropStepRatio)
+    ));
+    const pendingSteps = totalSteps - gesture.verticalSteps;
+    if (pendingSteps <= 0) return;
+    for (let index = 0; index < pendingSteps; index += 1) {
+      if (statusRef.current !== "playing") break;
+      softDrop();
+    }
+    gesture.verticalSteps = totalSteps;
+  }
+
+  function handleBoardPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
+    if (
+      !isMascotTest
+      || event.pointerType === "mouse"
+      || !event.isPrimary
+      || event.button !== 0
+      || statusRef.current !== "playing"
+      || laserTargetingRef.current
+      || activeBoardGestureRef.current
+    ) return;
+
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    activeBoardGestureRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      startTime: event.timeStamp,
+      axis: "none",
+      horizontalSteps: 0,
+      verticalSteps: 0
+    };
+    setGestureAxis("none");
+  }
+
+  function handleBoardPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const gesture = activeBoardGestureRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    if (statusRef.current !== "playing" || laserTargetingRef.current) {
+      clearBoardGesture(event.pointerId);
+      return;
+    }
+
+    event.preventDefault();
+    const deltaX = event.clientX - gesture.startX;
+    const deltaY = event.clientY - gesture.startY;
+    const duration = Math.max(1, event.timeStamp - gesture.startTime);
+    const axis = updateGestureAxis(gesture, deltaX, deltaY);
+    const boardRect = event.currentTarget.getBoundingClientRect();
+    if (axis === "horizontal") applyHorizontalGestureSteps(gesture, deltaX, boardRect.width);
+    if (axis === "vertical") applyVerticalGestureSteps(gesture, deltaY, duration, boardRect.height);
+  }
+
+  function handleBoardPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
+    const gesture = activeBoardGestureRef.current;
+    if (!gesture || gesture.pointerId !== event.pointerId) return;
+    event.preventDefault();
+
+    const deltaX = event.clientX - gesture.startX;
+    const deltaY = event.clientY - gesture.startY;
+    const duration = Math.max(1, event.timeStamp - gesture.startTime);
+    const boardRect = event.currentTarget.getBoundingClientRect();
+
+    if (statusRef.current === "playing" && !laserTargetingRef.current) {
+      if (isHardDropGesture(deltaX, deltaY, duration, boardRect.height / VISIBLE_ROWS)) {
+        hardDrop();
+      } else {
+        const axis = updateGestureAxis(gesture, deltaX, deltaY);
+        if (axis === "horizontal") applyHorizontalGestureSteps(gesture, deltaX, boardRect.width);
+        if (axis === "vertical") applyVerticalGestureSteps(gesture, deltaY, duration, boardRect.height, true);
+        if (axis === "none" && isTapGesture(deltaX, deltaY, duration)) rotate(1);
+      }
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    clearBoardGesture(event.pointerId);
+  }
+
+  function handleBoardPointerCancel(event: ReactPointerEvent<HTMLDivElement>) {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    clearBoardGesture(event.pointerId);
+  }
+
   useEffect(() => {
     if (status !== "playing" || laserTargeting) return;
     const timer = window.setInterval(automaticDrop, dropInterval);
@@ -1246,6 +1399,10 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     if (status === "paused") setMessage(t.paused);
     if (status === "gameover") setMessage(t.gameover);
   }, [language, laserTargeting, status, t.gameover, t.idle, t.laserSelect, t.paused, t.playing]);
+
+  useEffect(() => {
+    if (status !== "playing" || laserTargeting) clearBoardGesture();
+  }, [laserTargeting, status]);
 
   useEffect(() => {
     if (!isMascotTest) return;
@@ -1379,7 +1536,18 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
       <div className="puzzle-layout color-chain-layout">
         <div className={`color-chain-play-area${isMascotTest ? " has-mascot" : ""}${isMascotTest && activeSpecialMove?.tier === "super" ? " is-grand-spell-active" : ""}`}>
           <div className="color-chain-board-wrap">
-            <div className="color-chain-board" role="grid" aria-label={`${title} board`}>
+            <div
+              aria-describedby={isMascotTest ? "color-chain-touch-guide" : undefined}
+              className={`color-chain-board${isMascotTest && status === "playing" && !laserTargeting ? " is-gesture-enabled" : ""}${gestureAxis !== "none" ? ` is-gesture-${gestureAxis}` : ""}`}
+              onContextMenu={isMascotTest ? (event) => event.preventDefault() : undefined}
+              onLostPointerCapture={isMascotTest ? (event) => clearBoardGesture(event.pointerId) : undefined}
+              onPointerCancel={isMascotTest ? handleBoardPointerCancel : undefined}
+              onPointerDown={isMascotTest ? handleBoardPointerDown : undefined}
+              onPointerMove={isMascotTest ? handleBoardPointerMove : undefined}
+              onPointerUp={isMascotTest ? handleBoardPointerUp : undefined}
+              role="grid"
+              aria-label={`${title} board`}
+            >
               {visibleCells.map((cell) => (
                 <div
                   aria-label={cell.color ? `${cell.row - HIDDEN_ROWS + 1}, ${cell.column + 1}, ${cell.color}` : `${cell.row - HIDDEN_ROWS + 1}, ${cell.column + 1}, empty`}
@@ -1634,6 +1802,11 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
             </section>
             <h3>{t.controls}</h3>
             <p>{t.keyboard}</p>
+            {isMascotTest && (
+              <p className="color-chain-gesture-guide" id="color-chain-touch-guide">
+                <strong>{t.touchTitle}:</strong> {t.touchGuide}
+              </p>
+            )}
           </div>
 
           <div className="color-chain-difficulties" aria-label="Difficulty">
