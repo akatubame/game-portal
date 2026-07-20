@@ -16,6 +16,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { ColorChainLandscapeNotice, ColorChainOpponentPlaceholder } from "./BattleShellSupport";
 import {
   applyGravityStep,
   addLaserCharge,
@@ -1373,6 +1374,8 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
         </div>
       </div>
 
+      {isMascotTest && <ColorChainLandscapeNotice language={language} />}
+
       <div className="puzzle-layout color-chain-layout">
         <div className={`color-chain-play-area${isMascotTest ? " has-mascot" : ""}${isMascotTest && activeSpecialMove?.tier === "super" ? " is-grand-spell-active" : ""}`}>
           <div className="color-chain-board-wrap">
@@ -1574,6 +1577,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
         </div>
 
         <aside className="puzzle-side color-chain-side">
+          {isMascotTest && <ColorChainOpponentPlaceholder language={language} />}
           <div className="color-chain-next rule-card">
             <h2>{t.next}</h2>
             <div>
