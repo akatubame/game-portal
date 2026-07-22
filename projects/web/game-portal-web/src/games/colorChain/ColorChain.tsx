@@ -11,6 +11,8 @@ import {
   RotateCw,
   Snowflake,
   Sparkles,
+  Volume2,
+  VolumeX,
   X
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
@@ -100,6 +102,13 @@ type ActiveBoardGesture = {
   verticalSteps: number;
 };
 
+type ColorChainAudio = {
+  bgm: HTMLAudioElement;
+  chain: HTMLAudioElement;
+  strong: HTMLAudioElement;
+  gameOver: HTMLAudioElement;
+};
+
 type BestResult = {
   score: number;
   maxChain: number;
@@ -109,6 +118,13 @@ type BestResult = {
 
 const BEST_KEY = "game-shelf-color-chain-best";
 const MASCOT_VISIBLE_KEY = "game-shelf-color-chain-mascot-visible";
+const AUDIO_ENABLED_KEY = "game-shelf-color-chain-audio-enabled";
+const AUDIO_PATHS = {
+  bgm: "/audio/color-chain/block-puzzle-blues.mp3",
+  chain: "/audio/color-chain/magical-chain.mp3",
+  strong: "/audio/color-chain/strong-magic.mp3",
+  gameOver: "/audio/color-chain/game-over.mp3"
+} as const;
 const CLEAR_DELAY = 220;
 const FALL_DELAY = 130;
 const GRAVITY_STEP_DELAY = 36;
@@ -250,6 +266,10 @@ const copy = {
     keyboard: "PC: ←→で移動、↓で下降、Z/Xで回転、Spaceで即落下、Hでホールド、Sでスロータイム、Lでチェインウェーブ、Pで一時停止。チェインウェーブ照準中は↑↓で行を選び、Enterで発動します。1列幅の縦穴では、回転入力でブロックの上下を反転できます。",
     touchTitle: "タッチ操作",
     touchGuide: "盤面をタップで右回転、左右スワイプで横移動、ゆっくり下へなぞるとソフトドロップ、素早く下へ払うと即落下します。",
+    sound: "サウンド",
+    soundOn: "BGM・SEをON",
+    soundOff: "BGM・SEをOFF",
+    quickHud: "プレイHUD",
     easy: "初級",
     normal: "中級",
     easyDetail: "4色・ゆっくり",
@@ -346,6 +366,10 @@ const copy = {
     keyboard: "PC: Move with ←/→, soft drop with ↓, rotate with Z/X, hard drop with Space, hold with H, use Slow Time with S, target Chain Wave with L, and pause with P. While targeting Chain Wave, choose a row with ↑/↓ and cast with Enter. In a one-cell-wide shaft, rotate to flip a vertical pair by 180 degrees.",
     touchTitle: "Touch controls",
     touchGuide: "Tap the board to rotate clockwise, swipe sideways to move, drag down slowly to soft drop, or flick down quickly to hard drop.",
+    sound: "Sound",
+    soundOn: "Turn BGM and sound effects on",
+    soundOff: "Turn BGM and sound effects off",
+    quickHud: "Play HUD",
     easy: "Easy",
     normal: "Normal",
     easyDetail: "4 colors · slow",
@@ -436,6 +460,14 @@ const mascotAssets: Record<Exclude<MascotMood, "idle"> | "idle" | "blink", strin
 function readMascotVisible() {
   try {
     return window.localStorage.getItem(MASCOT_VISIBLE_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
+
+function readAudioEnabled() {
+  try {
+    return window.localStorage.getItem(AUDIO_ENABLED_KEY) !== "false";
   } catch {
     return true;
   }
@@ -574,6 +606,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   const [mascotIdleMotion, setMascotIdleMotion] = useState<MascotIdleMotion>("none");
   const [activeSpecialMove, setActiveSpecialMove] = useState<ActiveSpecialMove | null>(null);
   const [gestureAxis, setGestureAxis] = useState<GestureAxis>("none");
+  const [audioEnabled, setAudioEnabled] = useState(readAudioEnabled);
 
   const boardRef = useRef(board);
   const activePairRef = useRef(activePair);
@@ -595,6 +628,8 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   const resolutionToken = useRef(0);
   const specialMoveNonceRef = useRef(0);
   const activeBoardGestureRef = useRef<ActiveBoardGesture | null>(null);
+  const audioRef = useRef<ColorChainAudio | null>(null);
+  const audioEnabledRef = useRef(audioEnabled);
 
   const settings = difficultySettings[difficulty];
   const ranking = useRanking({ gameId: `color-chain-${difficulty}`, metricLabel: "Score", mode: "higher" });
@@ -618,6 +653,76 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     if (token === HORIZONTAL_LASER_BLOCK) return t.horizontalLaserItem;
     if (token === COLOR_BREAKER_BLOCK) return t.colorBreakerItem;
     return "";
+  };
+
+  const ensureAudio = () => {
+    if (!isMascotTest) return null;
+    if (audioRef.current) return audioRef.current;
+
+    const bgm = new Audio(AUDIO_PATHS.bgm);
+    const chain = new Audio(AUDIO_PATHS.chain);
+    const strong = new Audio(AUDIO_PATHS.strong);
+    const gameOver = new Audio(AUDIO_PATHS.gameOver);
+    bgm.loop = true;
+    bgm.preload = "metadata";
+    bgm.volume = 0.28;
+    chain.preload = "auto";
+    chain.volume = 0.5;
+    strong.preload = "auto";
+    strong.volume = 0.58;
+    gameOver.preload = "auto";
+    gameOver.volume = 0.58;
+    audioRef.current = { bgm, chain, strong, gameOver };
+    return audioRef.current;
+  };
+
+  const playBgm = (restart = false) => {
+    if (!audioEnabledRef.current) return;
+    const audio = ensureAudio();
+    if (!audio) return;
+    if (restart) audio.bgm.currentTime = 0;
+    void audio.bgm.play().catch(() => {
+      // Browsers may defer playback until the next explicit user action.
+    });
+  };
+
+  const pauseBgm = (reset = false) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.bgm.pause();
+    if (reset) audio.bgm.currentTime = 0;
+  };
+
+  const playAudioEffect = (kind: "chain" | "strong" | "gameOver") => {
+    if (!audioEnabledRef.current) return;
+    const audio = ensureAudio();
+    if (!audio) return;
+    const effect = audio[kind];
+    effect.pause();
+    effect.currentTime = 0;
+    void effect.play().catch(() => {
+      // A blocked sound should never interrupt gameplay.
+    });
+  };
+
+  const stopAllAudio = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    Object.values(audio).forEach((track) => {
+      track.pause();
+      track.currentTime = 0;
+    });
+  };
+
+  const toggleAudio = () => {
+    const next = !audioEnabledRef.current;
+    audioEnabledRef.current = next;
+    setAudioEnabled(next);
+    if (!next) {
+      stopAllAudio();
+      return;
+    }
+    if (statusRef.current === "playing" || statusRef.current === "resolving") playBgm();
   };
 
   const updateBoard = (next: Board) => {
@@ -739,6 +844,8 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   }
 
   function finishGame() {
+    pauseBgm(true);
+    playAudioEffect("gameOver");
     updateStatus("gameover");
     updateActivePair(null);
     setCurrentChain(0);
@@ -831,6 +938,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
                 ? t.superHorizontalLaserBlast(superClear.cells.size)
                 : t.superBombBlast(superClear.cells.size)
         );
+        playAudioEffect("strong");
         await wait(CLEAR_DELAY + (superMove?.tier === "super" ? 420 : 140));
         if (token !== resolutionToken.current) return;
 
@@ -904,8 +1012,9 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
                         ? t.bombBlast(clearResult.cells.size)
                         : rewards.length > 0
                           ? t.rewardCreated(rewards.map((reward) => rewardLabel(reward.token)).filter(Boolean).join("・"))
-                          : t.resolving(chainCallName(chain, language), match.cells.size)
+                           : t.resolving(chainCallName(chain, language), match.cells.size)
       );
+      playAudioEffect(specialTriggered ? "strong" : "chain");
       await wait(CLEAR_DELAY + (specialTriggered ? 80 : 0));
       if (token !== resolutionToken.current) return;
 
@@ -1006,6 +1115,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     setVerticalLaserColumns([...result.verticalLaserColumns]);
     setMessage(result.cells.size > 0 ? t.laserRow(row - HIDDEN_ROWS + 1) : t.laserMiss);
     setClearingCells(new Set(result.cells));
+    playAudioEffect("strong");
     await wait(CLEAR_DELAY + (specialMove.tier === "super" ? 420 : 80));
     if (token !== resolutionToken.current) return;
 
@@ -1047,6 +1157,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   }
 
   function startGame(nextDifficulty: Difficulty = difficulty) {
+    playBgm(true);
     resolutionToken.current += 1;
     difficultyRef.current = nextDifficulty;
     setDifficulty(nextDifficulty);
@@ -1193,10 +1304,12 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
 
   function togglePause() {
     if (statusRef.current === "playing") {
+      pauseBgm();
       updateLaserTargeting(false);
       updateStatus("paused");
       setMessage(t.paused);
     } else if (statusRef.current === "paused") {
+      playBgm();
       updateStatus("playing");
       setMessage(t.playing);
     }
@@ -1293,7 +1406,17 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     const axis = updateGestureAxis(gesture, deltaX, deltaY);
     const boardRect = event.currentTarget.getBoundingClientRect();
     if (axis === "horizontal") applyHorizontalGestureSteps(gesture, deltaX, boardRect.width);
-    if (axis === "vertical") applyVerticalGestureSteps(gesture, deltaY, duration, boardRect.height);
+    if (axis === "vertical") {
+      if (isHardDropGesture(deltaX, deltaY, duration, boardRect.height / VISIBLE_ROWS)) {
+        hardDrop();
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+        clearBoardGesture(event.pointerId);
+        return;
+      }
+      applyVerticalGestureSteps(gesture, deltaY, duration, boardRect.height);
+    }
   }
 
   function handleBoardPointerUp(event: ReactPointerEvent<HTMLDivElement>) {
@@ -1413,6 +1536,21 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     }
   }, [isMascotTest, mascotVisible]);
 
+  useEffect(() => {
+    audioEnabledRef.current = audioEnabled;
+    if (!isMascotTest) return;
+    try {
+      window.localStorage.setItem(AUDIO_ENABLED_KEY, String(audioEnabled));
+    } catch {
+      // Storage may be unavailable in privacy modes; the in-memory setting still works.
+    }
+  }, [audioEnabled, isMascotTest]);
+
+  useEffect(() => () => {
+    stopAllAudio();
+    audioRef.current = null;
+  }, []);
+
   const ghostPair = activePair ? getGhostPair(board, activePair) : null;
   const boardIsDangerous = useMemo(
     () => board
@@ -1514,20 +1652,35 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     setBestResults(next);
     window.localStorage.setItem(BEST_KEY, JSON.stringify(next));
   };
+  const isActivePlay = isMascotTest && status !== "idle" && status !== "gameover";
 
   return (
-    <section className={`puzzle-shell color-chain-shell${isMascotTest ? " is-mascot-test" : ""}`} aria-labelledby="color-chain-title">
+    <section className={`puzzle-shell color-chain-shell${isMascotTest ? " is-mascot-test" : ""}${isActivePlay ? " is-active-play" : ""}`} aria-labelledby="color-chain-title">
       <div className="puzzle-hero color-chain-hero">
         <div>
           <p className="eyebrow">{t.eyebrow}</p>
           <h1 id="color-chain-title">{title}</h1>
           <p className="lead">{message}</p>
         </div>
-        <div className="score-panel color-chain-score" aria-label={t.status}>
-          <div><span>{t.score}</span><strong>{score.toLocaleString()}</strong></div>
-          <div><span>{t.chain}</span><strong>{maxChain}</strong></div>
-          <div><span>{t.cleared}</span><strong>{cleared}</strong></div>
-          <div><span>{t.level}</span><strong>{level}</strong></div>
+        <div className="color-chain-hero-tools">
+          <div className="score-panel color-chain-score" aria-label={t.status}>
+            <div><span>{t.score}</span><strong>{score.toLocaleString()}</strong></div>
+            <div><span>{t.chain}</span><strong>{maxChain}</strong></div>
+            <div><span>{t.cleared}</span><strong>{cleared}</strong></div>
+            <div><span>{t.level}</span><strong>{level}</strong></div>
+          </div>
+          {isMascotTest && (
+            <button
+              aria-label={audioEnabled ? t.soundOff : t.soundOn}
+              aria-pressed={audioEnabled}
+              className="color-chain-audio-toggle"
+              onClick={toggleAudio}
+              type="button"
+            >
+              {audioEnabled ? <Volume2 aria-hidden="true" /> : <VolumeX aria-hidden="true" />}
+              <span>{t.sound}: {audioEnabled ? "ON" : "OFF"}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -1664,6 +1817,82 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
             <button type="button" disabled={status !== "playing" || laserTargeting} onClick={hardDrop} aria-label={t.hardDrop}><ChevronsDown /></button>
             <button type="button" disabled={status !== "playing" || laserTargeting} onClick={() => moveHorizontal(1)} aria-label={t.moveRight}><ArrowRight /></button>
           </div>
+
+          {isMascotTest && (
+            <section className="color-chain-compact-hud" aria-label={t.quickHud}>
+              <div className="color-chain-compact-stats" aria-label={t.status}>
+                <span><small>{t.score}</small><strong>{score.toLocaleString()}</strong></span>
+                <span><small>{t.chain}</small><strong>{maxChain}</strong></span>
+                <span><small>{t.cleared}</small><strong>{cleared}</strong></span>
+                <span><small>{t.level}</small><strong>{level}</strong></span>
+              </div>
+              <div className="color-chain-compact-next" aria-label={t.next}>
+                <small>{t.next}</small>
+                <div>
+                  {nextPairs.slice(0, 2).map((pair, pairIndex) => (
+                    <span className="color-chain-next-pair" key={`compact-${pairIndex}-${pair.colors.join("-")}`}>
+                      {getSpawnPreviewTokens(pair).map((color, colorIndex) => (
+                        <i className={`is-${color}`} data-symbol={symbols[color]} key={`${color}-${colorIndex}`} />
+                      ))}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="color-chain-compact-actions">
+                <button
+                  aria-label={laserTargeting ? t.laserCancel : t.laser}
+                  className={laserTargeting || laserCharge >= 100 ? "is-ready" : ""}
+                  disabled={!laserTargeting && (status !== "playing" || laserCharge < 100)}
+                  onClick={laserTargeting ? cancelLaserTargeting : beginLaserTargeting}
+                  type="button"
+                >
+                  {laserTargeting ? <X aria-hidden="true" /> : blockIcon(HORIZONTAL_LASER_BLOCK)}
+                  <span>{Math.round(laserCharge)}%</span>
+                  <i style={{ width: `${laserCharge}%` }} />
+                </button>
+                <button
+                  aria-label={t.slow}
+                  className={slowActive || slowCharge >= 100 ? "is-ready" : ""}
+                  disabled={status !== "playing" || laserTargeting || slowActive || slowCharge < 100}
+                  onClick={activateSlowTime}
+                  type="button"
+                >
+                  <Snowflake aria-hidden="true" />
+                  <span>{slowActive ? `${slowRemaining.toFixed(1)}s` : `${Math.round(slowCharge)}%`}</span>
+                  <i style={{ width: `${slowActive ? (slowRemaining / SLOW_DURATION) * 100 : slowCharge}%` }} />
+                </button>
+                <button
+                  aria-label={t.hold}
+                  className={holdPair ? "is-ready" : ""}
+                  disabled={status !== "playing" || laserTargeting || holdUsed || !activePair}
+                  onClick={holdCurrentPair}
+                  type="button"
+                >
+                  <RotateCcw aria-hidden="true" />
+                  <span>{holdPair ? "SET" : "--"}</span>
+                </button>
+                <button
+                  aria-label={audioEnabled ? t.soundOff : t.soundOn}
+                  aria-pressed={audioEnabled}
+                  className={audioEnabled ? "is-ready" : ""}
+                  onClick={toggleAudio}
+                  type="button"
+                >
+                  {audioEnabled ? <Volume2 aria-hidden="true" /> : <VolumeX aria-hidden="true" />}
+                  <span>{audioEnabled ? "ON" : "OFF"}</span>
+                </button>
+                <button
+                  aria-label={status === "paused" ? t.resume : t.pause}
+                  disabled={status !== "playing" && status !== "paused"}
+                  onClick={togglePause}
+                  type="button"
+                >
+                  {status === "paused" ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}
+                  <span>{status === "paused" ? "▶" : "Ⅱ"}</span>
+                </button>
+              </div>
+            </section>
+          )}
 
           <div className={`color-chain-laser-panel${laserCharge >= 100 ? " is-ready" : ""}`}>
             <div className="color-chain-laser-heading">

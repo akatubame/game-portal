@@ -73,6 +73,7 @@ assert.equal(isTapGesture(4, 5, 180), true, "a short steady touch rotates the pa
 assert.equal(isTapGesture(16, 0, 180), false, "a moved pointer is not treated as a tap");
 assert.equal(isTapGesture(0, 0, 500), false, "a long press is not treated as a tap");
 assert.equal(isHardDropGesture(4, 62, 80, 28), true, "a fast downward flick performs a hard drop");
+assert.equal(isHardDropGesture(3, 36, 70, 28), true, "a short, deliberate flick is responsive enough for phone play");
 assert.equal(isHardDropGesture(4, 62, 400, 28), false, "a slow downward drag does not perform a hard drop");
 assert.equal(isHardDropGesture(60, 62, 80, 28), false, "a diagonal swipe does not perform a hard drop");
 assert.equal(shouldDeferSoftDrop(45, 60), true, "fast early movement waits for flick classification");

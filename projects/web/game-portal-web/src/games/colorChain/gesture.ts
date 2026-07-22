@@ -7,10 +7,10 @@ export const GESTURE_CONFIG = {
   tapMaxDuration: 320,
   horizontalStepRatio: 0.72,
   softDropStepRatio: 0.72,
-  flickMinDistanceRatio: 1.8,
-  flickMaxDuration: 260,
-  flickMinVelocity: 0.68,
-  slowGestureDelay: 140
+  flickMinDistanceRatio: 1.15,
+  flickMaxDuration: 320,
+  flickMinVelocity: 0.42,
+  slowGestureDelay: 170
 } as const;
 
 export function detectGestureAxis(
