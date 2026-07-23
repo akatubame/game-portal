@@ -89,7 +89,7 @@ export default defineConfig({
     embeddedGamesDevServer(),
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       includeAssets: ["favicon.svg", "pwa-192.png", "pwa-512.png", "pwa-maskable-512.png"],
       manifest: {
         name: "Game Shelf - Browser Game Collection",
@@ -114,8 +114,8 @@ export default defineConfig({
         ]
       },
       workbox: {
-        clientsClaim: true,
-        skipWaiting: true,
+        clientsClaim: false,
+        skipWaiting: false,
         cleanupOutdatedCaches: true,
         globPatterns: ["**/*.{html,js,css,json,png,svg,webp,wasm,woff,woff2}"],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,

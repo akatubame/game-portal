@@ -2068,7 +2068,7 @@ h1 {
   position: fixed;
   left: 18px;
   bottom: 18px;
-  z-index: 35;
+  z-index: 1300;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -2085,7 +2085,7 @@ h1 {
   position: fixed;
   right: 18px;
   bottom: 18px;
-  z-index: 40;
+  z-index: 1300;
   width: min(430px, calc(100% - 36px));
   display: flex;
   align-items: center;

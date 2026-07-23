@@ -35,7 +35,13 @@ const copy = {
   }
 } as const;
 
-export function PwaControls({ language }: { language: Language }) {
+export function PwaControls({
+  language,
+  showInstall = true
+}: {
+  language: Language;
+  showInstall?: boolean;
+}) {
   const pwa = useSyncExternalStore(subscribePwa, getPwaSnapshot, getPwaSnapshot);
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [showInstallHint, setShowInstallHint] = useState(false);
@@ -43,7 +49,7 @@ export function PwaControls({ language }: { language: Language }) {
   const [installed, setInstalled] = useState(() => window.matchMedia("(display-mode: standalone)").matches);
   const t = copy[language];
   const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const canOfferInstall = !installed && (installPrompt !== null || isIos);
+  const canOfferInstall = showInstall && !installed && (installPrompt !== null || isIos);
 
   useEffect(() => {
     const handleInstallPrompt = (event: Event) => {

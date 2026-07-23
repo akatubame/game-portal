@@ -386,6 +386,7 @@ export function App() {
       <I18nContext.Provider value={{ language, setLanguage }}>
         <main className={`game-screen${selectedGameId === colorChainMascotTestId ? " is-color-chain-test" : ""}`}>
           <DomTranslationLayer language={language} />
+          <PwaControls language={language} showInstall={false} />
           <div className="game-topbar">
             <button className="back-button" type="button" onClick={returnToShelf}>
               <ArrowLeft aria-hidden="true" />
