@@ -20,7 +20,11 @@ import {
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
-import { ColorChainLandscapeNotice, ColorChainOpponentPlaceholder } from "./BattleShellSupport";
+import {
+  ColorChainLandscapeNotice,
+  ColorChainOpponentPanel,
+  type OpponentImpact
+} from "./BattleShellSupport";
 import {
   detectGestureAxis,
   GESTURE_CONFIG,
@@ -248,6 +252,19 @@ function specialMoveFromResult(result: SpecialClearResult, language: "ja" | "en"
     ? "super" as const
     : "standard" as const;
   return { id, name: specialMoveNames[language][id], tier };
+}
+
+function opponentImpactFor(chain: number, specialMove: ActiveSpecialMove | null): OpponentImpact {
+  if (specialMove?.id === "prism-nova" || chain >= 4) return "heavy";
+  if (
+    specialMove?.id === "grand-chain-bomb"
+    || specialMove?.id === "trinity-pillar"
+    || specialMove?.id === "trinity-wave"
+    || specialMove?.id === "prism-break"
+    || chain >= 3
+  ) return "medium";
+  if (specialMove || chain >= 2) return "light";
+  return null;
 }
 
 const copy = {
@@ -535,7 +552,7 @@ function ChromaMascotPanel({
       <div className="color-chain-mascot-heading">
         <div>
           <span>{language === "ja" ? "CHARACTER" : "MASCOT"}</span>
-          <strong>{labels.name}</strong>
+          <strong data-compact-name={language === "ja" ? "クロマ" : "Chroma"}>{labels.name}</strong>
         </div>
         <button
           aria-label={visible ? labels.hide : labels.show}
@@ -1751,6 +1768,15 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     window.localStorage.setItem(BEST_KEY, JSON.stringify(next));
   };
   const isActivePlay = isMascotTest && status !== "idle" && status !== "gameover";
+  const opponentImpact = status === "resolving"
+    ? opponentImpactFor(currentChain, activeSpecialMove)
+    : null;
+  const opponentEventKey = opponentImpact
+    ? activeSpecialMove
+      ? `special-${activeSpecialMove.nonce}`
+      : `chain-${currentChain}-${clearingCells.size}-${score}`
+    : null;
+  const opponentDisturbance = Math.max(0, 100 - cleared * 2);
 
   useLayoutEffect(() => {
     if (!isMascotTest) return;
@@ -1964,6 +1990,16 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
             />
           )}
 
+          {isMascotTest && (
+            <ColorChainOpponentPanel
+              disturbance={opponentDisturbance}
+              eventKey={opponentEventKey}
+              impact={opponentImpact}
+              language={language}
+              status={status}
+            />
+          )}
+
           <div className="color-chain-touch-controls" aria-label={t.controls}>
             <button type="button" disabled={status !== "playing" || laserTargeting} onClick={() => moveHorizontal(-1)} aria-label={t.moveLeft}><ArrowLeft /></button>
             <button type="button" disabled={status !== "playing" || laserTargeting} onClick={() => rotate(1)} aria-label={t.rotate}><RotateCw /></button>
@@ -2128,7 +2164,6 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
         </div>
 
         <aside className="puzzle-side color-chain-side">
-          {isMascotTest && <ColorChainOpponentPlaceholder language={language} />}
           <div className="color-chain-next rule-card">
             <h2>{t.next}</h2>
             <div>

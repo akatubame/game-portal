@@ -1540,6 +1540,7 @@
 @media (prefers-reduced-motion: reduce) {
   .color-chain-cell.is-clearing,
   .color-chain-burst,
+  .color-chain-opponent-panel .color-chain-moko-slime,
   .color-chain-grand-spell-effect,
   .color-chain-grand-spell-effect i,
   .color-chain-play-area.is-grand-spell-active .color-chain-board-wrap,
@@ -8886,38 +8887,171 @@ footer {
 }
 
 .color-chain-opponent-stage::before {
-  background: radial-gradient(circle at 45% 36%, #fff7c4 0 4%, #ff9d61 5% 18%, #7f356f 48%, #251b43 70%);
-  border: 2px solid rgba(255, 218, 132, 0.62);
-  border-radius: 48% 52% 46% 54%;
-  box-shadow: 0 0 28px rgba(255, 122, 105, 0.22);
+  background: radial-gradient(circle, rgba(118, 255, 222, 0.2), rgba(79, 173, 205, 0.08) 48%, transparent 70%);
+  border: 1px solid rgba(140, 255, 226, 0.22);
+  border-radius: 50%;
+  box-shadow: 0 0 32px rgba(86, 225, 207, 0.16);
   content: "";
-  height: clamp(72px, 10vw, 112px);
-  opacity: 0.52;
-  transform: scaleY(0.8);
-  width: clamp(92px, 13vw, 142px);
-}
-
-.color-chain-opponent-stage > span {
-  color: #fff2a8;
-  left: 50%;
+  height: clamp(92px, 12vw, 146px);
+  opacity: 0.76;
   position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  width: clamp(92px, 12vw, 146px);
 }
 
-.color-chain-opponent-stage svg {
-  filter: drop-shadow(0 0 9px rgba(255, 219, 111, 0.88));
-  height: 30px;
-  width: 30px;
+.color-chain-moko-slime {
+  background:
+    radial-gradient(circle at 33% 26%, rgba(255, 255, 255, 0.92) 0 3%, transparent 4%),
+    radial-gradient(circle at 48% 36%, rgba(255, 157, 208, 0.56) 0 5%, transparent 6%),
+    radial-gradient(circle at 68% 48%, rgba(255, 232, 115, 0.58) 0 4%, transparent 5%),
+    linear-gradient(145deg, rgba(207, 255, 242, 0.95), rgba(72, 224, 210, 0.92) 52%, rgba(48, 143, 190, 0.96));
+  border: 2px solid rgba(219, 255, 245, 0.82);
+  border-radius: 48% 52% 42% 43% / 50% 52% 48% 48%;
+  box-shadow:
+    inset 10px 12px 18px rgba(255, 255, 255, 0.24),
+    inset -9px -12px 16px rgba(26, 81, 137, 0.25),
+    0 13px 22px rgba(5, 23, 46, 0.34),
+    0 0 24px rgba(86, 240, 211, 0.2);
+  height: clamp(78px, 9vw, 116px);
+  position: absolute;
+  transform-origin: 50% 82%;
+  width: clamp(96px, 11vw, 138px);
+  z-index: 2;
+}
+
+.color-chain-moko-slime > span {
+  background: rgba(255, 255, 255, 0.48);
+  border-radius: 50%;
+  height: 7px;
+  position: absolute;
+  width: 7px;
+}
+
+.color-chain-moko-slime > span:nth-of-type(1) {
+  left: 23%;
+  top: 52%;
+}
+
+.color-chain-moko-slime > span:nth-of-type(2) {
+  background: rgba(244, 117, 201, 0.55);
+  right: 18%;
+  top: 33%;
+  transform: rotate(30deg);
+}
+
+.color-chain-moko-slime > span:nth-of-type(3) {
+  background: rgba(255, 227, 101, 0.62);
+  bottom: 18%;
+  left: 48%;
+  transform: rotate(45deg);
+}
+
+.color-chain-moko-eye {
+  background: #10233f;
+  border-radius: 50%;
+  box-shadow: inset 2px 2px 0 rgba(255, 255, 255, 0.88);
+  height: 15%;
+  position: absolute;
+  top: 40%;
+  width: 11%;
+  z-index: 3;
+}
+
+.color-chain-moko-eye.is-left {
+  left: 31%;
+}
+
+.color-chain-moko-eye.is-right {
+  right: 31%;
+}
+
+.color-chain-moko-mouth {
+  border-bottom: 2px solid #31506b;
+  border-radius: 50%;
+  bottom: 25%;
+  height: 9%;
+  left: 43%;
+  position: absolute;
+  width: 14%;
+  z-index: 3;
+}
+
+.color-chain-moko-crystal {
+  background: linear-gradient(135deg, #fff5a8, #ff83c7 52%, #6b8fff);
+  clip-path: polygon(50% 0, 100% 42%, 74% 100%, 26% 100%, 0 42%);
+  filter: drop-shadow(0 0 6px rgba(255, 221, 121, 0.75));
+  height: 22%;
+  left: 42%;
+  position: absolute;
+  top: -10%;
+  transform: rotate(-8deg);
+  width: 18%;
+  z-index: 4;
+}
+
+.color-chain-moko-chain {
+  border: 3px solid #ffd67e;
+  border-radius: 50%;
+  bottom: 1%;
+  height: 16%;
+  left: 10%;
+  position: absolute;
+  transform: rotate(28deg);
+  width: 13%;
+  z-index: 4;
 }
 
 .color-chain-opponent-orbit {
-  border: 2px dashed rgba(255, 201, 112, 0.42);
+  border: 2px dashed rgba(111, 240, 218, 0.34);
   border-radius: 50%;
   height: min(76%, 178px);
   position: absolute;
   transform: rotate(-12deg);
   width: min(88%, 178px);
+}
+
+.color-chain-opponent-gauge-wrap {
+  display: grid;
+  gap: 5px 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-bottom: 8px;
+  position: relative;
+  z-index: 2;
+}
+
+.color-chain-opponent-gauge-wrap > span {
+  align-items: center;
+  color: #baf8e8;
+  display: inline-flex;
+  font-size: 0.64rem;
+  font-weight: 900;
+  gap: 5px;
+}
+
+.color-chain-opponent-gauge-wrap > span svg {
+  height: 14px;
+  width: 14px;
+}
+
+.color-chain-opponent-gauge-wrap > strong {
+  color: #fff3ad;
+  font-size: 0.7rem;
+}
+
+.color-chain-opponent-gauge {
+  background: rgba(2, 13, 25, 0.72);
+  border: 1px solid rgba(150, 255, 226, 0.2);
+  border-radius: 999px;
+  grid-column: 1 / -1;
+  height: 8px;
+  overflow: hidden;
+}
+
+.color-chain-opponent-gauge > i {
+  background: linear-gradient(90deg, #ff85c8, #ffe87c 42%, #67efd0);
+  box-shadow: 0 0 12px rgba(98, 241, 212, 0.52);
+  display: block;
+  height: 100%;
+  transition: width 420ms ease;
 }
 
 .color-chain-opponent-copy {
@@ -8940,6 +9074,55 @@ footer {
   font-size: 0.68rem;
   line-height: 1.45;
   margin: 3px 0 0;
+}
+
+.color-chain-opponent-copy p span {
+  color: #ffcf8d;
+  display: block;
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.color-chain-opponent-panel.is-light .color-chain-moko-slime {
+  animation: color-chain-moko-hit-light 650ms ease-out both;
+}
+
+.color-chain-opponent-panel.is-medium .color-chain-moko-slime {
+  animation: color-chain-moko-hit-medium 900ms ease-out both;
+}
+
+.color-chain-opponent-panel.is-heavy .color-chain-moko-slime {
+  animation: color-chain-moko-hit-heavy 1200ms ease-out both;
+}
+
+.color-chain-opponent-panel.is-purified .color-chain-moko-slime {
+  filter: saturate(0.72) brightness(1.12);
+}
+
+.color-chain-opponent-panel.is-purified .color-chain-opponent-gauge > i {
+  box-shadow: none;
+}
+
+@keyframes color-chain-moko-hit-light {
+  0%, 100% { transform: scale(1); }
+  30% { transform: translateY(4px) scale(1.06, 0.88); }
+  58% { transform: translateY(-5px) scale(0.96, 1.05); }
+}
+
+@keyframes color-chain-moko-hit-medium {
+  0%, 100% { transform: translateX(0) scale(1); }
+  24% { transform: translateX(-8px) scale(1.08, 0.82); }
+  46% { transform: translateX(7px) scale(0.94, 1.08); }
+  68% { transform: translateX(-3px) scale(1.03, 0.95); }
+}
+
+@keyframes color-chain-moko-hit-heavy {
+  0%, 100% { transform: translate(0) rotate(0) scale(1); }
+  18% { transform: translate(-10px, 6px) rotate(-8deg) scale(1.12, 0.72); }
+  40% { transform: translate(9px, -9px) rotate(7deg) scale(0.9, 1.12); }
+  62% { transform: translate(-5px, 1px) rotate(-4deg) scale(1.05, 0.9); }
 }
 
 .color-chain-shell.is-mascot-test .color-chain-layout {
@@ -9215,9 +9398,9 @@ footer {
   display: grid;
   gap: 6px var(--chain-battle-gap);
   grid-template-areas:
-    "chroma board hud"
-    "chroma controls hud";
-  grid-template-columns: minmax(118px, 170px) max-content minmax(160px, 220px);
+    "chroma board hud opponent"
+    "chroma controls hud opponent";
+  grid-template-columns: minmax(108px, 160px) max-content minmax(150px, 210px) minmax(108px, 160px);
   grid-template-rows: auto 40px;
   height: 100%;
   justify-content: center;
@@ -9260,6 +9443,48 @@ footer {
   line-height: 1.35;
   min-height: 42px;
   padding: 6px 7px;
+}
+
+.color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-panel {
+  grid-area: opponent;
+  height: auto;
+  min-height: 0;
+  padding: 8px;
+}
+
+.color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-heading span {
+  font-size: 0.5rem;
+}
+
+.color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-heading strong {
+  font-size: 0.72rem;
+}
+
+.color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-stage {
+  min-height: 82px;
+}
+
+.color-chain-shell.is-mascot-test.is-active-play .color-chain-moko-slime {
+  height: min(42%, 102px);
+  min-height: 66px;
+  min-width: 78px;
+  width: min(74%, 122px);
+}
+
+.color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-gauge-wrap {
+  margin-bottom: 6px;
+}
+
+.color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-copy {
+  padding: 7px 8px;
+}
+
+.color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-copy strong {
+  font-size: 0.65rem;
+}
+
+.color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-copy p {
+  font-size: 0.58rem;
 }
 
 .color-chain-shell.is-mascot-test.is-active-play .color-chain-compact-hud {
@@ -9393,23 +9618,26 @@ footer {
   .color-chain-shell.is-mascot-test.is-active-play .color-chain-layout {
     align-content: start;
     grid-template-areas:
-      "board"
-      "controls"
-      "chroma"
-      "hud";
-    grid-template-columns: minmax(0, 1fr);
+      "board board"
+      "controls controls"
+      "chroma opponent"
+      "hud hud";
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-rows: auto 40px 68px minmax(78px, 1fr);
     justify-items: center;
+    max-width: calc(var(--chain-cell-size) * 8 + 14px);
+    margin: 0 auto;
+    width: 100%;
   }
 
   .color-chain-shell.is-mascot-test.is-active-play .color-chain-board-wrap {
     align-self: start;
-    grid-column: 1;
+    grid-column: 1 / -1;
     grid-row: 1;
   }
 
   .color-chain-shell.is-mascot-test.is-active-play .color-chain-play-area.has-mascot > .color-chain-touch-controls {
-    grid-column: 1;
+    grid-column: 1 / -1;
     grid-row: 2;
   }
 
@@ -9418,9 +9646,9 @@ footer {
     gap: 2px 7px;
     grid-column: 1;
     grid-row: 3;
-    grid-template-columns: 58px minmax(0, 1fr);
+    grid-template-columns: 50px minmax(0, 1fr);
     height: 68px;
-    max-width: calc(var(--chain-cell-size) * 8 + 14px);
+    max-width: none;
     width: 100%;
   }
 
@@ -9434,6 +9662,16 @@ footer {
     display: none;
   }
 
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-mascot-heading strong {
+    font-size: 0;
+    white-space: nowrap;
+  }
+
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-mascot-heading strong::after {
+    content: attr(data-compact-name);
+    font-size: 0.62rem;
+  }
+
   .color-chain-shell.is-mascot-test.is-active-play .color-chain-mascot-toggle {
     min-height: 26px;
     padding: 3px 6px;
@@ -9444,7 +9682,7 @@ footer {
     grid-row: 1 / span 2;
     margin: 0;
     min-height: 0;
-    width: 58px;
+    width: 50px;
   }
 
   .color-chain-shell.is-mascot-test.is-active-play .color-chain-mascot-panel > p {
@@ -9458,9 +9696,62 @@ footer {
     white-space: nowrap;
   }
 
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-panel {
+    display: grid;
+    gap: 2px 5px;
+    grid-column: 2;
+    grid-row: 3;
+    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-rows: 25px 1fr;
+    height: 68px;
+    padding: 5px;
+    width: 100%;
+  }
+
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-heading {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-heading span,
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-heading svg,
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-copy,
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-orbit {
+    display: none;
+  }
+
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-stage {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    min-height: 0;
+  }
+
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-stage::before {
+    height: 46px;
+    width: 46px;
+  }
+
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-moko-slime {
+    height: 36px;
+    min-height: 0;
+    min-width: 0;
+    width: 43px;
+  }
+
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-gauge-wrap {
+    align-self: center;
+    grid-column: 2;
+    grid-row: 2;
+    margin: 0;
+  }
+
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-gauge-wrap > span {
+    display: none;
+  }
+
   .color-chain-shell.is-mascot-test.is-active-play .color-chain-compact-hud {
     gap: 4px 6px;
-    grid-column: 1;
+    grid-column: 1 / -1;
     grid-row: 4;
     grid-template-columns: 70px minmax(0, 1fr);
     grid-template-rows: 25px minmax(42px, 1fr);
