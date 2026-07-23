@@ -17,7 +17,7 @@ import {
   VolumeX,
   X
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import { ColorChainLandscapeNotice, ColorChainOpponentPlaceholder } from "./BattleShellSupport";
@@ -1196,6 +1196,11 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   }
 
   function startGame(nextDifficulty: Difficulty = difficulty) {
+    if (isMascotTest) {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+    }
     playBgm(true);
     resolutionToken.current += 1;
     difficultyRef.current = nextDifficulty;
@@ -1747,12 +1752,25 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   };
   const isActivePlay = isMascotTest && status !== "idle" && status !== "gameover";
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isMascotTest) return;
     const className = "color-chain-active-play";
     document.documentElement.classList.toggle(className, isActivePlay);
     document.body.classList.toggle(className, isActivePlay);
+
+    let resetFrame = 0;
+    if (isActivePlay) {
+      const resetViewportOrigin = () => {
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      };
+      resetViewportOrigin();
+      resetFrame = window.requestAnimationFrame(resetViewportOrigin);
+    }
+
     return () => {
+      if (resetFrame) window.cancelAnimationFrame(resetFrame);
       document.documentElement.classList.remove(className);
       document.body.classList.remove(className);
     };
