@@ -6,6 +6,16 @@ type BattleShellSupportProps = {
 };
 
 export type OpponentImpact = "light" | "medium" | "heavy" | null;
+type MokoVisualState = "idle" | "attack" | Exclude<OpponentImpact, null> | "purified";
+
+const mokoAssets: Record<MokoVisualState, string> = {
+  idle: "/characters/moko/moko-idle",
+  attack: "/characters/moko/moko-attack",
+  light: "/characters/moko/moko-hit-light",
+  medium: "/characters/moko/moko-hit-medium",
+  heavy: "/characters/moko/moko-hit-heavy",
+  purified: "/characters/moko/moko-purified"
+};
 
 type ColorChainOpponentProps = BattleShellSupportProps & {
   disturbance: number;
@@ -61,6 +71,7 @@ export function ColorChainOpponentPanel({
   const t = battleCopy[language];
   const [reaction, setReaction] = useState<Exclude<OpponentImpact, null> | "idle">("idle");
   const purified = disturbance <= 0;
+  const visualState: MokoVisualState = purified ? "purified" : reaction;
 
   useEffect(() => {
     if (!eventKey || !impact || purified) return;
@@ -104,16 +115,22 @@ export function ColorChainOpponentPanel({
       </div>
       <div className="color-chain-opponent-stage" aria-hidden="true">
         <i className="color-chain-opponent-orbit" />
-        <div className="color-chain-moko-slime">
-          <i className="color-chain-moko-crystal" />
-          <i className="color-chain-moko-eye is-left" />
-          <i className="color-chain-moko-eye is-right" />
-          <i className="color-chain-moko-mouth" />
-          <i className="color-chain-moko-chain" />
-          <span />
-          <span />
-          <span />
-        </div>
+        {(Object.keys(mokoAssets) as MokoVisualState[]).map((assetState) => (
+          <picture
+            aria-hidden={assetState !== visualState}
+            className={`color-chain-moko-slime is-${assetState}${assetState === visualState ? " is-active" : ""}`}
+            key={assetState}
+          >
+            <source srcSet={`${mokoAssets[assetState]}.webp`} type="image/webp" />
+            <img
+              alt=""
+              draggable="false"
+              height="1254"
+              src={`${mokoAssets[assetState]}.png`}
+              width="1254"
+            />
+          </picture>
+        ))}
       </div>
       <div className="color-chain-opponent-gauge-wrap">
         <span><Droplets aria-hidden="true" />{t.disturbance}</span>
