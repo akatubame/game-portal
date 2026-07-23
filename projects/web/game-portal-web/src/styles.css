@@ -9005,6 +9005,79 @@ footer {
   transition: width 420ms ease;
 }
 
+.color-chain-interference-gauge {
+  --interference-accent: #69dcff;
+  --interference-glow: rgba(105, 220, 255, 0.42);
+  align-items: center;
+  display: grid;
+  gap: 4px 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin: 0 0 8px;
+  position: relative;
+  z-index: 2;
+}
+
+.color-chain-interference-gauge > span {
+  color: #c7f5ff;
+  font-size: 0.62rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.color-chain-interference-gauge > strong {
+  color: var(--interference-accent);
+  font-size: 0.62rem;
+  font-weight: 900;
+  text-align: right;
+}
+
+.color-chain-interference-gauge > i {
+  background: rgba(2, 13, 25, 0.76);
+  border: 1px solid color-mix(in srgb, var(--interference-accent) 36%, transparent);
+  border-radius: 999px;
+  grid-column: 1 / -1;
+  height: 8px;
+  overflow: hidden;
+}
+
+.color-chain-interference-gauge > i > b {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--interference-accent) 55%, #ffffff), var(--interference-accent));
+  box-shadow: 0 0 12px var(--interference-glow);
+  display: block;
+  height: 100%;
+  transition: width 280ms linear;
+}
+
+.color-chain-interference-gauge.is-forecast {
+  --interference-accent: #ffc659;
+  --interference-glow: rgba(255, 177, 64, 0.58);
+}
+
+.color-chain-interference-gauge.is-forecast > strong,
+.color-chain-interference-gauge.is-forecast > i {
+  animation: color-chain-interference-warning 720ms ease-in-out infinite alternate;
+}
+
+.color-chain-interference-gauge.is-casting {
+  --interference-accent: #ff7ca8;
+  --interference-glow: rgba(255, 79, 140, 0.68);
+}
+
+.color-chain-interference-gauge.is-armed {
+  --interference-accent: #7dffd2;
+  --interference-glow: rgba(65, 255, 190, 0.6);
+}
+
+.color-chain-interference-gauge.is-triggered {
+  --interference-accent: #a8b8cb;
+  --interference-glow: rgba(167, 184, 205, 0.24);
+}
+
+@keyframes color-chain-interference-warning {
+  from { filter: brightness(0.88); opacity: 0.72; }
+  to { filter: brightness(1.35); opacity: 1; }
+}
+
 .color-chain-opponent-copy {
   background: rgba(5, 10, 20, 0.46);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -10148,7 +10221,9 @@ footer {
 .color-chain-shell.is-effects-reduced .color-chain-cell,
 .color-chain-shell.is-effects-reduced .color-chain-burst,
 .color-chain-shell.is-effects-reduced .color-chain-mascot-image,
-.color-chain-shell.is-effects-reduced .color-chain-mascot-portrait {
+.color-chain-shell.is-effects-reduced .color-chain-mascot-portrait,
+.color-chain-shell.is-effects-reduced .color-chain-interference-gauge > strong,
+.color-chain-shell.is-effects-reduced .color-chain-interference-gauge > i {
   animation: none !important;
   transition: none !important;
 }

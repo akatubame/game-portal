@@ -39,12 +39,18 @@ const battleCopy = {
     heavyHit: "大きくぐらり！ 結晶の乱れが一気にほどけました。",
     victory: "モコスライムは得意げに跳ねています。",
     cleansed: "浄化完了！ スコアアタックはそのまま続けられます。",
-    casting: "ぷるんと膨らみ、ぬめり魔法を放ちます！",
-    armed: "ぬめりが付着中。次の着地で周囲が横へ滑ります。",
-    triggered: "ぬめりが弾け、ブロックが横へ滑りました！",
-    forecast: "妨害予告",
-    chargingDetail: (charge: number) => `ぬめりブロックを準備中（${charge}%）`,
-    forecastDetail: (charge: number) => `まもなくぬめりブロック発動（${charge}%）`,
+    castingMessage: "ぷるんと膨らみ、ぬめり魔法を放ちます！",
+    armedMessage: "ぬめりが付着中。次の着地で周囲が横へ滑ります。",
+    triggeredMessage: "ぬめりが弾け、ブロックが横へ滑りました！",
+    forecastTitle: "妨害予告",
+    interferenceGauge: "ぬめりゲージ",
+    gaugeCharging: "準備中",
+    gaugeForecast: "発動間近！",
+    gaugeCasting: "発動！",
+    gaugeArmed: "ぬめり付着中",
+    gaugeTriggered: "再充填中",
+    chargingDetail: "ぬめりブロックを準備しています。",
+    forecastDetail: "まもなくぬめりブロックを放ちます！",
     castingDetail: "ぬめりブロック発動！",
     armedDetail: "光るぬめり付きブロックに注意",
     triggeredDetail: "妨害終了。次の魔法を充填中",
@@ -63,12 +69,18 @@ const battleCopy = {
     heavyHit: "Big wobble! The crystal disorder unraveled at once.",
     victory: "Moko Slime is bouncing proudly.",
     cleansed: "Purified! You can keep playing for a higher score.",
-    casting: "It swells up and casts a slippery spell!",
-    armed: "Slime attached. A nearby block will slide after the next landing.",
-    triggered: "The slime popped and a block slid sideways!",
-    forecast: "Interference preview",
-    chargingDetail: (charge: number) => `Charging Slippery Block (${charge}%)`,
-    forecastDetail: (charge: number) => `Slippery Block incoming (${charge}%)`,
+    castingMessage: "It swells up and casts a slippery spell!",
+    armedMessage: "Slime attached. A nearby block will slide after the next landing.",
+    triggeredMessage: "The slime popped and a block slid sideways!",
+    forecastTitle: "Interference preview",
+    interferenceGauge: "Slime gauge",
+    gaugeCharging: "Charging",
+    gaugeForecast: "Incoming!",
+    gaugeCasting: "Casting!",
+    gaugeArmed: "Slime attached",
+    gaugeTriggered: "Recharging",
+    chargingDetail: "Charging a Slippery Block.",
+    forecastDetail: "Slippery Block is about to be cast!",
     castingDetail: "Casting Slippery Block!",
     armedDetail: "Watch the glowing slime-coated block",
     triggeredDetail: "Interference ended. Charging the next spell",
@@ -125,11 +137,11 @@ export function ColorChainOpponentPanel({
           : reaction === "light"
             ? t.lightHit
             : interferencePhase === "casting"
-              ? t.casting
+              ? t.castingMessage
               : interferencePhase === "armed"
-                ? t.armed
+                ? t.armedMessage
                 : interferencePhase === "triggered"
-                  ? t.triggered
+                  ? t.triggeredMessage
                   : t.idle;
   const forecastDetail = interferencePhase === "casting"
     ? t.castingDetail
@@ -138,8 +150,17 @@ export function ColorChainOpponentPanel({
       : interferencePhase === "triggered"
         ? t.triggeredDetail
         : interferencePhase === "forecast"
-          ? t.forecastDetail(Math.round(attackCharge))
-          : t.chargingDetail(Math.round(attackCharge));
+          ? t.forecastDetail
+          : t.chargingDetail;
+  const interferenceLabel = interferencePhase === "casting"
+    ? t.gaugeCasting
+    : interferencePhase === "armed"
+      ? t.gaugeArmed
+      : interferencePhase === "triggered"
+        ? t.gaugeTriggered
+        : interferencePhase === "forecast"
+          ? t.gaugeForecast
+          : t.gaugeCharging;
 
   return (
     <section
@@ -186,11 +207,23 @@ export function ColorChainOpponentPanel({
           <i style={{ width: `${disturbance}%` }} />
         </div>
       </div>
+      <div
+        aria-label={t.interferenceGauge}
+        aria-valuemax={100}
+        aria-valuemin={0}
+        aria-valuenow={Math.round(attackCharge)}
+        className={`color-chain-interference-gauge is-${interferencePhase}`}
+        role="progressbar"
+      >
+        <span>{t.interferenceGauge}</span>
+        <strong>{interferenceLabel}</strong>
+        <i><b style={{ width: `${attackCharge}%` }} /></i>
+      </div>
       <div className="color-chain-opponent-copy">
         <strong aria-live="polite">{message}</strong>
         {!purified && (
           <p>
-            <span>{t.forecast}</span>
+            <span>{t.forecastTitle}</span>
             {forecastDetail}
           </p>
         )}
