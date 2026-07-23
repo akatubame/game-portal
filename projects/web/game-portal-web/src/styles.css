@@ -8733,8 +8733,8 @@ footer {
     linear-gradient(135deg, #20123f, #0b2740 52%, #35143f);
   background-color: #101d36;
   background-image:
-    linear-gradient(180deg, rgba(3, 8, 24, 0.08), rgba(3, 7, 19, 0.28)),
-    url("/backgrounds/color-chain-battle-v1.webp");
+    linear-gradient(180deg, rgba(3, 8, 24, 0.04), rgba(3, 7, 19, 0.18)),
+    url("/backgrounds/color-chain-battle-v2.webp");
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
