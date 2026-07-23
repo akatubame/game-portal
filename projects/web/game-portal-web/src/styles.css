@@ -9539,3 +9539,372 @@ footer {
     opacity: 0.2;
   }
 }
+
+/* Help and settings overlay for the Magical Chain test route. */
+.color-chain-shell .visually-hidden {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.color-chain-menu-card > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.color-chain-overlay-launchers {
+  display: none;
+}
+
+.color-chain-shell.is-mascot-test.is-active-play .color-chain-overlay-launchers {
+  display: flex;
+  gap: 6px;
+  position: absolute;
+  right: 9px;
+  top: 9px;
+  z-index: 30;
+}
+
+.color-chain-overlay-launchers button {
+  align-items: center;
+  background: rgba(5, 14, 29, 0.9);
+  border: 1px solid rgba(141, 232, 255, 0.34);
+  border-radius: 50%;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+  color: #edfaff;
+  cursor: pointer;
+  display: flex;
+  height: 38px;
+  justify-content: center;
+  padding: 0;
+  width: 38px;
+}
+
+.color-chain-overlay-launchers button:hover,
+.color-chain-overlay-launchers button:focus-visible {
+  border-color: #8de8ff;
+  box-shadow: 0 0 0 3px rgba(141, 232, 255, 0.17), 0 6px 18px rgba(0, 0, 0, 0.28);
+  outline: none;
+}
+
+.color-chain-overlay-launchers button:disabled {
+  cursor: wait;
+  opacity: 0.42;
+}
+
+.color-chain-overlay-launchers svg {
+  height: 19px;
+  width: 19px;
+}
+
+.color-chain-overlay-launchers span {
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  height: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.color-chain-dialog-backdrop {
+  align-items: center;
+  backdrop-filter: blur(8px);
+  background: rgba(2, 6, 16, 0.78);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 12px;
+  position: fixed;
+  z-index: 1000;
+}
+
+.color-chain-dialog {
+  background:
+    radial-gradient(circle at 12% 4%, rgba(240, 87, 189, 0.16), transparent 27%),
+    radial-gradient(circle at 88% 8%, rgba(89, 221, 255, 0.16), transparent 28%),
+    linear-gradient(155deg, #15162f, #071824 66%, #21142e);
+  border: 1px solid rgba(255, 226, 139, 0.3);
+  border-radius: 22px;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.58);
+  color: #f5f5f7;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  max-height: calc(100dvh - 24px);
+  overflow: hidden;
+  width: min(780px, calc(100vw - 24px));
+}
+
+.color-chain-dialog > header,
+.color-chain-dialog > footer {
+  align-items: center;
+  background: rgba(4, 10, 24, 0.58);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+
+.color-chain-dialog > header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.color-chain-dialog > header > div {
+  align-items: center;
+  display: flex;
+  gap: 9px;
+}
+
+.color-chain-dialog > header svg {
+  color: #8de8ff;
+  flex: 0 0 auto;
+}
+
+.color-chain-dialog h2,
+.color-chain-dialog h3,
+.color-chain-dialog p {
+  margin: 0;
+}
+
+.color-chain-dialog h2 {
+  color: #fff1ad;
+  font-size: clamp(1rem, 3vw, 1.35rem);
+}
+
+.color-chain-dialog h3 {
+  color: #fff0b0;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+}
+
+.color-chain-dialog p {
+  color: #ced8e1;
+  font-size: 0.78rem;
+  line-height: 1.65;
+}
+
+.color-chain-dialog-close {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  height: 44px;
+  justify-content: center;
+  padding: 0;
+  width: 44px;
+}
+
+.color-chain-dialog-close:hover,
+.color-chain-dialog-close:focus-visible {
+  border-color: #8de8ff;
+  outline: 2px solid rgba(141, 232, 255, 0.24);
+}
+
+.color-chain-dialog-content {
+  display: grid;
+  gap: 16px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px;
+}
+
+.color-chain-dialog-controls {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.color-chain-dialog-controls > section,
+.color-chain-dialog-help > section:first-child {
+  background: rgba(4, 12, 26, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  padding: 13px;
+}
+
+.color-chain-dialog-item-grid {
+  display: grid;
+  gap: 9px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 10px;
+}
+
+.color-chain-dialog-item {
+  align-items: flex-start;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 38px minmax(0, 1fr);
+  padding: 11px;
+}
+
+.color-chain-dialog-item > span {
+  align-items: center;
+  background: rgba(5, 12, 26, 0.72);
+  border-radius: 11px;
+  display: flex;
+  height: 38px;
+  justify-content: center;
+  width: 38px;
+}
+
+.color-chain-dialog-item > span > svg,
+.color-chain-dialog-item > span > .color-chain-block-icon {
+  height: 25px;
+  width: 25px;
+}
+
+.color-chain-dialog-item strong {
+  color: #f5fbff;
+  display: block;
+  font-size: 0.8rem;
+  margin-bottom: 3px;
+}
+
+.color-chain-dialog-item p {
+  font-size: 0.69rem;
+  line-height: 1.5;
+}
+
+.color-chain-dialog-settings {
+  gap: 10px;
+}
+
+.color-chain-dialog-settings > button {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 14px;
+  color: #eef8ff;
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 11px;
+  grid-template-columns: 40px minmax(0, 1fr) 48px;
+  min-height: 62px;
+  padding: 9px 12px;
+  text-align: left;
+}
+
+.color-chain-dialog-settings > button:hover,
+.color-chain-dialog-settings > button:focus-visible {
+  border-color: rgba(141, 232, 255, 0.72);
+  outline: none;
+}
+
+.color-chain-dialog-settings > button > span:first-child {
+  align-items: center;
+  background: rgba(5, 12, 26, 0.68);
+  border-radius: 11px;
+  display: flex;
+  height: 40px;
+  justify-content: center;
+}
+
+.color-chain-dialog-settings > button > span:nth-child(2) {
+  display: grid;
+  gap: 3px;
+}
+
+.color-chain-dialog-settings strong {
+  font-size: 0.84rem;
+}
+
+.color-chain-dialog-settings small {
+  color: #9fb0bf;
+  font-size: 0.68rem;
+}
+
+.color-chain-dialog-settings > button > i {
+  background: rgba(255, 255, 255, 0.11);
+  border-radius: 999px;
+  display: block;
+  height: 25px;
+  padding: 3px;
+  transition: background 160ms ease;
+  width: 46px;
+}
+
+.color-chain-dialog-settings > button > i > b {
+  background: #9ba8b4;
+  border-radius: 50%;
+  display: block;
+  height: 19px;
+  transition: transform 160ms ease, background 160ms ease;
+  width: 19px;
+}
+
+.color-chain-dialog-settings > button.is-on > i {
+  background: rgba(85, 222, 255, 0.32);
+}
+
+.color-chain-dialog-settings > button.is-on > i > b {
+  background: #9af0ff;
+  transform: translateX(21px);
+}
+
+.color-chain-dialog > footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  justify-content: flex-end;
+}
+
+.color-chain-dialog > footer button {
+  min-height: 42px;
+  min-width: 110px;
+}
+
+.color-chain-shell.is-effects-reduced::before,
+.color-chain-shell.is-effects-reduced::after,
+.color-chain-shell.is-effects-reduced .color-chain-magic-chain-effect,
+.color-chain-shell.is-effects-reduced .color-chain-grand-spell-effect,
+.color-chain-shell.is-effects-reduced .color-chain-mascot-motion-fx {
+  display: none;
+}
+
+.color-chain-shell.is-effects-reduced .color-chain-cell,
+.color-chain-shell.is-effects-reduced .color-chain-burst,
+.color-chain-shell.is-effects-reduced .color-chain-mascot-image,
+.color-chain-shell.is-effects-reduced .color-chain-mascot-portrait {
+  animation: none !important;
+  transition: none !important;
+}
+
+@media (max-width: 620px) {
+  .color-chain-dialog-controls,
+  .color-chain-dialog-item-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .color-chain-dialog-content {
+    padding: 12px;
+  }
+
+  .color-chain-dialog-item p {
+    font-size: 0.72rem;
+  }
+}
+
+@media (orientation: portrait) {
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-overlay-launchers {
+    flex-direction: column;
+    right: 5px;
+    top: 5px;
+  }
+
+  .color-chain-overlay-launchers button {
+    height: 36px;
+    width: 36px;
+  }
+}

@@ -15,6 +15,7 @@
 ## 関連資料
 
 - 横長プレイ画面・ステージ演出: `PLAY_SCREEN_DESIGN.md`
+- 将来の盤面回転式パズル試作: `ROTATION_PUZZLE_IMPLEMENTATION_PLAN.md`
 
 ## 世界観と用語
 

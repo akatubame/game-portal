@@ -5,10 +5,12 @@ import {
   ChevronsDown,
   Eye,
   EyeOff,
+  HelpCircle,
   Pause,
   Play,
   RotateCcw,
   RotateCw,
+  Settings,
   Snowflake,
   Sparkles,
   Volume2,
@@ -72,6 +74,7 @@ type ColorChainProps = {
 
 type Difficulty = "easy" | "normal";
 type GameStatus = "idle" | "playing" | "paused" | "resolving" | "gameover";
+type OverlayPanel = "help" | "settings" | null;
 type HelpItemId = "bomb" | "verticalLaser" | "horizontalLaser" | "colorBreaker" | "slowTime" | "hold";
 type MascotMood = "idle" | "chain" | "danger" | "defeat";
 type MascotAction = "none" | "staff-spin" | "hat-pop" | "grand-spell";
@@ -119,6 +122,7 @@ type BestResult = {
 const BEST_KEY = "game-shelf-color-chain-best";
 const MASCOT_VISIBLE_KEY = "game-shelf-color-chain-mascot-visible";
 const AUDIO_ENABLED_KEY = "game-shelf-color-chain-audio-enabled";
+const SCREEN_EFFECTS_KEY = "game-shelf-color-chain-screen-effects-enabled";
 const AUDIO_PATHS = {
   bgm: "/audio/color-chain/block-puzzle-blues.mp3",
   chain: "/audio/color-chain/magical-chain.mp3",
@@ -261,6 +265,12 @@ const copy = {
     level: "レベル",
     next: "次のブロック",
     howTo: "遊び方",
+    help: "ヘルプ",
+    settings: "設定",
+    close: "閉じる",
+    helpDialogTitle: "遊び方・特殊ブロック",
+    settingsDialogTitle: "ゲーム設定",
+    panelHint: "詳しい遊び方と表示・サウンド設定は、プレイ中でもいつでも確認できます。",
     rules: "2個1組のブロックを移動・回転して積みます。同色が縦・横・斜めに4個以上並ぶと、魔法の鎖が結ばれる『マジカルチェイン』が発生します。落下後に続けて揃えるとWチェイン、トリプルチェインと発展し、特に3段階目以降はスコア倍率が大幅に上がります。ブロックが最上段を超えるとゲームオーバーです。",
     controls: "操作",
     keyboard: "PC: ←→で移動、↓で下降、Z/Xで回転、Spaceで即落下、Hでホールド、Sでスロータイム、Lでチェインウェーブ、Pで一時停止。チェインウェーブ照準中は↑↓で行を選び、Enterで発動します。1列幅の縦穴では、回転入力でブロックの上下を反転できます。",
@@ -269,6 +279,11 @@ const copy = {
     sound: "サウンド",
     soundOn: "BGM・SEをON",
     soundOff: "BGM・SEをOFF",
+    characterSetting: "クロマ表示",
+    effectsSetting: "画面効果",
+    effectsOn: "画面効果をON",
+    effectsOff: "画面効果をOFF",
+    settingsSaved: "設定はこの端末に自動保存されます。",
     quickHud: "プレイHUD",
     easy: "初級",
     normal: "中級",
@@ -361,6 +376,12 @@ const copy = {
     level: "Level",
     next: "Next pairs",
     howTo: "How to Play",
+    help: "Help",
+    settings: "Settings",
+    close: "Close",
+    helpDialogTitle: "How to Play & Special Blocks",
+    settingsDialogTitle: "Game Settings",
+    panelHint: "Open the full guide or adjust display and sound settings at any time, even during play.",
     rules: "Move and rotate each connected pair. Matching four or more colors vertically, horizontally, or diagonally casts a Magical Chain of glowing links. Matches formed after blocks fall advance to Double Chain, Triple Chain, and stronger calls, with a major score boost from the third stage onward. The game ends when blocks rise beyond the top.",
     controls: "Controls",
     keyboard: "PC: Move with ←/→, soft drop with ↓, rotate with Z/X, hard drop with Space, hold with H, use Slow Time with S, target Chain Wave with L, and pause with P. While targeting Chain Wave, choose a row with ↑/↓ and cast with Enter. In a one-cell-wide shaft, rotate to flip a vertical pair by 180 degrees.",
@@ -369,6 +390,11 @@ const copy = {
     sound: "Sound",
     soundOn: "Turn BGM and sound effects on",
     soundOff: "Turn BGM and sound effects off",
+    characterSetting: "Show Chroma",
+    effectsSetting: "Screen effects",
+    effectsOn: "Turn screen effects on",
+    effectsOff: "Turn screen effects off",
+    settingsSaved: "Settings are saved automatically on this device.",
     quickHud: "Play HUD",
     easy: "Easy",
     normal: "Normal",
@@ -468,6 +494,14 @@ function readMascotVisible() {
 function readAudioEnabled() {
   try {
     return window.localStorage.getItem(AUDIO_ENABLED_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
+
+function readScreenEffectsEnabled() {
+  try {
+    return window.localStorage.getItem(SCREEN_EFFECTS_KEY) !== "false";
   } catch {
     return true;
   }
@@ -607,6 +641,8 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   const [activeSpecialMove, setActiveSpecialMove] = useState<ActiveSpecialMove | null>(null);
   const [gestureAxis, setGestureAxis] = useState<GestureAxis>("none");
   const [audioEnabled, setAudioEnabled] = useState(readAudioEnabled);
+  const [screenEffectsEnabled, setScreenEffectsEnabled] = useState(readScreenEffectsEnabled);
+  const [overlayPanel, setOverlayPanel] = useState<OverlayPanel>(null);
 
   const boardRef = useRef(board);
   const activePairRef = useRef(activePair);
@@ -630,6 +666,9 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   const activeBoardGestureRef = useRef<ActiveBoardGesture | null>(null);
   const audioRef = useRef<ColorChainAudio | null>(null);
   const audioEnabledRef = useRef(audioEnabled);
+  const resumeAfterOverlayRef = useRef(false);
+  const overlayCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+  const overlayTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const settings = difficultySettings[difficulty];
   const ranking = useRanking({ gameId: `color-chain-${difficulty}`, metricLabel: "Score", mode: "higher" });
@@ -1315,6 +1354,32 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     }
   }
 
+  function openOverlay(panel: Exclude<OverlayPanel, null>, trigger: HTMLButtonElement) {
+    if (!isMascotTest || statusRef.current === "resolving") return;
+    overlayTriggerRef.current = trigger;
+    resumeAfterOverlayRef.current = statusRef.current === "playing";
+    if (resumeAfterOverlayRef.current) {
+      pauseBgm();
+      updateLaserTargeting(false);
+      updateStatus("paused");
+      setMessage(t.paused);
+    }
+    setOverlayPanel(panel);
+  }
+
+  function closeOverlay() {
+    if (!overlayPanel) return;
+    const shouldResume = resumeAfterOverlayRef.current && statusRef.current === "paused";
+    resumeAfterOverlayRef.current = false;
+    setOverlayPanel(null);
+    if (shouldResume) {
+      playBgm();
+      updateStatus("playing");
+      setMessage(t.playing);
+    }
+    window.setTimeout(() => overlayTriggerRef.current?.focus(), 0);
+  }
+
   function clearBoardGesture(pointerId?: number) {
     const gesture = activeBoardGestureRef.current;
     if (gesture && pointerId !== undefined && gesture.pointerId !== pointerId) return;
@@ -1474,6 +1539,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement) return;
+      if (overlayPanel) return;
       const controlKeys = ["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", " ", "Enter", "z", "Z", "x", "X", "h", "H", "s", "S", "p", "P", "l", "L", "Escape"];
       if (!controlKeys.includes(event.key)) return;
       event.preventDefault();
@@ -1514,7 +1580,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
       window.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [language]);
+  }, [language, overlayPanel]);
 
   useEffect(() => {
     if (status === "idle") setMessage(t.idle);
@@ -1545,6 +1611,33 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
       // Storage may be unavailable in privacy modes; the in-memory setting still works.
     }
   }, [audioEnabled, isMascotTest]);
+
+  useEffect(() => {
+    if (!isMascotTest) return;
+    try {
+      window.localStorage.setItem(SCREEN_EFFECTS_KEY, String(screenEffectsEnabled));
+    } catch {
+      // Storage may be unavailable in privacy modes; the in-memory setting still works.
+    }
+  }, [isMascotTest, screenEffectsEnabled]);
+
+  useEffect(() => {
+    if (!overlayPanel) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const focusTimer = window.setTimeout(() => overlayCloseButtonRef.current?.focus(), 0);
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closeOverlay();
+    };
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.clearTimeout(focusTimer);
+      window.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [language, overlayPanel]);
 
   useEffect(() => () => {
     stopAllAudio();
@@ -1655,7 +1748,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   const isActivePlay = isMascotTest && status !== "idle" && status !== "gameover";
 
   return (
-    <section className={`puzzle-shell color-chain-shell${isMascotTest ? " is-mascot-test" : ""}${isActivePlay ? " is-active-play" : ""}`} aria-labelledby="color-chain-title">
+    <section className={`puzzle-shell color-chain-shell${isMascotTest ? " is-mascot-test" : ""}${isActivePlay ? " is-active-play" : ""}${isMascotTest && !screenEffectsEnabled ? " is-effects-reduced" : ""}`} aria-labelledby="color-chain-title">
       <div className="puzzle-hero color-chain-hero">
         <div>
           <p className="eyebrow">{t.eyebrow}</p>
@@ -1685,6 +1778,38 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
       </div>
 
       {isMascotTest && <ColorChainLandscapeNotice language={language} />}
+
+      {isMascotTest && (
+        <>
+          <p className="visually-hidden" id="color-chain-touch-guide">
+            {t.touchTitle}: {t.touchGuide}
+          </p>
+          <nav className="color-chain-overlay-launchers" aria-label={language === "ja" ? "ゲームメニュー" : "Game menu"}>
+            <button
+              aria-haspopup="dialog"
+              aria-label={t.help}
+              disabled={status === "resolving"}
+              onClick={(event) => openOverlay("help", event.currentTarget)}
+              title={t.help}
+              type="button"
+            >
+              <HelpCircle aria-hidden="true" />
+              <span>{t.help}</span>
+            </button>
+            <button
+              aria-haspopup="dialog"
+              aria-label={t.settings}
+              disabled={status === "resolving"}
+              onClick={(event) => openOverlay("settings", event.currentTarget)}
+              title={t.settings}
+              type="button"
+            >
+              <Settings aria-hidden="true" />
+              <span>{t.settings}</span>
+            </button>
+          </nav>
+        </>
+      )}
 
       <div className="puzzle-layout color-chain-layout">
         <div className={`color-chain-play-area${isMascotTest ? " has-mascot" : ""}${isMascotTest && activeSpecialMove?.tier === "super" ? " is-grand-spell-active" : ""}`}>
@@ -1988,55 +2113,65 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
             </div>
           </div>
 
-          <div className="rule-card">
-            <h2>{t.howTo}</h2>
-            <p>{t.rules}</p>
-            <section className="color-chain-help" aria-labelledby="color-chain-help-title">
-              <h3 id="color-chain-help-title">{t.itemHelpTitle}</h3>
-              <div
-                className="color-chain-help-icons"
-                onMouseLeave={() => setHoveredHelpItem(null)}
-              >
-                {helpItems.map((item) => (
-                  <button
-                    aria-controls="color-chain-help-detail"
-                    aria-expanded={activeHelpItemId === item.id}
-                    className={`color-chain-help-icon is-${item.id}${selectedHelpItem === item.id ? " is-selected" : ""}`}
-                    key={item.id}
-                    type="button"
-                    onBlur={() => setHoveredHelpItem(null)}
-                    onClick={() => setSelectedHelpItem(item.id)}
-                    onFocus={() => setHoveredHelpItem(item.id)}
-                    onMouseEnter={() => setHoveredHelpItem(item.id)}
-                  >
-                    {item.icon}
-                    <span>{item.label}</span>
-                  </button>
-                ))}
+          {isMascotTest ? (
+            <div className="rule-card color-chain-menu-card">
+              <h2>{t.howTo}・{t.settings}</h2>
+              <p>{t.panelHint}</p>
+              <div>
+                <button className="ghost-button" onClick={(event) => openOverlay("help", event.currentTarget)} type="button">
+                  <HelpCircle aria-hidden="true" /> {t.help}
+                </button>
+                <button className="ghost-button" onClick={(event) => openOverlay("settings", event.currentTarget)} type="button">
+                  <Settings aria-hidden="true" /> {t.settings}
+                </button>
               </div>
-              <div
-                aria-live="polite"
-                className={`color-chain-help-detail${activeHelpItem ? " is-active" : " is-empty"}`}
-                id="color-chain-help-detail"
-              >
-                {activeHelpItem ? (
-                  <>
-                    <strong>{activeHelpItem.label}</strong>
-                    <p>{activeHelpItem.detail}</p>
-                  </>
-                ) : (
-                  <p>{t.itemHelpHint}</p>
-                )}
-              </div>
-            </section>
-            <h3>{t.controls}</h3>
-            <p>{t.keyboard}</p>
-            {isMascotTest && (
-              <p className="color-chain-gesture-guide" id="color-chain-touch-guide">
-                <strong>{t.touchTitle}:</strong> {t.touchGuide}
-              </p>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="rule-card">
+              <h2>{t.howTo}</h2>
+              <p>{t.rules}</p>
+              <section className="color-chain-help" aria-labelledby="color-chain-help-title">
+                <h3 id="color-chain-help-title">{t.itemHelpTitle}</h3>
+                <div
+                  className="color-chain-help-icons"
+                  onMouseLeave={() => setHoveredHelpItem(null)}
+                >
+                  {helpItems.map((item) => (
+                    <button
+                      aria-controls="color-chain-help-detail"
+                      aria-expanded={activeHelpItemId === item.id}
+                      className={`color-chain-help-icon is-${item.id}${selectedHelpItem === item.id ? " is-selected" : ""}`}
+                      key={item.id}
+                      type="button"
+                      onBlur={() => setHoveredHelpItem(null)}
+                      onClick={() => setSelectedHelpItem(item.id)}
+                      onFocus={() => setHoveredHelpItem(item.id)}
+                      onMouseEnter={() => setHoveredHelpItem(item.id)}
+                    >
+                      {item.icon}
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <div
+                  aria-live="polite"
+                  className={`color-chain-help-detail${activeHelpItem ? " is-active" : " is-empty"}`}
+                  id="color-chain-help-detail"
+                >
+                  {activeHelpItem ? (
+                    <>
+                      <strong>{activeHelpItem.label}</strong>
+                      <p>{activeHelpItem.detail}</p>
+                    </>
+                  ) : (
+                    <p>{t.itemHelpHint}</p>
+                  )}
+                </div>
+              </section>
+              <h3>{t.controls}</h3>
+              <p>{t.keyboard}</p>
+            </div>
+          )}
 
           <div className="color-chain-difficulties" aria-label="Difficulty">
             {(["easy", "normal"] as Difficulty[]).map((entry) => (
@@ -2085,6 +2220,113 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>{t.back}</button>
         </aside>
       </div>
+
+      {isMascotTest && overlayPanel && (
+        <div
+          className="color-chain-dialog-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) closeOverlay();
+          }}
+          role="presentation"
+        >
+          <section
+            aria-labelledby="color-chain-dialog-title"
+            aria-modal="true"
+            className={`color-chain-dialog is-${overlayPanel}`}
+            role="dialog"
+          >
+            <header>
+              <div>
+                {overlayPanel === "help" ? <HelpCircle aria-hidden="true" /> : <Settings aria-hidden="true" />}
+                <h2 id="color-chain-dialog-title">
+                  {overlayPanel === "help" ? t.helpDialogTitle : t.settingsDialogTitle}
+                </h2>
+              </div>
+              <button
+                aria-label={t.close}
+                className="color-chain-dialog-close"
+                onClick={closeOverlay}
+                ref={overlayCloseButtonRef}
+                type="button"
+              >
+                <X aria-hidden="true" />
+              </button>
+            </header>
+
+            {overlayPanel === "help" ? (
+              <div className="color-chain-dialog-content color-chain-dialog-help">
+                <section>
+                  <h3>{t.howTo}</h3>
+                  <p>{t.rules}</p>
+                </section>
+                <div className="color-chain-dialog-controls">
+                  <section>
+                    <h3>{t.touchTitle}</h3>
+                    <p>{t.touchGuide}</p>
+                  </section>
+                  <section>
+                    <h3>{t.controls}</h3>
+                    <p>{t.keyboard}</p>
+                  </section>
+                </div>
+                <section className="color-chain-help" aria-labelledby="color-chain-dialog-items-title">
+                  <h3 id="color-chain-dialog-items-title">{t.itemHelpTitle}</h3>
+                  <p>{t.itemHelpHint}</p>
+                  <div className="color-chain-dialog-item-grid">
+                    {helpItems.map((item) => (
+                      <article className={`color-chain-dialog-item is-${item.id}`} key={`dialog-${item.id}`}>
+                        <span>{item.icon}</span>
+                        <div>
+                          <strong>{item.label}</strong>
+                          <p>{item.detail}</p>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              </div>
+            ) : (
+              <div className="color-chain-dialog-content color-chain-dialog-settings">
+                <button
+                  aria-pressed={audioEnabled}
+                  className={audioEnabled ? "is-on" : ""}
+                  onClick={toggleAudio}
+                  type="button"
+                >
+                  <span>{audioEnabled ? <Volume2 aria-hidden="true" /> : <VolumeX aria-hidden="true" />}</span>
+                  <span><strong>{t.sound}</strong><small>{audioEnabled ? t.soundOff : t.soundOn}</small></span>
+                  <i aria-hidden="true"><b /></i>
+                </button>
+                <button
+                  aria-pressed={mascotVisible}
+                  className={mascotVisible ? "is-on" : ""}
+                  onClick={() => setMascotVisible((current) => !current)}
+                  type="button"
+                >
+                  <span>{mascotVisible ? <Eye aria-hidden="true" /> : <EyeOff aria-hidden="true" />}</span>
+                  <span><strong>{t.characterSetting}</strong><small>{mascotVisible ? t.mascotHide : t.mascotShow}</small></span>
+                  <i aria-hidden="true"><b /></i>
+                </button>
+                <button
+                  aria-pressed={screenEffectsEnabled}
+                  className={screenEffectsEnabled ? "is-on" : ""}
+                  onClick={() => setScreenEffectsEnabled((current) => !current)}
+                  type="button"
+                >
+                  <span><Sparkles aria-hidden="true" /></span>
+                  <span><strong>{t.effectsSetting}</strong><small>{screenEffectsEnabled ? t.effectsOff : t.effectsOn}</small></span>
+                  <i aria-hidden="true"><b /></i>
+                </button>
+                <p>{t.settingsSaved}</p>
+              </div>
+            )}
+
+            <footer>
+              <button className="primary-button" onClick={closeOverlay} type="button">{t.close}</button>
+            </footer>
+          </section>
+        </div>
+      )}
     </section>
   );
 }
