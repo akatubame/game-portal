@@ -23,7 +23,8 @@ import { RankingPanel, useRanking } from "../ranking";
 import {
   ColorChainLandscapeNotice,
   ColorChainOpponentPanel,
-  type OpponentImpact
+  type OpponentImpact,
+  type OpponentInterferencePhase
 } from "./BattleShellSupport";
 import {
   detectGestureAxis,
@@ -36,6 +37,7 @@ import {
 } from "./gesture";
 import {
   applyGravityStep,
+  applySlipperyNudge,
   addLaserCharge,
   addSlowCharge,
   BOMB_BLOCK,
@@ -49,6 +51,7 @@ import {
   createRandomPair,
   findMatches,
   findHorizontalLaserClearCells,
+  findSlipperyTargetCell,
   findSuperSpecialClearCells,
   findTriggeredSpecialClearCells,
   getChainMultiplier,
@@ -151,6 +154,12 @@ const SLOW_TICK = 250;
 const IDLE_MOTION_MIN_DELAY = 9_000;
 const IDLE_MOTION_DELAY_RANGE = 6_000;
 const IDLE_MOTION_DURATION = 2_300;
+const MOKO_ATTACK_TICK = 250;
+const MOKO_ATTACK_CHARGE_PER_TICK = 1.25;
+const MOKO_ATTACK_FORECAST_AT = 70;
+const MOKO_ATTACK_CAST_DURATION = 950;
+const MOKO_ATTACK_RECOVERY_DURATION = 1_200;
+const MOKO_ATTACK_DELAY_PER_CLEARED_BLOCK = 1.5;
 
 const difficultySettings: Record<Difficulty, {
   colors: number;
@@ -367,6 +376,12 @@ const copy = {
     holdUsed: "次のペアまで使用済み",
     holdStored: "現在のペアをホールドしました。",
     holdSwapped: "ホールド中のペアと交換しました。",
+    slipperyCasting: "モコスライムがぬめりブロックを放とうとしています！",
+    slipperyLanded: "ぬめりブロックが盤面下部に付着しました。光るブロックに注意！",
+    slipperyShifted: "ぬめりが弾け、周囲のブロックが横へ滑りました！",
+    slipperyFaded: "ぬめりは弾けましたが、滑る余地はありませんでした。",
+    slipperyMissed: "ぬめりを置ける場所がなく、妨害は不発に終わりました。",
+    slipperyWashed: "チェインウェーブでぬめりブロックを洗い流しました！",
     mascotName: "彩鎖の魔女 クロマ",
     mascotShow: "キャラクターを表示",
     mascotHide: "キャラクターを非表示",
@@ -478,6 +493,12 @@ const copy = {
     holdUsed: "Used until next pair",
     holdStored: "The current pair was moved to Hold.",
     holdSwapped: "Swapped with the held pair.",
+    slipperyCasting: "Moko Slime is about to cast Slippery Block!",
+    slipperyLanded: "Slippery Block attached near the bottom. Watch the glowing block!",
+    slipperyShifted: "The slime popped and a nearby block slid sideways!",
+    slipperyFaded: "The slime popped, but there was no room for a block to slide.",
+    slipperyMissed: "There was nowhere safe to place the slime, so the interference fizzled.",
+    slipperyWashed: "Chain Wave washed the Slippery Block away!",
     mascotName: "Chroma, Witch of Color Chains",
     mascotShow: "Show character",
     mascotHide: "Hide character",
@@ -660,6 +681,9 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   const [audioEnabled, setAudioEnabled] = useState(readAudioEnabled);
   const [screenEffectsEnabled, setScreenEffectsEnabled] = useState(readScreenEffectsEnabled);
   const [overlayPanel, setOverlayPanel] = useState<OverlayPanel>(null);
+  const [opponentAttackCharge, setOpponentAttackCharge] = useState(0);
+  const [opponentInterferencePhase, setOpponentInterferencePhase] = useState<OpponentInterferencePhase>("charging");
+  const [slipperyCell, setSlipperyCell] = useState<string | null>(null);
 
   const boardRef = useRef(board);
   const activePairRef = useRef(activePair);
@@ -686,6 +710,9 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   const resumeAfterOverlayRef = useRef(false);
   const overlayCloseButtonRef = useRef<HTMLButtonElement | null>(null);
   const overlayTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const opponentAttackChargeRef = useRef(opponentAttackCharge);
+  const opponentInterferencePhaseRef = useRef<OpponentInterferencePhase>(opponentInterferencePhase);
+  const slipperyCellRef = useRef<string | null>(slipperyCell);
 
   const settings = difficultySettings[difficulty];
   const ranking = useRanking({ gameId: `color-chain-${difficulty}`, metricLabel: "Score", mode: "higher" });
@@ -840,6 +867,22 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     setSlowActive(next);
   };
 
+  const updateOpponentAttackCharge = (next: number) => {
+    const normalized = Math.max(0, Math.min(100, next));
+    opponentAttackChargeRef.current = normalized;
+    setOpponentAttackCharge(normalized);
+  };
+
+  const updateOpponentInterferencePhase = (next: OpponentInterferencePhase) => {
+    opponentInterferencePhaseRef.current = next;
+    setOpponentInterferencePhase(next);
+  };
+
+  const updateSlipperyCell = (next: string | null) => {
+    slipperyCellRef.current = next;
+    setSlipperyCell(next);
+  };
+
   const showSpecialMove = (move: Omit<ActiveSpecialMove, "nonce"> | null) => {
     if (!move) {
       setActiveSpecialMove(null);
@@ -864,6 +907,17 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
         count,
         difficultySettings[difficultyRef.current].laserBlocks
       ));
+    }
+    if (
+      isMascotTest
+      && opponentInterferencePhaseRef.current !== "casting"
+      && opponentInterferencePhaseRef.current !== "armed"
+    ) {
+      const delayedCharge = opponentAttackChargeRef.current - count * MOKO_ATTACK_DELAY_PER_CLEARED_BLOCK;
+      updateOpponentAttackCharge(delayedCharge);
+      updateOpponentInterferencePhase(
+        delayedCharge >= MOKO_ATTACK_FORECAST_AT ? "forecast" : "charging"
+      );
     }
   };
 
@@ -911,6 +965,9 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     setSlowRemaining(0);
     setHorizontalLaserRows([]);
     setVerticalLaserColumns([]);
+    updateOpponentAttackCharge(0);
+    updateOpponentInterferencePhase("charging");
+    updateSlipperyCell(null);
     showSpecialMove(null);
     setMessage(t.gameover);
 
@@ -1123,7 +1180,16 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
 
   function lockPair(pair: FallingPair) {
     if (statusRef.current !== "playing") return;
-    const lockedBoard = mergePair(boardRef.current, pair);
+    let lockedBoard = mergePair(boardRef.current, pair);
+    const activeSlipperyCell = slipperyCellRef.current;
+    if (isMascotTest && activeSlipperyCell) {
+      const slipperyResult = applySlipperyNudge(lockedBoard, activeSlipperyCell);
+      lockedBoard = slipperyResult.board;
+      updateSlipperyCell(null);
+      updateOpponentAttackCharge(0);
+      updateOpponentInterferencePhase("triggered");
+      setMessage(slipperyResult.moved ? t.slipperyShifted : t.slipperyFaded);
+    }
     updateBoard(lockedBoard);
     updateActivePair(null);
     updateStatus("resolving");
@@ -1161,6 +1227,13 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
 
   async function resolveLaser(row: number, token: number) {
     const result = findHorizontalLaserClearCells(boardRef.current, row);
+    const activeSlipperyCell = slipperyCellRef.current;
+    const washedSlipperyCell = Boolean(activeSlipperyCell && result.cells.has(activeSlipperyCell));
+    if (washedSlipperyCell) {
+      updateSlipperyCell(null);
+      updateOpponentAttackCharge(0);
+      updateOpponentInterferencePhase("triggered");
+    }
     const specialMove = specialMoveFromResult(result, language) ?? {
       id: "chain-wave" as const,
       name: specialMoveNames[language]["chain-wave"],
@@ -1169,7 +1242,13 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     showSpecialMove(specialMove);
     setHorizontalLaserRows([...new Set([row, ...result.horizontalLaserRows])]);
     setVerticalLaserColumns([...result.verticalLaserColumns]);
-    setMessage(result.cells.size > 0 ? t.laserRow(row - HIDDEN_ROWS + 1) : t.laserMiss);
+    setMessage(
+      washedSlipperyCell
+        ? t.slipperyWashed
+        : result.cells.size > 0
+          ? t.laserRow(row - HIDDEN_ROWS + 1)
+          : t.laserMiss
+    );
     setClearingCells(new Set(result.cells));
     playAudioEffect("strong");
     await wait(CLEAR_DELAY + (specialMove.tier === "super" ? 420 : 80));
@@ -1242,6 +1321,9 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     holdUsedRef.current = false;
     slowChargeRef.current = 100;
     slowActiveRef.current = false;
+    opponentAttackChargeRef.current = 0;
+    opponentInterferencePhaseRef.current = "charging";
+    slipperyCellRef.current = null;
     setBoard(nextBoard);
     setActivePair(firstPair);
     setNextPairs(queue);
@@ -1263,6 +1345,9 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     setSlowActive(false);
     setSlowRemaining(0);
     setMascotIdleMotion("none");
+    setOpponentAttackCharge(0);
+    setOpponentInterferencePhase("charging");
+    setSlipperyCell(null);
     showSpecialMove(null);
     setMessage(t.playing);
   }
@@ -1612,6 +1697,78 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   }, [language, laserTargeting, status, t.gameover, t.idle, t.laserSelect, t.paused, t.playing]);
 
   useEffect(() => {
+    if (
+      !isMascotTest
+      || status !== "playing"
+      || cleared >= 50
+      || slipperyCell !== null
+      || (
+        opponentInterferencePhase !== "charging"
+        && opponentInterferencePhase !== "forecast"
+      )
+    ) return;
+
+    const timer = window.setInterval(() => {
+      const nextCharge = Math.min(100, opponentAttackChargeRef.current + MOKO_ATTACK_CHARGE_PER_TICK);
+      updateOpponentAttackCharge(nextCharge);
+      if (nextCharge >= 100) {
+        updateOpponentInterferencePhase("casting");
+      } else if (nextCharge >= MOKO_ATTACK_FORECAST_AT) {
+        updateOpponentInterferencePhase("forecast");
+      }
+    }, MOKO_ATTACK_TICK);
+    return () => window.clearInterval(timer);
+  }, [cleared, isMascotTest, opponentInterferencePhase, slipperyCell, status]);
+
+  useEffect(() => {
+    if (
+      !isMascotTest
+      || opponentInterferencePhase !== "casting"
+      || status !== "playing"
+      || cleared >= 50
+    ) return;
+
+    setMessage(t.slipperyCasting);
+    const timer = window.setTimeout(() => {
+      const target = findSlipperyTargetCell(boardRef.current);
+      if (!target) {
+        updateOpponentAttackCharge(45);
+        updateOpponentInterferencePhase("charging");
+        setMessage(t.slipperyMissed);
+        return;
+      }
+      updateSlipperyCell(target);
+      updateOpponentAttackCharge(0);
+      updateOpponentInterferencePhase("armed");
+      setMessage(t.slipperyLanded);
+    }, MOKO_ATTACK_CAST_DURATION);
+    return () => window.clearTimeout(timer);
+  }, [
+    cleared,
+    isMascotTest,
+    opponentInterferencePhase,
+    status,
+    t.slipperyCasting,
+    t.slipperyLanded,
+    t.slipperyMissed
+  ]);
+
+  useEffect(() => {
+    if (!isMascotTest || opponentInterferencePhase !== "triggered") return;
+    const timer = window.setTimeout(() => {
+      updateOpponentInterferencePhase("charging");
+    }, MOKO_ATTACK_RECOVERY_DURATION);
+    return () => window.clearTimeout(timer);
+  }, [isMascotTest, opponentInterferencePhase]);
+
+  useEffect(() => {
+    if (!isMascotTest || cleared < 50) return;
+    updateOpponentAttackCharge(0);
+    updateOpponentInterferencePhase("charging");
+    updateSlipperyCell(null);
+  }, [cleared, isMascotTest]);
+
+  useEffect(() => {
     if (status !== "playing" || laserTargeting) clearBoardGesture();
   }, [laserTargeting, status]);
 
@@ -1881,15 +2038,22 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
               role="grid"
               aria-label={`${title} board`}
             >
-              {visibleCells.map((cell) => (
-                <div
-                  aria-label={cell.color ? `${cell.row - HIDDEN_ROWS + 1}, ${cell.column + 1}, ${cell.color}` : `${cell.row - HIDDEN_ROWS + 1}, ${cell.column + 1}, empty`}
-                  className={`color-chain-cell${cell.color ? ` is-${cell.color}` : ""}${cell.active ? " is-active" : ""}${cell.ghost ? " is-ghost" : ""}${clearingCells.has(cellKey(cell.row, cell.column)) ? " is-clearing" : ""}`}
-                  data-symbol={cell.color ? symbols[cell.color] : ""}
-                  key={cellKey(cell.row, cell.column)}
-                  role="gridcell"
-                />
-              ))}
+              {visibleCells.map((cell) => {
+                const key = cellKey(cell.row, cell.column);
+                const isSlippery = key === slipperyCell;
+                return (
+                  <div
+                    aria-label={`${cell.color ? `${cell.row - HIDDEN_ROWS + 1}, ${cell.column + 1}, ${cell.color}` : `${cell.row - HIDDEN_ROWS + 1}, ${cell.column + 1}, empty`}${isSlippery ? language === "ja" ? "、ぬめり付き" : ", slippery" : ""}`}
+                    className={`color-chain-cell${cell.color ? ` is-${cell.color}` : ""}${cell.active ? " is-active" : ""}${cell.ghost ? " is-ghost" : ""}${clearingCells.has(key) ? " is-clearing" : ""}${isSlippery ? " is-slippery" : ""}`}
+                    data-slippery={isSlippery ? "true" : undefined}
+                    data-symbol={cell.color ? symbols[cell.color] : ""}
+                    key={key}
+                    role="gridcell"
+                  >
+                    {isSlippery && <i aria-hidden="true" className="color-chain-slime-mark" />}
+                  </div>
+                );
+              })}
             </div>
 
             {laserTargeting && (
@@ -1992,9 +2156,11 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
 
           {isMascotTest && (
             <ColorChainOpponentPanel
+              attackCharge={opponentAttackCharge}
               disturbance={opponentDisturbance}
               eventKey={opponentEventKey}
               impact={opponentImpact}
+              interferencePhase={opponentInterferencePhase}
               language={language}
               status={status}
             />

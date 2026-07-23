@@ -19,6 +19,12 @@ export type BlockToken = BlockColor | SpecialBlock;
 export type BoardCell = BlockToken | null;
 export type Board = BoardCell[][];
 export type Orientation = 0 | 1 | 2 | 3;
+export type SlipperyNudgeResult = {
+  board: Board;
+  fromKey: string | null;
+  moved: boolean;
+  toKey: string | null;
+};
 
 export type FallingPair = {
   row: number;
@@ -400,6 +406,85 @@ export function settlePair(board: Board, pair: FallingPair): Board {
 function parseCellKey(key: string) {
   const [row, column] = key.split(":").map(Number);
   return { row, column };
+}
+
+function slipperyNudgeCandidates(board: Board, targetKey: string) {
+  const target = parseCellKey(targetKey);
+  const origins = [
+    target,
+    { row: target.row, column: target.column - 1 },
+    { row: target.row, column: target.column + 1 },
+    { row: target.row - 1, column: target.column },
+    { row: target.row + 1, column: target.column }
+  ];
+
+  return origins.flatMap(({ row, column }) => {
+    if (!isInside(row, column) || board[row][column] === null) return [];
+    const destinations = [-1, 1]
+      .map((columnDelta) => ({ row, column: column + columnDelta }))
+      .filter((destination) => (
+        isInside(destination.row, destination.column)
+        && board[destination.row][destination.column] === null
+      ));
+    return destinations.length > 0 ? [{ row, column, destinations }] : [];
+  });
+}
+
+/**
+ * Picks a visible block near the bottom that can make one small sideways move.
+ * The target remains a normal block; the slime coating is tracked separately by
+ * the presentation layer so matching and special-block rules stay unchanged.
+ */
+export function findSlipperyTargetCell(board: Board, random = Math.random) {
+  const preferredStartRow = Math.max(HIDDEN_ROWS, TOTAL_ROWS - 7);
+  const collectTargets = (startRow: number) => {
+    const targets: string[] = [];
+    for (let row = startRow; row < TOTAL_ROWS; row += 1) {
+      for (let column = 0; column < BOARD_COLUMNS; column += 1) {
+        if (board[row][column] === null) continue;
+        const key = cellKey(row, column);
+        if (slipperyNudgeCandidates(board, key).length > 0) targets.push(key);
+      }
+    }
+    return targets;
+  };
+
+  const preferred = collectTargets(preferredStartRow);
+  const candidates = preferred.length > 0 ? preferred : collectTargets(HIDDEN_ROWS);
+  if (candidates.length === 0) return null;
+  return candidates[Math.min(candidates.length - 1, Math.floor(random() * candidates.length))] ?? null;
+}
+
+/**
+ * Consumes one Slippery Block effect by moving one block in its immediate cross
+ * one cell to an empty horizontal neighbour.
+ */
+export function applySlipperyNudge(
+  board: Board,
+  targetKey: string,
+  random = Math.random
+): SlipperyNudgeResult {
+  const candidates = slipperyNudgeCandidates(board, targetKey);
+  if (candidates.length === 0) {
+    return { board, fromKey: null, moved: false, toKey: null };
+  }
+
+  const origin = candidates[Math.min(candidates.length - 1, Math.floor(random() * candidates.length))];
+  if (!origin) return { board, fromKey: null, moved: false, toKey: null };
+  const destination = origin.destinations[
+    Math.min(origin.destinations.length - 1, Math.floor(random() * origin.destinations.length))
+  ];
+  if (!destination) return { board, fromKey: null, moved: false, toKey: null };
+
+  const nextBoard = board.map((row) => [...row]);
+  nextBoard[destination.row][destination.column] = nextBoard[origin.row][origin.column];
+  nextBoard[origin.row][origin.column] = null;
+  return {
+    board: nextBoard,
+    fromKey: cellKey(origin.row, origin.column),
+    moved: true,
+    toKey: cellKey(destination.row, destination.column)
+  };
 }
 
 export type SpecialClearResult = {

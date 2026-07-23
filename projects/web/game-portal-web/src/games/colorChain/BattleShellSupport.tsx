@@ -6,6 +6,7 @@ type BattleShellSupportProps = {
 };
 
 export type OpponentImpact = "light" | "medium" | "heavy" | null;
+export type OpponentInterferencePhase = "charging" | "forecast" | "casting" | "armed" | "triggered";
 type MokoVisualState = "idle" | "attack" | Exclude<OpponentImpact, null> | "purified";
 
 const mokoAssets: Record<MokoVisualState, string> = {
@@ -18,9 +19,11 @@ const mokoAssets: Record<MokoVisualState, string> = {
 };
 
 type ColorChainOpponentProps = BattleShellSupportProps & {
+  attackCharge: number;
   disturbance: number;
   eventKey: string | null;
   impact: OpponentImpact;
+  interferencePhase: OpponentInterferencePhase;
   status: "idle" | "playing" | "paused" | "resolving" | "gameover";
 };
 
@@ -36,8 +39,15 @@ const battleCopy = {
     heavyHit: "大きくぐらり！ 結晶の乱れが一気にほどけました。",
     victory: "モコスライムは得意げに跳ねています。",
     cleansed: "浄化完了！ スコアアタックはそのまま続けられます。",
+    casting: "ぷるんと膨らみ、ぬめり魔法を放ちます！",
+    armed: "ぬめりが付着中。次の着地で周囲が横へ滑ります。",
+    triggered: "ぬめりが弾け、ブロックが横へ滑りました！",
     forecast: "妨害予告",
-    forecastDetail: "ぬめりブロック（演出接続前）",
+    chargingDetail: (charge: number) => `ぬめりブロックを準備中（${charge}%）`,
+    forecastDetail: (charge: number) => `まもなくぬめりブロック発動（${charge}%）`,
+    castingDetail: "ぬめりブロック発動！",
+    armedDetail: "光るぬめり付きブロックに注意",
+    triggeredDetail: "妨害終了。次の魔法を充填中",
     orientationTitle: "横向きがおすすめです",
     orientationDetail: "端末を横向きにすると、盤面・クロマ・対戦相手を一画面で見渡せます。縦向きのままでもプレイできます。",
     orientationDismiss: "案内を閉じる"
@@ -53,8 +63,15 @@ const battleCopy = {
     heavyHit: "Big wobble! The crystal disorder unraveled at once.",
     victory: "Moko Slime is bouncing proudly.",
     cleansed: "Purified! You can keep playing for a higher score.",
+    casting: "It swells up and casts a slippery spell!",
+    armed: "Slime attached. A nearby block will slide after the next landing.",
+    triggered: "The slime popped and a block slid sideways!",
     forecast: "Interference preview",
-    forecastDetail: "Slippery Block (effect not connected yet)",
+    chargingDetail: (charge: number) => `Charging Slippery Block (${charge}%)`,
+    forecastDetail: (charge: number) => `Slippery Block incoming (${charge}%)`,
+    castingDetail: "Casting Slippery Block!",
+    armedDetail: "Watch the glowing slime-coated block",
+    triggeredDetail: "Interference ended. Charging the next spell",
     orientationTitle: "Landscape recommended",
     orientationDetail: "Rotate your device to see the board, Chroma, and the opponent together. You can still play in portrait mode.",
     orientationDismiss: "Dismiss notice"
@@ -62,16 +79,24 @@ const battleCopy = {
 } as const;
 
 export function ColorChainOpponentPanel({
+  attackCharge,
   disturbance,
   eventKey,
   impact,
+  interferencePhase,
   language,
   status
 }: ColorChainOpponentProps) {
   const t = battleCopy[language];
   const [reaction, setReaction] = useState<Exclude<OpponentImpact, null> | "idle">("idle");
   const purified = disturbance <= 0;
-  const visualState: MokoVisualState = purified ? "purified" : reaction;
+  const visualState: MokoVisualState = purified
+    ? "purified"
+    : reaction !== "idle"
+      ? reaction
+      : interferencePhase === "casting"
+        ? "attack"
+        : "idle";
 
   useEffect(() => {
     if (!eventKey || !impact || purified) return;
@@ -97,13 +122,28 @@ export function ColorChainOpponentPanel({
           ? t.heavyHit
           : reaction === "medium"
             ? t.mediumHit
-            : reaction === "light"
-              ? t.lightHit
-              : t.idle;
+          : reaction === "light"
+            ? t.lightHit
+            : interferencePhase === "casting"
+              ? t.casting
+              : interferencePhase === "armed"
+                ? t.armed
+                : interferencePhase === "triggered"
+                  ? t.triggered
+                  : t.idle;
+  const forecastDetail = interferencePhase === "casting"
+    ? t.castingDetail
+    : interferencePhase === "armed"
+      ? t.armedDetail
+      : interferencePhase === "triggered"
+        ? t.triggeredDetail
+        : interferencePhase === "forecast"
+          ? t.forecastDetail(Math.round(attackCharge))
+          : t.chargingDetail(Math.round(attackCharge));
 
   return (
     <section
-      className={`color-chain-opponent-panel is-${reaction}${purified ? " is-purified" : ""}`}
+      className={`color-chain-opponent-panel is-${reaction} is-interference-${interferencePhase}${purified ? " is-purified" : ""}`}
       aria-label={t.opponentTitle}
     >
       <div className="color-chain-opponent-heading">
@@ -151,7 +191,7 @@ export function ColorChainOpponentPanel({
         {!purified && (
           <p>
             <span>{t.forecast}</span>
-            {t.forecastDetail}
+            {forecastDetail}
           </p>
         )}
       </div>

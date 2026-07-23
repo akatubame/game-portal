@@ -28,12 +28,14 @@ const {
   addSlowCharge,
   applyGravity,
   applyGravityStep,
+  applySlipperyNudge,
   calculateClearScore,
   clearMatchedCells,
   createEmptyBoard,
   createRandomPair,
   findBombBlastCells,
   findHorizontalLaserClearCells,
+  findSlipperyTargetCell,
   findSuperSpecialClearCells,
   findTriggeredSpecialClearCells,
   findVerticalLaserClearCells,
@@ -186,6 +188,29 @@ while (true) {
 }
 assert.ok(gravityFrames > 0, "unsupported blocks animate through at least one gravity frame");
 assert.deepEqual(animatedPair, settledPair, "step animation reaches the same settled board");
+
+const slipperyBoard = createEmptyBoard();
+slipperyBoard[TOTAL_ROWS - 1][3] = "coral";
+slipperyBoard[TOTAL_ROWS - 1][4] = "gold";
+const slipperyTarget = findSlipperyTargetCell(slipperyBoard, () => 0);
+assert.equal(slipperyTarget, `${TOTAL_ROWS - 1}:3`, "slippery interference selects a movable lower block");
+const slipperyResult = applySlipperyNudge(slipperyBoard, slipperyTarget, () => 0);
+assert.equal(slipperyResult.moved, true, "slippery interference moves one nearby block");
+assert.equal(slipperyResult.fromKey, `${TOTAL_ROWS - 1}:3`, "slippery movement reports its origin");
+assert.equal(slipperyResult.toKey, `${TOTAL_ROWS - 1}:2`, "slippery movement uses an empty horizontal neighbour");
+assert.equal(slipperyResult.board[TOTAL_ROWS - 1][2], "coral", "the moved block occupies its slippery destination");
+assert.equal(slipperyResult.board[TOTAL_ROWS - 1][3], null, "the slippery origin becomes empty");
+assert.equal(slipperyBoard[TOTAL_ROWS - 1][3], "coral", "slippery movement does not mutate the input board");
+
+const blockedSlipperyBoard = createEmptyBoard();
+for (let column = 0; column < BOARD_COLUMNS; column += 1) {
+  blockedSlipperyBoard[TOTAL_ROWS - 1][column] = "sky";
+}
+assert.equal(
+  findSlipperyTargetCell(blockedSlipperyBoard, () => 0),
+  null,
+  "slippery interference skips a board with no safe sideways move",
+);
 
 let chainBoard = createEmptyBoard();
 for (let column = 0; column < 4; column += 1) chainBoard[TOTAL_ROWS - 1][column] = "rose";
