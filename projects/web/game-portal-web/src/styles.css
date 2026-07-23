@@ -9620,6 +9620,8 @@ footer {
   display: flex;
   inset: 0;
   justify-content: center;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 12px;
   position: fixed;
   z-index: 1000;
@@ -9632,6 +9634,7 @@ footer {
     linear-gradient(155deg, #15162f, #071824 66%, #21142e);
   border: 1px solid rgba(255, 226, 139, 0.3);
   border-radius: 22px;
+  box-sizing: border-box;
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.58);
   color: #f5f5f7;
   display: grid;
@@ -9713,9 +9716,11 @@ footer {
   display: grid;
   gap: 16px;
   min-height: 0;
+  -webkit-overflow-scrolling: touch;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 16px;
+  touch-action: pan-y pinch-zoom;
 }
 
 .color-chain-dialog-controls {
@@ -9893,6 +9898,48 @@ footer {
 
   .color-chain-dialog-item p {
     font-size: 0.72rem;
+  }
+}
+
+/* Mobile browsers can report a very short visual viewport in landscape.
+   Keep the dialog chrome visible and make only its content scroll. */
+@media (orientation: landscape) and (max-height: 620px) {
+  .color-chain-dialog-backdrop {
+    align-items: stretch;
+    padding: 8px 10px;
+  }
+
+  .color-chain-dialog {
+    height: calc(100vh - 16px);
+    max-height: none;
+    min-height: 0;
+  }
+
+  @supports (height: 100svh) {
+    .color-chain-dialog {
+      height: calc(100svh - 16px);
+    }
+  }
+
+  .color-chain-dialog > header,
+  .color-chain-dialog > footer {
+    flex: 0 0 auto;
+    padding: 7px 11px;
+  }
+
+  .color-chain-dialog-close {
+    height: 38px;
+    width: 38px;
+  }
+
+  .color-chain-dialog-content {
+    gap: 10px;
+    padding: 10px 12px;
+    scrollbar-gutter: stable;
+  }
+
+  .color-chain-dialog > footer button {
+    min-height: 36px;
   }
 }
 
