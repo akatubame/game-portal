@@ -1747,6 +1747,17 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   };
   const isActivePlay = isMascotTest && status !== "idle" && status !== "gameover";
 
+  useEffect(() => {
+    if (!isMascotTest) return;
+    const className = "color-chain-active-play";
+    document.documentElement.classList.toggle(className, isActivePlay);
+    document.body.classList.toggle(className, isActivePlay);
+    return () => {
+      document.documentElement.classList.remove(className);
+      document.body.classList.remove(className);
+    };
+  }, [isActivePlay, isMascotTest]);
+
   return (
     <section className={`puzzle-shell color-chain-shell${isMascotTest ? " is-mascot-test" : ""}${isActivePlay ? " is-active-play" : ""}${isMascotTest && !screenEffectsEnabled ? " is-effects-reduced" : ""}`} aria-labelledby="color-chain-title">
       <div className="puzzle-hero color-chain-hero">

@@ -9955,3 +9955,31 @@ footer {
     width: 36px;
   }
 }
+
+/* Fallback for mobile browsers where :has() is unavailable or delayed after
+   a modal closes. The active state is mirrored to html/body by ColorChain. */
+html.color-chain-active-play,
+body.color-chain-active-play {
+  height: 100%;
+  overflow: hidden;
+}
+
+body.color-chain-active-play .game-screen.is-color-chain-test {
+  box-sizing: border-box;
+  height: 100vh;
+  height: 100svh;
+  max-height: 100vh;
+  max-height: 100svh;
+  overflow: hidden;
+  padding: 6px 0;
+  width: min(100% - 12px, 1440px);
+}
+
+body.color-chain-active-play .game-screen.is-color-chain-test .game-topbar {
+  display: none;
+}
+
+body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
+  height: calc(100vh - 12px);
+  height: calc(100svh - 12px);
+}
