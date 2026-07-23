@@ -8731,6 +8731,13 @@ footer {
     radial-gradient(circle at 84% 23%, rgba(102, 221, 255, 0.25), transparent 26%),
     radial-gradient(circle at 50% 92%, rgba(255, 209, 102, 0.17), transparent 30%),
     linear-gradient(135deg, #20123f, #0b2740 52%, #35143f);
+  background-color: #101d36;
+  background-image:
+    linear-gradient(180deg, rgba(3, 8, 24, 0.08), rgba(3, 7, 19, 0.28)),
+    url("/backgrounds/color-chain-battle-v1.webp");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
   border: 1px solid rgba(255, 231, 153, 0.24);
   border-radius: clamp(18px, 2.5vw, 32px);
   box-shadow: 0 28px 80px rgba(2, 5, 18, 0.48), inset 0 0 70px rgba(106, 222, 255, 0.05);
@@ -8758,16 +8765,11 @@ footer {
 }
 
 .color-chain-shell.is-mascot-test::after {
-  border: 2px solid rgba(255, 218, 115, 0.13);
-  border-radius: 50%;
-  box-shadow:
-    0 0 0 10px rgba(141, 232, 255, 0.025),
-    0 0 0 24px rgba(240, 87, 189, 0.025);
-  height: min(62vw, 760px);
-  left: 50%;
-  top: 48%;
-  transform: translate(-50%, -50%);
-  width: min(62vw, 760px);
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(3, 7, 20, 0.08) 58%, rgba(3, 6, 16, 0.36) 100%),
+    linear-gradient(90deg, rgba(9, 22, 45, 0.1), transparent 22%, transparent 78%, rgba(36, 8, 33, 0.12));
+  border-radius: inherit;
+  inset: 0;
 }
 
 .color-chain-shell.is-mascot-test .color-chain-hero {
@@ -10211,7 +10213,6 @@ footer {
 }
 
 .color-chain-shell.is-effects-reduced::before,
-.color-chain-shell.is-effects-reduced::after,
 .color-chain-shell.is-effects-reduced .color-chain-magic-chain-effect,
 .color-chain-shell.is-effects-reduced .color-chain-grand-spell-effect,
 .color-chain-shell.is-effects-reduced .color-chain-mascot-motion-fx {
