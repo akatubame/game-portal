@@ -44,7 +44,8 @@ const gameViews: Record<string, GameView> = {
   wordGuess: lazy(() => import("./games/wordGuess/WordGuess").then((module) => ({ default: module.WordGuess }))),
   solitaire: lazy(() => import("./games/solitaire/Solitaire").then((module) => ({ default: module.Solitaire }))),
   colorChain: lazy(() => import("./games/colorChain/ColorChain").then((module) => ({ default: module.ColorChain }))),
-  colorChainMascotTest: lazy(() => import("./games/colorChain/ColorChain").then((module) => ({ default: module.ColorChainMascotTest })))
+  colorChainMascotTest: lazy(() => import("./games/colorChain/ColorChain").then((module) => ({ default: module.ColorChainMascotTest }))),
+  colorChainRotationTest: lazy(() => import("./games/colorChain/ColorChainRotationTest").then((module) => ({ default: module.ColorChainRotationTest })))
 };
 
 const recentGameIds = ["colorChain", "solitaire", "wordGuess", "nonogram"];
@@ -56,18 +57,48 @@ const recentlyPlayedStorageKey = "game-shelf-recently-played";
 const maxRecentlyPlayed = 8;
 const yonmaiMahjongId = "yonmai-mahjong";
 const yonmaiAndroidUrl = "https://play.google.com/store/apps/details?id=com.yonmai.mahjong";
-const colorChainMascotTestId = "colorChainMascotTest";
-const colorChainMascotTestPath = "/test/color-chain-mascot/";
-const colorChainMascotTestText = {
-  ja: {
-    title: "クロマのマジカルチェイン",
-    description: "マスコットキャラクターと演出を検証する、マジカルチェインの公開テスト版です。"
+const testGameRoutes = [
+  {
+    id: "colorChainMascotTest",
+    path: "/test/color-chain-mascot/",
+    screenClass: "is-color-chain-test",
+    screenshot: "/screenshots/color-chain.svg",
+    text: {
+      ja: {
+        title: "クロマのマジカルチェイン",
+        description: "マスコットキャラクターと演出を検証する、マジカルチェインの公開テスト版です。"
+      },
+      en: {
+        title: "Chroma's Magical Chain",
+        description: "A publicly accessible test version of Magical Chain for mascot character and presentation experiments."
+      }
+    }
   },
-  en: {
-    title: "Chroma's Magical Chain",
-    description: "A publicly accessible test version of Magical Chain for mascot character and presentation experiments."
+  {
+    id: "colorChainRotationTest",
+    path: "/test/color-chain-rotate/",
+    screenClass: "is-color-chain-test is-color-chain-rotation-test",
+    screenshot: "/screenshots/color-chain.svg",
+    text: {
+      ja: {
+        title: "クロマのマジカルチェイン 回転式試作",
+        description: "2×2のブロックを回してマジカルチェインを作る、盤面回転式パズルの公開試作版です。"
+      },
+      en: {
+        title: "Chroma's Magical Chain: Rotation Prototype",
+        description: "A public prototype of the board-rotation puzzle where 2×2 groups are turned to create Magical Chains."
+      }
+    }
   }
-} as const;
+] as const;
+
+function normalizePathname(pathname: string) {
+  return pathname.endsWith("/") ? pathname : `${pathname}/`;
+}
+
+function getTestGameRoute(gameId: string | null) {
+  return testGameRoutes.find((route) => route.id === gameId);
+}
 
 function getSelectedGameId() {
   const legacyQueryId = new URLSearchParams(window.location.search).get("game");
@@ -75,8 +106,11 @@ function getSelectedGameId() {
     return legacyQueryId;
   }
 
-  if (window.location.pathname === colorChainMascotTestPath) {
-    return colorChainMascotTestId;
+  const testRoute = testGameRoutes.find(
+    (route) => route.path === normalizePathname(window.location.pathname)
+  );
+  if (testRoute) {
+    return testRoute.id;
   }
 
   const routeMatch = window.location.pathname.match(/^\/play\/([^/]+)\/?$/);
@@ -135,6 +169,7 @@ export function App() {
   const [copyNotice, setCopyNotice] = useState("");
   const didSendInitialPageView = useRef(false);
   const SelectedGame = selectedGameId ? gameViews[selectedGameId] : undefined;
+  const selectedTestGameRoute = getTestGameRoute(selectedGameId);
   const selectedEmbeddedGame = selectedGameId && !SelectedGame
     ? games.find((game) => game.id === selectedGameId && game.kind === "embedded")
     : undefined;
@@ -321,8 +356,9 @@ export function App() {
     }
 
     const selectedGame = selectedGameId ? getGameById(selectedGameId) : undefined;
-    const pageTitle = selectedGameId === colorChainMascotTestId
-      ? `Game Shelf | ${colorChainMascotTestText[language].title}`
+    const testRoute = getTestGameRoute(selectedGameId);
+    const pageTitle = testRoute
+      ? `Game Shelf | ${testRoute.text[language].title}`
       : selectedGame
       ? `Game Shelf | ${getGameText(selectedGame, language).title}`
       : "Game Shelf";
@@ -332,9 +368,9 @@ export function App() {
   useEffect(() => {
     document.documentElement.lang = language;
     const selectedGame = selectedGameId ? getGameById(selectedGameId) : undefined;
-    const isColorChainMascotTest = selectedGameId === colorChainMascotTestId;
-    const selectedGameText = isColorChainMascotTest
-      ? colorChainMascotTestText[language]
+    const testRoute = getTestGameRoute(selectedGameId);
+    const selectedGameText = testRoute
+      ? testRoute.text[language]
       : selectedGame ? getGameText(selectedGame, language) : undefined;
     document.title = selectedGameText
       ? `Game Shelf | ${selectedGameText.title}`
@@ -345,10 +381,10 @@ export function App() {
       description.content = selectedGameText?.description ?? t.metaDescription;
     }
 
-    setRobotsMetaContent(isColorChainMascotTest ? "noindex,nofollow" : "index,follow");
+    setRobotsMetaContent(testRoute ? "noindex,nofollow" : "index,follow");
 
-    const canonicalPath = isColorChainMascotTest
-      ? colorChainMascotTestPath
+    const canonicalPath = testRoute
+      ? testRoute.path
       : selectedGame
       ? selectedGame.kind === "internal" || selectedGame.id === yonmaiMahjongId
         ? getGameHref(selectedGame)
@@ -358,7 +394,7 @@ export function App() {
     const socialTitle = selectedGameText ? `${selectedGameText.title} | Game Shelf` : "Game Shelf";
     const socialDescription = selectedGameText?.description ?? t.metaDescription;
     const socialImage = new URL(
-      isColorChainMascotTest ? "/screenshots/color-chain.svg" : selectedGame?.screenshot ?? "/screenshots/random-shogi.png",
+      testRoute?.screenshot ?? selectedGame?.screenshot ?? "/screenshots/random-shogi.png",
       window.location.origin
     ).href;
 
@@ -384,7 +420,7 @@ export function App() {
   if (SelectedGame || selectedEmbeddedGame) {
     return (
       <I18nContext.Provider value={{ language, setLanguage }}>
-        <main className={`game-screen${selectedGameId === colorChainMascotTestId ? " is-color-chain-test" : ""}`}>
+        <main className={`game-screen${selectedTestGameRoute ? ` ${selectedTestGameRoute.screenClass}` : ""}`}>
           <DomTranslationLayer language={language} />
           <PwaControls language={language} showInstall={false} />
           <div className="game-topbar">

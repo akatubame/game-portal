@@ -2,19 +2,34 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import ts from "typescript";
 
-async function importTypeScriptSource(relativePath) {
+function compileTypeScriptSource(relativePath, importMap = {}) {
   const sourceUrl = new URL(relativePath, import.meta.url);
   const source = fs.readFileSync(sourceUrl, "utf8");
-  const compiled = ts.transpileModule(source, {
+  let compiled = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.ESNext,
       target: ts.ScriptTarget.ES2022,
     },
   }).outputText;
-  return import(`data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`);
+
+  for (const [specifier, replacement] of Object.entries(importMap)) {
+    compiled = compiled
+      .replaceAll(`from "${specifier}"`, `from "${replacement}"`)
+      .replaceAll(`from '${specifier}'`, `from '${replacement}'`);
+  }
+
+  return `data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`;
 }
 
-const logic = await importTypeScriptSource("../src/games/colorChain/logic.ts");
+async function importTypeScriptSource(relativePath, importMap = {}) {
+  return import(compileTypeScriptSource(relativePath, importMap));
+}
+
+const tokensUrl = compileTypeScriptSource("../src/games/colorChain/tokens.ts");
+const logic = await importTypeScriptSource(
+  "../src/games/colorChain/logic.ts",
+  { "./tokens": tokensUrl }
+);
 const gesture = await importTypeScriptSource("../src/games/colorChain/gesture.ts");
 
 const {

@@ -14,6 +14,7 @@
     "preview:deploy": "vite preview --host 0.0.0.0 --port 4175 --strictPort",
     "deploy:check": "npm run build",
     "test:color-chain": "node scripts/test-color-chain.mjs",
+    "test:color-chain-rotation": "node scripts/test-color-chain-rotation.mjs",
     "icons:pwa": "node scripts/generate-pwa-icons.mjs",
     "seo:generate": "node scripts/generate-search-pages.mjs",
     "seo:sitemap": "node scripts/generate-search-pages.mjs --sitemap-only"
