@@ -13,6 +13,7 @@ import {
 export const ROTATION_ROWS = 8;
 export const ROTATION_COLUMNS = 8;
 export const ROTATION_MAX_CHAIN_STEPS = 30;
+const ROTATION_CHAIN_MULTIPLIERS = [1, 3, 10, 25, 60, 120] as const;
 
 export type RotationDirection = "clockwise" | "counterclockwise";
 
@@ -201,6 +202,24 @@ export function createEmptyRotationBoard(): Board {
     { length: ROTATION_ROWS },
     () => Array<BoardCell>(ROTATION_COLUMNS).fill(null)
   );
+}
+
+export function getRotationChainMultiplier(chain: number) {
+  const normalizedChain = Math.max(1, Math.floor(chain));
+  return ROTATION_CHAIN_MULTIPLIERS[
+    Math.min(normalizedChain, ROTATION_CHAIN_MULTIPLIERS.length) - 1
+  ];
+}
+
+export function calculateRotationClearScore(
+  match: RotationMatchResult,
+  chain: number
+) {
+  const multiplier = getRotationChainMultiplier(chain);
+  const sizeBonus = Math.max(0, match.cells.size - 4) * 20;
+  const lineBonus = Math.max(0, match.lines.length - 1) * 40;
+  const colorBonus = Math.max(0, match.colors.size - 1) * 60;
+  return (match.cells.size * 10 + sizeBonus + lineBonus + colorBonus) * multiplier;
 }
 
 export function rotateSquare(

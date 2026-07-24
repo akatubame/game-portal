@@ -23,16 +23,22 @@ function compileTypeScriptSource(relativePath, importMap = {}) {
 
 const tokensUrl = compileTypeScriptSource("../src/games/colorChain/tokens.ts");
 const tokens = await import(tokensUrl);
-const rotation = await import(
+const rotationUrl = compileTypeScriptSource(
+  "../src/games/colorChain/rotationLogic.ts",
+  { "./tokens": tokensUrl }
+);
+const rotation = await import(rotationUrl);
+const interaction = await import(
   compileTypeScriptSource(
-    "../src/games/colorChain/rotationLogic.ts",
-    { "./tokens": tokensUrl }
+    "../src/games/colorChain/rotationInteraction.ts",
+    { "./rotationLogic": rotationUrl }
   )
 );
 
 const {
   ROTATION_COLUMNS,
   ROTATION_ROWS,
+  calculateRotationClearScore,
   clearRotationMatches,
   collapseRotationColumns,
   createEmptyRotationBoard,
@@ -46,6 +52,7 @@ const {
   rotateSquare,
   shuffleToPlayableRotationBoard,
 } = rotation;
+const { classifyRotationGesture, moveRotationPoint } = interaction;
 const { BOMB_BLOCK } = tokens;
 
 function seededRandom(seed) {
@@ -73,6 +80,44 @@ function makePatternBoard() {
 function assertBoardShape(board) {
   assert.equal(board.length, ROTATION_ROWS);
   board.forEach((row) => assert.equal(row.length, ROTATION_COLUMNS));
+}
+
+{
+  assert.equal(
+    classifyRotationGesture({ deltaX: 4, deltaY: 3, durationMs: 180 }),
+    "clockwise",
+    "a short tap rotates clockwise"
+  );
+  assert.equal(
+    classifyRotationGesture({ deltaX: 30, deltaY: 4, durationMs: 400 }),
+    "clockwise",
+    "a right swipe rotates clockwise"
+  );
+  assert.equal(
+    classifyRotationGesture({ deltaX: -30, deltaY: 4, durationMs: 400 }),
+    "counterclockwise",
+    "a left swipe rotates counterclockwise"
+  );
+  assert.equal(
+    classifyRotationGesture({ deltaX: 8, deltaY: 34, durationMs: 220 }),
+    null,
+    "a vertical swipe is cancelled"
+  );
+  assert.deepEqual(
+    moveRotationPoint({ row: 0, column: 0 }, "ArrowUp"),
+    { row: 0, column: 0 },
+    "keyboard navigation stays inside the top edge"
+  );
+  assert.deepEqual(
+    moveRotationPoint({ row: 6, column: 6 }, "ArrowRight"),
+    { row: 6, column: 6 },
+    "keyboard navigation stays inside the right edge"
+  );
+  assert.deepEqual(
+    moveRotationPoint({ row: 3, column: 3 }, "ArrowLeft"),
+    { row: 3, column: 2 },
+    "keyboard navigation moves one intersection"
+  );
 }
 
 {
@@ -217,6 +262,8 @@ function assertBoardShape(board) {
   const board = makePatternBoard();
   for (let column = 0; column < 4; column += 1) board[7][column] = "coral";
   const matches = findRotationMatches(board);
+  assert.equal(calculateRotationClearScore(matches, 1), 40);
+  assert.equal(calculateRotationClearScore(matches, 2), 120);
   const cleared = clearRotationMatches(board, matches.cells);
   assert.ok([...matches.cells].every((key) => {
     const [row, column] = key.split(":").map(Number);

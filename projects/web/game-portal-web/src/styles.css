@@ -9,6 +9,746 @@
   --line: rgba(244, 241, 232, 0.15);
 }
 
+/* Phase R2: fixed 1280x720 rotation-game surface. */
+html.color-chain-rotation-mode,
+body.color-chain-rotation-mode {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body.color-chain-rotation-mode .game-screen.is-color-chain-rotation-test {
+  background: #241628;
+  box-sizing: border-box;
+  height: 100vh;
+  height: 100svh;
+  inset: 0;
+  margin: 0;
+  max-width: none;
+  overflow: hidden;
+  padding: 0;
+  position: fixed;
+  width: 100vw;
+}
+
+body.color-chain-rotation-mode .game-screen.is-color-chain-rotation-test .game-topbar {
+  display: none;
+}
+
+.color-chain-rotation-page {
+  align-items: center;
+  background:
+    radial-gradient(circle at 50% 48%, rgba(255, 221, 148, 0.24), transparent 42%),
+    linear-gradient(135deg, #3e2432, #1f2737 52%, #372438);
+  display: flex;
+  height: 100vh;
+  height: 100svh;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  width: 100vw;
+}
+
+.color-chain-rotation-stage-frame {
+  flex: 0 0 auto;
+  overflow: visible;
+  position: relative;
+}
+
+.color-chain-rotation-stage {
+  --rotation-ink: #2b3448;
+  --rotation-muted: #657186;
+  --rotation-wood-dark: #3b2115;
+  --rotation-wood: #704326;
+  --rotation-paper: #efd9a9;
+  background:
+    linear-gradient(180deg, rgba(255, 248, 210, 0.13), rgba(54, 24, 24, 0.2)),
+    url("/backgrounds/color-chain-battle-v2.webp") center / cover no-repeat,
+    #503629;
+  border: 8px solid #3a2116;
+  box-shadow:
+    inset 0 0 0 3px #98623a,
+    inset 0 0 0 7px rgba(255, 221, 151, 0.22),
+    0 24px 70px rgba(0, 0, 0, 0.48);
+  box-sizing: border-box;
+  color: var(--rotation-ink);
+  font-family: Inter, "Yu Gothic UI", "Hiragino Sans", system-ui, sans-serif;
+  left: 0;
+  overflow: hidden;
+  position: absolute;
+  top: 0;
+  transform-origin: left top;
+}
+
+.color-chain-rotation-stage::before {
+  background:
+    repeating-linear-gradient(16deg, transparent 0 20px, rgba(58, 31, 18, 0.14) 21px 23px),
+    linear-gradient(90deg, rgba(255, 234, 174, 0.1), transparent 24%, transparent 76%, rgba(255, 234, 174, 0.1));
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.color-chain-rotation-stage button {
+  font: inherit;
+}
+
+.color-chain-rotation-stage-header {
+  align-items: center;
+  background: linear-gradient(180deg, rgba(48, 24, 22, 0.92), rgba(70, 40, 27, 0.88));
+  border-bottom: 4px solid #aa7141;
+  box-shadow: 0 6px 14px rgba(27, 13, 14, 0.32);
+  display: flex;
+  height: 92px;
+  justify-content: space-between;
+  padding: 12px 28px 12px 34px;
+  position: relative;
+  z-index: 20;
+}
+
+.color-chain-rotation-title p,
+.color-chain-rotation-title h1,
+.color-chain-rotation-title span {
+  margin: 0;
+}
+
+.color-chain-rotation-title p {
+  color: #ffd886;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.17em;
+}
+
+.color-chain-rotation-title h1 {
+  color: #fff9dd;
+  font-size: 28px;
+  line-height: 1.15;
+  text-shadow: 0 2px 0 #4b2031, 0 0 14px rgba(255, 197, 112, 0.32);
+}
+
+.color-chain-rotation-title span {
+  color: #eadbbf;
+  display: block;
+  font-size: 13px;
+  margin-top: 3px;
+}
+
+.color-chain-rotation-top-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.color-chain-rotation-top-actions button,
+.color-chain-rotation-manual-controls button,
+.color-chain-rotation-start-overlay button {
+  align-items: center;
+  background: linear-gradient(180deg, #fff1c8, #d9b878);
+  border: 2px solid #694025;
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 #fff9e4, 0 4px 0 #3f2519;
+  color: #382b32;
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 900;
+  gap: 7px;
+  justify-content: center;
+  min-height: 42px;
+  padding: 8px 13px;
+}
+
+.color-chain-rotation-top-actions button:hover,
+.color-chain-rotation-manual-controls button:hover:not(:disabled),
+.color-chain-rotation-start-overlay button:hover {
+  filter: brightness(1.08) saturate(1.05);
+  transform: translateY(-1px);
+}
+
+.color-chain-rotation-top-actions button:active,
+.color-chain-rotation-manual-controls button:active:not(:disabled),
+.color-chain-rotation-start-overlay button:active {
+  box-shadow: inset 0 1px 0 #fff9e4, 0 2px 0 #3f2519;
+  transform: translateY(2px);
+}
+
+.color-chain-rotation-top-actions svg,
+.color-chain-rotation-manual-controls svg,
+.color-chain-rotation-start-overlay button svg {
+  height: 19px;
+  width: 19px;
+}
+
+.color-chain-rotation-game-grid {
+  align-items: center;
+  display: grid;
+  gap: 20px;
+  grid-template-columns: 230px 580px 300px;
+  height: 612px;
+  justify-content: center;
+  padding: 14px 0 18px;
+  position: relative;
+  z-index: 2;
+}
+
+.color-chain-rotation-side-panel,
+.color-chain-rotation-board-panel {
+  box-sizing: border-box;
+  min-height: 0;
+}
+
+.color-chain-rotation-side-panel {
+  background:
+    linear-gradient(145deg, rgba(247, 226, 180, 0.98), rgba(210, 177, 121, 0.98)) padding-box,
+    repeating-linear-gradient(18deg, #3b2115 0 8px, #704326 8px 15px, #9a6032 15px 20px) border-box;
+  border: 6px solid transparent;
+  border-radius: 24px;
+  box-shadow: 0 12px 25px rgba(44, 22, 18, 0.3), inset 0 0 0 1px rgba(255, 252, 224, 0.78);
+  height: 570px;
+  padding: 20px 17px;
+}
+
+.color-chain-rotation-side-panel h2 {
+  color: #3a3444;
+  font-size: 23px;
+  line-height: 1.25;
+  margin: 8px 0 24px;
+  text-align: center;
+}
+
+.color-chain-rotation-emblem {
+  align-items: center;
+  background: radial-gradient(circle, #fff6b7, #ffbf5f 52%, #a83f67);
+  border: 4px solid #61344b;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(255, 236, 164, 0.6), 0 8px 20px rgba(83, 38, 53, 0.3);
+  color: #fff;
+  display: flex;
+  height: 72px;
+  justify-content: center;
+  margin: 2px auto 13px;
+  width: 72px;
+}
+
+.color-chain-rotation-emblem svg {
+  filter: drop-shadow(0 2px 2px rgba(87, 35, 57, 0.35));
+  height: 38px;
+  width: 38px;
+}
+
+.color-chain-rotation-panel-kicker {
+  color: #9a4a67;
+  font-size: 11px;
+  font-weight: 1000;
+  letter-spacing: 0.16em;
+  margin: 0;
+  text-align: center;
+}
+
+.color-chain-rotation-gauge-copy {
+  align-items: end;
+  display: flex;
+  justify-content: space-between;
+}
+
+.color-chain-rotation-gauge-copy span,
+.color-chain-rotation-point-readout span {
+  color: var(--rotation-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.color-chain-rotation-gauge-copy strong {
+  color: #91425f;
+  font-size: 24px;
+}
+
+.color-chain-rotation-gauge {
+  background: #594634;
+  border: 3px solid #4a2d1f;
+  border-radius: 999px;
+  box-shadow: inset 0 3px 8px rgba(30, 17, 15, 0.5);
+  height: 24px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.color-chain-rotation-gauge i {
+  background: linear-gradient(90deg, #f15b91, #ffce62 48%, #67e8ff);
+  box-shadow: 0 0 12px rgba(255, 209, 102, 0.8);
+  display: block;
+  height: 100%;
+  transition: width 240ms ease;
+}
+
+.color-chain-rotation-point-readout {
+  background: rgba(255, 246, 214, 0.58);
+  border: 1px solid rgba(91, 52, 27, 0.3);
+  border-radius: 14px;
+  display: grid;
+  gap: 5px;
+  margin-top: 28px;
+  padding: 13px;
+}
+
+.color-chain-rotation-point-readout strong {
+  color: #39445a;
+  font-size: 20px;
+}
+
+.color-chain-rotation-keyboard-help {
+  color: #67606a;
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 25px 3px 0;
+}
+
+.color-chain-rotation-board-panel {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  height: 590px;
+  justify-content: flex-start;
+}
+
+.color-chain-rotation-play-board {
+  background: #090e16;
+  border: 7px solid #3a2116;
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 4px #a26838,
+    0 0 0 7px #4a2a1b,
+    0 15px 28px rgba(23, 10, 18, 0.42),
+    inset 0 0 22px rgba(98, 215, 255, 0.12);
+  box-sizing: border-box;
+  height: 552px;
+  overflow: hidden;
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  width: 552px;
+}
+
+.color-chain-rotation-cell-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  height: 100%;
+  width: 100%;
+}
+
+.color-chain-rotation-cell-grid .color-chain-cell,
+.color-chain-rotation-overlay .color-chain-cell {
+  aspect-ratio: 1;
+  border-radius: 24%;
+  font-size: 27px;
+  min-height: 0;
+  min-width: 0;
+  transition: filter 100ms ease, opacity 80ms linear;
+}
+
+.color-chain-rotation-cell-grid .color-chain-cell.is-selected-area {
+  filter: brightness(1.08) saturate(1.08);
+}
+
+.color-chain-rotation-cell-grid .color-chain-cell.is-under-overlay {
+  opacity: 0;
+}
+
+.color-chain-rotation-cell-grid .color-chain-cell.is-rotation-falling {
+  animation: color-chain-rotation-fall 170ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.color-chain-rotation-cell-grid .color-chain-cell.is-rotation-refilling {
+  animation: color-chain-rotation-refill 190ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+.color-chain-rotation-point-grid {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 7;
+}
+
+.color-chain-rotation-point {
+  -webkit-tap-highlight-color: transparent;
+  background: transparent;
+  border: 0;
+  cursor: grab;
+  height: 12.5%;
+  padding: 0;
+  pointer-events: auto;
+  position: absolute;
+  touch-action: none;
+  width: 12.5%;
+}
+
+.color-chain-rotation-point:active {
+  cursor: grabbing;
+}
+
+.color-chain-rotation-point::before {
+  border: 4px solid transparent;
+  border-radius: 18px;
+  content: "";
+  height: 200%;
+  left: -50%;
+  pointer-events: none;
+  position: absolute;
+  top: -50%;
+  transition: border-color 90ms ease, box-shadow 90ms ease, background 90ms ease;
+  width: 200%;
+}
+
+.color-chain-rotation-point i {
+  background: rgba(255, 248, 201, 0.48);
+  border: 2px solid rgba(65, 38, 25, 0.6);
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  height: 10px;
+  left: 50%;
+  margin: -5px 0 0 -5px;
+  opacity: 0.32;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  width: 10px;
+}
+
+.color-chain-rotation-point.is-selected::before,
+.color-chain-rotation-point:focus-visible::before {
+  border-color: rgba(255, 239, 140, 0.96);
+  box-shadow: inset 0 0 18px rgba(255, 228, 112, 0.2), 0 0 16px rgba(255, 213, 87, 0.72);
+}
+
+.color-chain-rotation-point:focus-visible {
+  outline: 0;
+}
+
+.color-chain-rotation-point.is-selected i,
+.color-chain-rotation-point:focus-visible i {
+  background: #fff4ad;
+  opacity: 1;
+}
+
+.color-chain-rotation-point.is-invalid::before {
+  animation: color-chain-rotation-invalid 150ms ease-in-out infinite alternate;
+  background: rgba(255, 109, 72, 0.16);
+  border-color: #ff8b58;
+  box-shadow: 0 0 18px rgba(255, 83, 58, 0.7);
+}
+
+.color-chain-rotation-point.is-hint::before {
+  animation: color-chain-rotation-hint 620ms ease-in-out infinite alternate;
+  border-color: #74f4ff;
+  box-shadow: 0 0 22px #4bdcff, inset 0 0 18px rgba(75, 220, 255, 0.25);
+}
+
+.color-chain-rotation-point.is-hint i::after {
+  color: #fffbd0;
+  content: "↻";
+  font-size: 32px;
+  font-style: normal;
+  font-weight: 1000;
+  left: -10px;
+  position: absolute;
+  text-shadow: 0 0 7px #35d9ff, 0 2px 2px #183952;
+  top: -20px;
+}
+
+.color-chain-rotation-point.is-hint.is-counterclockwise i::after {
+  content: "↺";
+}
+
+.color-chain-rotation-overlay {
+  animation-duration: 160ms;
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.28, 0.76, 0.38, 1);
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  height: 25%;
+  pointer-events: none;
+  position: absolute;
+  transform-origin: center;
+  width: 25%;
+  z-index: 8;
+}
+
+.color-chain-rotation-overlay.is-clockwise {
+  animation-name: color-chain-rotation-clockwise;
+}
+
+.color-chain-rotation-overlay.is-counterclockwise {
+  animation-name: color-chain-rotation-counterclockwise;
+}
+
+.color-chain-rotation-chain-notice {
+  animation: color-chain-rotation-chain-pop 430ms cubic-bezier(0.2, 0.9, 0.28, 1) both;
+  background: linear-gradient(90deg, #ff648d, #ffd86c, #6eeaff, #be8cff);
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 3px 0 #49213f) drop-shadow(0 0 8px rgba(255, 238, 135, 0.9));
+  font-size: 50px;
+  font-style: italic;
+  font-weight: 1000;
+  left: 50%;
+  letter-spacing: -0.05em;
+  pointer-events: none;
+  position: absolute;
+  top: 45%;
+  transform: translate(-50%, -50%) rotate(-5deg);
+  white-space: nowrap;
+  z-index: 12;
+}
+
+.color-chain-rotation-start-overlay {
+  align-items: center;
+  backdrop-filter: blur(5px);
+  background: rgba(18, 13, 26, 0.84);
+  color: #fff7dc;
+  display: flex;
+  flex-direction: column;
+  inset: 0;
+  justify-content: center;
+  padding: 38px;
+  position: absolute;
+  text-align: center;
+  z-index: 15;
+}
+
+.color-chain-rotation-start-overlay > svg {
+  color: #ffcf68;
+  filter: drop-shadow(0 0 10px rgba(255, 183, 83, 0.62));
+  height: 54px;
+  width: 54px;
+}
+
+.color-chain-rotation-start-overlay h2 {
+  font-size: 28px;
+  margin: 14px 0 8px;
+}
+
+.color-chain-rotation-start-overlay p {
+  color: #e8ddca;
+  font-size: 15px;
+  line-height: 1.65;
+  margin: 0 0 18px;
+  max-width: 410px;
+}
+
+.color-chain-rotation-start-overlay button {
+  min-width: 220px;
+}
+
+.color-chain-rotation-result-score {
+  align-items: baseline;
+  display: flex;
+  gap: 12px;
+  margin: -2px 0 15px;
+}
+
+.color-chain-rotation-result-score strong {
+  color: #ffda72;
+  font-size: 28px;
+}
+
+.color-chain-rotation-message {
+  background: rgba(45, 25, 26, 0.88);
+  border: 2px solid #a56b3b;
+  border-radius: 999px;
+  color: #fff4d5;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 32px;
+  margin-top: 13px;
+  min-height: 34px;
+  overflow: hidden;
+  padding: 0 18px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 552px;
+}
+
+.color-chain-rotation-timer {
+  align-items: center;
+  background: rgba(255, 244, 209, 0.65);
+  border: 1px solid rgba(91, 52, 27, 0.3);
+  border-radius: 16px;
+  display: grid;
+  gap: 0 8px;
+  grid-template-columns: 34px 1fr auto;
+  padding: 13px;
+}
+
+.color-chain-rotation-timer svg {
+  color: #9d4764;
+  grid-row: 1 / 3;
+  height: 30px;
+  width: 30px;
+}
+
+.color-chain-rotation-timer span {
+  color: var(--rotation-muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.color-chain-rotation-timer strong {
+  color: #3a3444;
+  font-size: 40px;
+  font-variant-numeric: tabular-nums;
+  grid-row: 1 / 3;
+}
+
+.color-chain-rotation-stats {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+  margin: 18px 0;
+}
+
+.color-chain-rotation-stats > span {
+  background: rgba(255, 246, 214, 0.58);
+  border: 1px solid rgba(91, 52, 27, 0.28);
+  border-radius: 13px;
+  display: grid;
+  min-height: 72px;
+  padding: 10px;
+}
+
+.color-chain-rotation-stats small {
+  color: var(--rotation-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.color-chain-rotation-stats strong {
+  color: #3a4052;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.color-chain-rotation-manual-controls {
+  display: grid;
+  gap: 10px;
+}
+
+.color-chain-rotation-manual-controls button {
+  min-height: 48px;
+}
+
+.color-chain-rotation-manual-controls button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.65);
+  opacity: 0.48;
+}
+
+.color-chain-rotation-manual-controls button:nth-child(2) {
+  background: linear-gradient(180deg, #d9fbff, #77dbea);
+}
+
+.color-chain-rotation-manual-controls button:nth-child(3) {
+  background: linear-gradient(180deg, #fff5b8, #f1ba5a);
+}
+
+.color-chain-rotation-phase-indicator {
+  align-items: center;
+  background: rgba(74, 46, 33, 0.13);
+  border: 1px solid rgba(91, 52, 27, 0.25);
+  border-radius: 999px;
+  color: #77685e;
+  display: flex;
+  font-size: 11px;
+  font-weight: 1000;
+  gap: 8px;
+  justify-content: center;
+  letter-spacing: 0.12em;
+  margin-top: 20px;
+  padding: 9px;
+}
+
+.color-chain-rotation-phase-indicator svg {
+  height: 15px;
+  width: 15px;
+}
+
+.color-chain-rotation-phase-indicator.is-ready {
+  background: rgba(75, 220, 255, 0.12);
+  color: #21738b;
+}
+
+.color-chain-rotation-phase-indicator.is-clearing,
+.color-chain-rotation-phase-indicator.is-falling,
+.color-chain-rotation-phase-indicator.is-refilling {
+  background: rgba(241, 91, 145, 0.14);
+  color: #9b3e64;
+}
+
+.color-chain-rotation-orientation {
+  align-items: center;
+  background: rgba(31, 20, 35, 0.94);
+  border: 2px solid #ffd36e;
+  border-radius: 14px;
+  color: #fff5d5;
+  display: flex;
+  font-size: 13px;
+  font-weight: 900;
+  gap: 8px;
+  left: 50%;
+  max-width: min(90vw, 390px);
+  padding: 10px 14px;
+  position: fixed;
+  top: max(8px, env(safe-area-inset-top));
+  transform: translateX(-50%);
+  z-index: 100;
+}
+
+.color-chain-rotation-orientation svg {
+  color: #ffcf68;
+  flex: 0 0 auto;
+  height: 20px;
+  width: 20px;
+}
+
+@keyframes color-chain-rotation-clockwise {
+  from { filter: brightness(1); transform: rotate(0); }
+  50% { filter: brightness(1.25); }
+  to { filter: brightness(1.05); transform: rotate(90deg); }
+}
+
+@keyframes color-chain-rotation-counterclockwise {
+  from { filter: brightness(1); transform: rotate(0); }
+  50% { filter: brightness(1.25); }
+  to { filter: brightness(1.05); transform: rotate(-90deg); }
+}
+
+@keyframes color-chain-rotation-invalid {
+  from { transform: translateX(-2px); }
+  to { transform: translateX(2px); }
+}
+
+@keyframes color-chain-rotation-hint {
+  from { filter: brightness(0.9); }
+  to { filter: brightness(1.35); }
+}
+
+@keyframes color-chain-rotation-chain-pop {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.45) rotate(-9deg); }
+  55% { opacity: 1; transform: translate(-50%, -50%) scale(1.14) rotate(-4deg); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(-5deg); }
+}
+
+@keyframes color-chain-rotation-fall {
+  from { opacity: 0.55; transform: translateY(-18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes color-chain-rotation-refill {
+  from { filter: brightness(1.6); opacity: 0; transform: translateY(-30px) scale(0.8); }
+  to { filter: brightness(1); opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* Rotation prototype: R0/R1 logic preview. Interactive controls arrive in R2. */
 .game-screen.is-color-chain-rotation-test {
   width: min(100% - 24px, 1080px);
