@@ -10503,3 +10503,99 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
   box-shadow: 0 10px 22px rgba(69, 35, 21, 0.28), inset 0 0 0 1px rgba(255, 252, 224, 0.76);
   color: var(--chain-panel-ink);
 }
+
+/* Final landscape-play polish: stable counters, responsive controls, and
+   notch-safe positioning without changing the game rules. */
+.color-chain-shell.is-mascot-test .color-chain-score strong,
+.color-chain-shell.is-mascot-test .color-chain-compact-stats strong,
+.color-chain-shell.is-mascot-test .color-chain-opponent-gauge-wrap > strong,
+.color-chain-shell.is-mascot-test .color-chain-interference-gauge > strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.color-chain-shell.is-mascot-test button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.color-chain-shell.is-mascot-test .color-chain-touch-controls button:focus-visible,
+.color-chain-shell.is-mascot-test .color-chain-compact-actions button:focus-visible,
+.color-chain-shell.is-mascot-test .color-chain-overlay button:focus-visible {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(91, 65, 149, 0.3), 0 4px 12px rgba(41, 27, 77, 0.28);
+  outline: none;
+}
+
+.game-screen.is-color-chain-test:has(.color-chain-shell.is-active-play),
+body.color-chain-active-play .game-screen.is-color-chain-test {
+  box-sizing: border-box;
+  padding:
+    max(6px, env(safe-area-inset-top))
+    max(6px, env(safe-area-inset-right))
+    max(6px, env(safe-area-inset-bottom))
+    max(6px, env(safe-area-inset-left));
+  width: min(100%, 1440px);
+}
+
+.color-chain-shell.is-mascot-test.is-active-play,
+body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
+  height: 100%;
+}
+
+.color-chain-shell.is-mascot-test.is-active-play .color-chain-overlay-launchers {
+  right: max(9px, env(safe-area-inset-right));
+  top: max(9px, env(safe-area-inset-top));
+}
+
+@media (orientation: landscape) and (max-width: 720px) {
+  .color-chain-shell.is-mascot-test.is-active-play {
+    --chain-battle-gap: 5px;
+    --chain-cell-size: min(22px, calc((100svh - 78px) / 16), calc((100vw - 330px) / 8));
+    padding: 4px;
+  }
+
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-layout {
+    gap: 5px;
+    grid-template-columns: minmax(84px, 116px) max-content minmax(126px, 154px) minmax(84px, 116px);
+  }
+
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-mascot-panel,
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-play-area.has-mascot > .color-chain-opponent-panel {
+    padding: 6px;
+  }
+
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-mascot-heading span,
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-heading span,
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-mascot-panel > p,
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-copy {
+    display: none;
+  }
+
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-mascot-portrait {
+    margin: 0;
+    min-height: 0;
+  }
+
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-opponent-stage {
+    min-height: 70px;
+  }
+
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-moko-slime {
+    min-height: 58px;
+    min-width: 70px;
+  }
+
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-compact-hud {
+    gap: 5px;
+    padding: 6px;
+  }
+
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-compact-actions {
+    gap: 3px;
+  }
+
+  .color-chain-shell.is-mascot-test.is-active-play .color-chain-compact-actions button {
+    min-height: 34px;
+    padding-inline: 3px;
+  }
+}
