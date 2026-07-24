@@ -11564,3 +11564,296 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
   from { opacity: 0.62; transform: scale(0.84); }
   to { opacity: 1; transform: scale(1.03); }
 }
+
+/* Phase R3: Chroma vs. Moko battle presentation. */
+.color-chain-rotation-character-heading,
+.color-chain-rotation-opponent-compact > div:first-child {
+  display: grid;
+  gap: 1px;
+  text-align: center;
+}
+
+.color-chain-rotation-character-heading span,
+.color-chain-rotation-opponent-compact > div:first-child span {
+  color: #9a4a67;
+  font-size: 9px;
+  font-weight: 1000;
+  letter-spacing: 0.13em;
+}
+
+.color-chain-rotation-character-heading strong,
+.color-chain-rotation-opponent-compact > div:first-child strong {
+  color: #3b3e51;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.color-chain-rotation-character-stage {
+  background:
+    radial-gradient(circle at 50% 72%, rgba(255, 226, 127, 0.68), transparent 42%),
+    linear-gradient(180deg, rgba(255, 248, 216, 0.52), rgba(183, 133, 104, 0.16));
+  border: 1px solid rgba(91, 52, 27, 0.28);
+  border-radius: 17px;
+  height: 148px;
+  margin: 7px 0 5px;
+  overflow: hidden;
+  position: relative;
+}
+
+.color-chain-rotation-character-stage > i {
+  color: #ffd56b;
+  left: 16px;
+  opacity: 0.7;
+  position: absolute;
+  top: 17px;
+}
+
+.color-chain-rotation-character-stage > i svg {
+  height: 23px;
+  width: 23px;
+}
+
+.color-chain-rotation-character-picture {
+  display: block;
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.color-chain-rotation-character-picture img {
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  width: 100%;
+}
+
+.color-chain-rotation-character-picture.is-chroma {
+  inset: -8px -4px -5px;
+}
+
+.color-chain-rotation-character-stage.is-chain .is-chroma {
+  animation: color-chain-rotation-chroma-chain 560ms cubic-bezier(0.2, 0.88, 0.25, 1);
+}
+
+.color-chain-rotation-character-stage.is-danger .is-chroma {
+  animation: color-chain-rotation-chroma-danger 480ms ease-in-out infinite alternate;
+}
+
+.color-chain-rotation-character-stage.is-defeat .is-chroma {
+  transform: translateY(7px) rotate(-2deg);
+}
+
+.color-chain-rotation-character-copy,
+.color-chain-rotation-opponent-compact > p {
+  color: #645a64;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 0;
+  min-height: 28px;
+  text-align: center;
+}
+
+.color-chain-rotation-side-panel.is-goal h2 {
+  font-size: 18px;
+  margin: 7px 0 9px;
+}
+
+.color-chain-rotation-side-panel.is-goal .color-chain-rotation-point-readout {
+  margin-top: 14px;
+  padding: 9px 11px;
+}
+
+.color-chain-rotation-side-panel.is-goal .color-chain-rotation-point-readout strong {
+  font-size: 17px;
+}
+
+.color-chain-rotation-side-panel.is-status {
+  padding: 12px;
+}
+
+.color-chain-rotation-side-panel.is-status .color-chain-rotation-timer {
+  padding: 8px 10px;
+}
+
+.color-chain-rotation-side-panel.is-status .color-chain-rotation-timer strong {
+  font-size: 32px;
+}
+
+.color-chain-rotation-opponent-compact {
+  background: rgba(255, 246, 214, 0.5);
+  border: 1px solid rgba(91, 52, 27, 0.28);
+  border-radius: 15px;
+  margin-top: 8px;
+  overflow: hidden;
+  padding: 6px 8px 5px;
+}
+
+.color-chain-rotation-opponent-stage {
+  background:
+    radial-gradient(ellipse at 50% 80%, rgba(118, 255, 213, 0.48), transparent 48%),
+    linear-gradient(180deg, rgba(217, 253, 255, 0.32), rgba(87, 163, 133, 0.12));
+  border-radius: 12px;
+  height: 82px;
+  margin: 3px 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.color-chain-rotation-opponent-stage > i {
+  border: 2px solid rgba(74, 223, 187, 0.55);
+  border-radius: 50%;
+  bottom: 7px;
+  box-shadow: 0 0 10px rgba(76, 230, 196, 0.52);
+  height: 17px;
+  left: 50%;
+  position: absolute;
+  transform: translateX(-50%) scaleX(2.8);
+  width: 44px;
+}
+
+.color-chain-rotation-character-picture.is-moko {
+  inset: -10px 7px -6px;
+}
+
+.color-chain-rotation-opponent-stage.is-light .is-moko {
+  animation: color-chain-rotation-moko-light 420ms ease-out;
+}
+
+.color-chain-rotation-opponent-stage.is-medium .is-moko {
+  animation: color-chain-rotation-moko-medium 560ms ease-out;
+}
+
+.color-chain-rotation-opponent-stage.is-heavy .is-moko {
+  animation: color-chain-rotation-moko-heavy 680ms ease-out;
+}
+
+.color-chain-rotation-opponent-stage.is-purified {
+  background:
+    radial-gradient(ellipse at 50% 75%, rgba(255, 241, 139, 0.64), transparent 52%),
+    linear-gradient(180deg, rgba(255, 251, 221, 0.5), rgba(100, 211, 176, 0.14));
+}
+
+.color-chain-rotation-side-panel.is-status .color-chain-rotation-stats {
+  gap: 5px;
+  margin: 8px 0;
+}
+
+.color-chain-rotation-side-panel.is-status .color-chain-rotation-stats > span {
+  min-height: 48px;
+  padding: 6px 8px;
+}
+
+.color-chain-rotation-side-panel.is-status .color-chain-rotation-stats small {
+  font-size: 9px;
+}
+
+.color-chain-rotation-side-panel.is-status .color-chain-rotation-stats strong {
+  font-size: 17px;
+}
+
+.color-chain-rotation-side-panel.is-status .color-chain-rotation-manual-controls {
+  gap: 6px;
+}
+
+.color-chain-rotation-side-panel.is-status .color-chain-rotation-manual-controls button {
+  min-height: 38px;
+  padding-block: 5px;
+}
+
+.color-chain-rotation-side-panel.is-status .color-chain-rotation-phase-indicator {
+  margin-top: 9px;
+  padding: 6px;
+}
+
+.color-chain-rotation-battle-flash {
+  animation: color-chain-rotation-battle-flash 430ms ease-out both;
+  background: radial-gradient(circle at 84% 52%, rgba(255, 250, 190, 0.9), rgba(255, 120, 158, 0.32) 20%, transparent 46%);
+  inset: 92px 0 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: 11;
+}
+
+.color-chain-rotation-battle-flash.is-medium {
+  animation-duration: 540ms;
+  background: radial-gradient(circle at 84% 52%, #fff, rgba(109, 231, 255, 0.58) 18%, rgba(255, 113, 181, 0.24) 35%, transparent 52%);
+}
+
+.color-chain-rotation-battle-flash.is-heavy {
+  animation-duration: 680ms;
+  background:
+    linear-gradient(110deg, transparent 52%, rgba(255, 246, 159, 0.62) 53% 55%, transparent 56%),
+    radial-gradient(circle at 84% 52%, #fff, rgba(255, 213, 77, 0.75) 18%, rgba(215, 100, 255, 0.38) 38%, transparent 58%);
+}
+
+.color-chain-rotation-result-grid {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(4, 1fr);
+  margin: -4px 0 14px;
+  width: min(100%, 410px);
+}
+
+.color-chain-rotation-result-grid > span {
+  background: rgba(255, 244, 211, 0.1);
+  border: 1px solid rgba(255, 228, 153, 0.24);
+  border-radius: 9px;
+  display: grid;
+  padding: 6px 8px;
+}
+
+.color-chain-rotation-result-grid small {
+  color: #d9cdbb;
+  font-size: 9px;
+}
+
+.color-chain-rotation-result-grid strong {
+  color: #ffda72;
+  font-size: 18px;
+}
+
+.color-chain-rotation-stage.is-mobile-performance .color-chain-rotation-battle-flash {
+  background: radial-gradient(circle at 84% 52%, rgba(255, 250, 190, 0.72), rgba(255, 120, 158, 0.18) 18%, transparent 42%);
+}
+
+.color-chain-rotation-stage.is-mobile-performance .color-chain-rotation-character-picture {
+  will-change: transform;
+}
+
+@keyframes color-chain-rotation-chroma-chain {
+  0% { transform: translateY(0) scale(1); }
+  45% { transform: translateY(-8px) scale(1.04); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes color-chain-rotation-chroma-danger {
+  from { transform: translateX(-2px) rotate(-1deg); }
+  to { transform: translateX(2px) rotate(1deg); }
+}
+
+@keyframes color-chain-rotation-moko-light {
+  0% { transform: translateX(0) scale(1); }
+  45% { transform: translateX(5px) scale(0.96, 1.04); }
+  100% { transform: translateX(0) scale(1); }
+}
+
+@keyframes color-chain-rotation-moko-medium {
+  0% { transform: translateX(0) rotate(0); }
+  30% { transform: translateX(-7px) rotate(-4deg); }
+  62% { transform: translateX(6px) rotate(3deg); }
+  100% { transform: translateX(0) rotate(0); }
+}
+
+@keyframes color-chain-rotation-moko-heavy {
+  0% { transform: translateY(0) rotate(0) scale(1); }
+  26% { transform: translateY(-7px) rotate(-7deg) scale(0.94, 1.07); }
+  58% { transform: translateY(4px) rotate(5deg) scale(1.05, 0.92); }
+  100% { transform: translateY(0) rotate(0) scale(1); }
+}
+
+@keyframes color-chain-rotation-battle-flash {
+  from { opacity: 0; transform: scale(0.9); }
+  36% { opacity: 1; }
+  to { opacity: 0; transform: scale(1.04); }
+}

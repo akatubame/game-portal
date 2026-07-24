@@ -9,7 +9,9 @@ import {
   RotateCw,
   ShieldCheck,
   Sparkles,
-  Trophy
+  Trophy,
+  Volume2,
+  VolumeX
 } from "lucide-react";
 import {
   useEffect,
@@ -77,6 +79,16 @@ type PointerStart = {
   scale: number;
 };
 
+type ChromaMood = "idle" | "blink" | "chain" | "danger" | "defeat";
+type MokoMood = "idle" | "light" | "medium" | "heavy" | "purified";
+type BattleImpact = "light" | "medium" | "heavy" | null;
+type RotationAudio = {
+  bgm: HTMLAudioElement;
+  chain: HTMLAudioElement;
+  strong: HTMLAudioElement;
+  gameOver: HTMLAudioElement;
+};
+
 const STAGE_WIDTH = 1280;
 const STAGE_HEIGHT = 720;
 const GAME_SECONDS = 90;
@@ -87,6 +99,27 @@ const CLEAR_DURATION = 250;
 const FALL_DURATION = 170;
 const REFILL_DURATION = 190;
 const rotationSettings = { colorCount: 4, maxChainSteps: 30 } as const;
+const AUDIO_ENABLED_KEY = "game-shelf-color-chain-audio-enabled";
+const audioPaths = {
+  bgm: "/audio/color-chain/block-puzzle-blues.mp3",
+  chain: "/audio/color-chain/magical-chain.mp3",
+  strong: "/audio/color-chain/strong-magic.mp3",
+  gameOver: "/audio/color-chain/game-over.mp3"
+} as const;
+const chromaAssets: Record<ChromaMood, string> = {
+  idle: "/characters/chroma/chroma-idle",
+  blink: "/characters/chroma/chroma-blink",
+  chain: "/characters/chroma/chroma-chain",
+  danger: "/characters/chroma/chroma-danger",
+  defeat: "/characters/chroma/chroma-defeat"
+};
+const mokoAssets: Record<MokoMood, string> = {
+  idle: "/characters/moko/moko-idle",
+  light: "/characters/moko/moko-hit-light",
+  medium: "/characters/moko/moko-hit-medium",
+  heavy: "/characters/moko/moko-hit-heavy",
+  purified: "/characters/moko/moko-purified"
+};
 const clockPhases = new Set<RotationPhase>([
   "ready",
   "selecting",
@@ -121,6 +154,10 @@ const copy = {
     cleared: "消去数",
     maxChain: "最大CHAIN",
     validMoves: "成立手",
+    successfulMoves: "成功手",
+    invalidMoves: "不成立手",
+    successRate: "成功率",
+    remainingTime: "残り時間",
     sealGauge: "封印ゲージ",
     target: `目標 ${CLEAR_TARGET}個消去`,
     selectedPoint: "選択中の交点",
@@ -144,6 +181,19 @@ const copy = {
     timeoutDescription: "盤面を見直して、もう一度挑戦しましょう。",
     rotateNotice: "横向きにすると固定画面を大きく表示できます。",
     keyboardHelp: "矢印キーで交点移動、Enterで時計回り、Shift+EnterまたはZで反時計回り",
+    soundOn: "サウンドをON",
+    soundOff: "サウンドをOFF",
+    chromaName: "彩鎖の魔女 クロマ",
+    mokoName: "モコスライム",
+    chromaIdle: "盤面を見守っています。",
+    chromaChain: "マジカルチェイン成功！",
+    chromaDanger: "残り時間に気をつけて！",
+    chromaDefeat: "もう一度、鎖をつなぎ直しましょう。",
+    mokoIdle: "色の乱れをまとって、ぷるぷるしています。",
+    mokoLight: "ぴょこん！ 鎖の魔法が届きました。",
+    mokoMedium: "ぷるぷる！ 大きく乱れがほどけました。",
+    mokoHeavy: "大きくぐらり！ 強い魔法が直撃しました。",
+    mokoPurified: "浄化完了！ モコスライムはおとなしくなりました。",
     ariaPoint: (point: RotationPoint) =>
       `上から${point.row + 1}、左から${point.column + 1}の交点。Enterで時計回り、Shift EnterまたはZで反時計回り`
   },
@@ -159,6 +209,10 @@ const copy = {
     cleared: "Cleared",
     maxChain: "Max Chain",
     validMoves: "Valid Moves",
+    successfulMoves: "Successful",
+    invalidMoves: "Invalid",
+    successRate: "Success Rate",
+    remainingTime: "Time Left",
     sealGauge: "Seal Gauge",
     target: `Clear ${CLEAR_TARGET} blocks`,
     selectedPoint: "Selected Point",
@@ -182,6 +236,19 @@ const copy = {
     timeoutDescription: "Study the board and try again.",
     rotateNotice: "Rotate your device to landscape for a larger fixed game screen.",
     keyboardHelp: "Arrow keys: move point / Enter: clockwise / Shift+Enter or Z: counterclockwise",
+    soundOn: "Turn sound on",
+    soundOff: "Turn sound off",
+    chromaName: "Chroma, Witch of Color Chains",
+    mokoName: "Moko Slime",
+    chromaIdle: "Watching the board closely.",
+    chromaChain: "Magical Chain complete!",
+    chromaDanger: "Keep an eye on the remaining time!",
+    chromaDefeat: "Let's weave the chains again.",
+    mokoIdle: "It jiggles while wrapped in unstable color magic.",
+    mokoLight: "Boing! The chain magic connected.",
+    mokoMedium: "Wobble! A large piece of disorder unraveled.",
+    mokoHeavy: "Big wobble! A powerful spell landed.",
+    mokoPurified: "Purified! Moko Slime has settled down.",
     ariaPoint: (point: RotationPoint) =>
       `Intersection row ${point.row + 1}, column ${point.column + 1}. Enter rotates clockwise. Shift Enter or Z rotates counterclockwise.`
   }
@@ -205,6 +272,37 @@ function isPointCell(row: number, column: number, point: RotationPoint | null) {
     && row <= point.row + 1
     && column >= point.column
     && column <= point.column + 1;
+}
+
+function readAudioEnabled() {
+  try {
+    return window.localStorage.getItem(AUDIO_ENABLED_KEY) !== "false";
+  } catch {
+    return true;
+  }
+}
+
+function CharacterPicture({
+  alt,
+  asset,
+  className
+}: {
+  alt: string;
+  asset: string;
+  className: string;
+}) {
+  return (
+    <picture className={className}>
+      <source srcSet={`${asset}.webp`} type="image/webp" />
+      <img
+        alt={alt}
+        draggable="false"
+        height="1254"
+        src={`${asset}.png`}
+        width="1254"
+      />
+    </picture>
+  );
 }
 
 function useFixedStage() {
@@ -264,19 +362,59 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
   const [score, setScore] = useState(0);
   const [cleared, setCleared] = useState(0);
   const [maxChain, setMaxChain] = useState(0);
+  const [successfulMoves, setSuccessfulMoves] = useState(0);
+  const [invalidMoves, setInvalidMoves] = useState(0);
   const [timeLeft, setTimeLeft] = useState(GAME_SECONDS);
   const [documentHidden, setDocumentHidden] = useState(document.hidden);
+  const [audioEnabled, setAudioEnabled] = useState(readAudioEnabled);
+  const [battleImpact, setBattleImpact] = useState<BattleImpact>(null);
+  const [blinkActive, setBlinkActive] = useState(false);
   const boardRef = useRef(board);
   const phaseRef = useRef(phase);
   const timeLeftRef = useRef(timeLeft);
   const clearedRef = useRef(cleared);
+  const successfulMovesRef = useRef(successfulMoves);
+  const invalidMovesRef = useRef(invalidMoves);
   const runIdRef = useRef(0);
   const pointerRef = useRef<PointerStart | null>(null);
   const stageScaleRef = useRef(scale);
   const pointButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const audioRef = useRef<RotationAudio | null>(null);
+  const audioEnabledRef = useRef(audioEnabled);
 
   const sealPercent = Math.min(100, Math.round((cleared / CLEAR_TARGET) * 100));
   const mobilePerformance = coarsePointer || scale < 0.72;
+  const successRate = successfulMoves + invalidMoves > 0
+    ? Math.round((successfulMoves / (successfulMoves + invalidMoves)) * 100)
+    : 0;
+  const chromaMood: ChromaMood = phase === "timeout"
+    ? "defeat"
+    : battleImpact
+      ? "chain"
+      : timeLeft <= 10 && phase !== "idle" && phase !== "clear"
+        ? "danger"
+        : blinkActive
+          ? "blink"
+          : "idle";
+  const mokoMood: MokoMood = sealPercent >= 100
+    ? "purified"
+    : battleImpact ?? "idle";
+  const chromaStatus = chromaMood === "defeat"
+    ? t.chromaDefeat
+    : chromaMood === "danger"
+      ? t.chromaDanger
+      : chromaMood === "chain"
+        ? t.chromaChain
+        : t.chromaIdle;
+  const mokoStatus = mokoMood === "purified"
+    ? t.mokoPurified
+    : mokoMood === "heavy"
+      ? t.mokoHeavy
+      : mokoMood === "medium"
+        ? t.mokoMedium
+        : mokoMood === "light"
+          ? t.mokoLight
+          : t.mokoIdle;
   const inputEnabled = phase === "ready" || phase === "selecting";
   const isResolving = [
     "rotating",
@@ -308,6 +446,77 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     setPhase(nextPhase);
   };
 
+  const ensureAudio = () => {
+    if (audioRef.current) return audioRef.current;
+    const bgm = new Audio(audioPaths.bgm);
+    const chain = new Audio(audioPaths.chain);
+    const strong = new Audio(audioPaths.strong);
+    const gameOver = new Audio(audioPaths.gameOver);
+    bgm.loop = true;
+    bgm.preload = "metadata";
+    bgm.volume = 0.25;
+    chain.preload = "auto";
+    chain.volume = 0.48;
+    strong.preload = "auto";
+    strong.volume = 0.56;
+    gameOver.preload = "auto";
+    gameOver.volume = 0.56;
+    audioRef.current = { bgm, chain, strong, gameOver };
+    return audioRef.current;
+  };
+
+  const playBgm = (restart = false) => {
+    if (!audioEnabledRef.current) return;
+    const audio = ensureAudio();
+    if (restart) audio.bgm.currentTime = 0;
+    void audio.bgm.play().catch(() => {
+      // Browsers may wait for the next explicit user interaction.
+    });
+  };
+
+  const pauseBgm = (reset = false) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.bgm.pause();
+    if (reset) audio.bgm.currentTime = 0;
+  };
+
+  const playAudioEffect = (kind: "chain" | "strong" | "gameOver") => {
+    if (!audioEnabledRef.current) return;
+    const audio = ensureAudio();
+    const effect = audio[kind];
+    effect.pause();
+    effect.currentTime = 0;
+    void effect.play().catch(() => {
+      // Audio failure must not interrupt gameplay.
+    });
+  };
+
+  const stopAllAudio = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    Object.values(audio).forEach((track) => {
+      track.pause();
+      track.currentTime = 0;
+    });
+  };
+
+  const toggleAudio = () => {
+    const next = !audioEnabledRef.current;
+    audioEnabledRef.current = next;
+    setAudioEnabled(next);
+    try {
+      window.localStorage.setItem(AUDIO_ENABLED_KEY, String(next));
+    } catch {
+      // Storage failure only affects preference persistence.
+    }
+    if (!next) {
+      stopAllAudio();
+    } else if (!["idle", "clear", "timeout"].includes(phaseRef.current)) {
+      playBgm();
+    }
+  };
+
   const finishGame = (result: "clear" | "timeout") => {
     pointerRef.current = null;
     setRotationOverlay(null);
@@ -316,6 +525,9 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     setInvalidPoint(null);
     setHintMove(null);
     setChainNotice("");
+    setBattleImpact(null);
+    pauseBgm();
+    playAudioEffect(result === "timeout" ? "gameOver" : "strong");
     commitPhase(result);
   };
 
@@ -352,6 +564,9 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     const firstMatches = findRotationMatches(rotatedBoard);
 
     if (firstMatches.cells.size === 0) {
+      const nextInvalidMoves = invalidMovesRef.current + 1;
+      invalidMovesRef.current = nextInvalidMoves;
+      setInvalidMoves(nextInvalidMoves);
       setInvalidPoint(point);
       setStatusMessage(t.invalid);
       await delay(INVALID_PAUSE);
@@ -373,6 +588,9 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
       return;
     }
 
+    const nextSuccessfulMoves = successfulMovesRef.current + 1;
+    successfulMovesRef.current = nextSuccessfulMoves;
+    setSuccessfulMoves(nextSuccessfulMoves);
     const resolution = resolveRotationChain(rotatedBoard, Math.random, rotationSettings);
     for (const step of resolution.steps) {
       if (runIdRef.current !== currentRun) return;
@@ -381,12 +599,19 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
       commitPhase("clearing");
       const points = calculateRotationClearScore(step.matches, step.chain);
       const nextCleared = clearedRef.current + step.matches.cells.size;
+      const impact: Exclude<BattleImpact, null> = step.chain >= 3
+        ? "heavy"
+        : step.chain === 2
+          ? "medium"
+          : "light";
       clearedRef.current = nextCleared;
       setCleared(nextCleared);
+      setBattleImpact(impact);
       setScore((current) => current + points);
       setMaxChain((current) => Math.max(current, step.chain));
       setChainNotice(t.chain(step.chain, points));
       setStatusMessage(t.chain(step.chain, points));
+      playAudioEffect(step.chain >= 3 ? "strong" : "chain");
 
       await delay(CLEAR_DURATION);
       if (runIdRef.current !== currentRun) return;
@@ -410,6 +635,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
 
     if (runIdRef.current !== currentRun) return;
     setChainNotice("");
+    setBattleImpact(null);
     let stableBoard = resolution.board;
     if (resolution.capped || enumerateProductiveRotations(stableBoard).length === 0) {
       commitPhase("shuffling");
@@ -438,6 +664,10 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     setScore(0);
     setCleared(0);
     setMaxChain(0);
+    successfulMovesRef.current = 0;
+    invalidMovesRef.current = 0;
+    setSuccessfulMoves(0);
+    setInvalidMoves(0);
     setSelectedPoint({ row: 3, column: 3 });
     setFocusedPoint({ row: 3, column: 3 });
     setRotationOverlay(null);
@@ -446,8 +676,10 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     setInvalidPoint(null);
     setHintMove(null);
     setChainNotice("");
+    setBattleImpact(null);
     setStatusMessage(t.ready);
     commitPhase("ready");
+    playBgm(true);
   };
 
   const showHint = () => {
@@ -575,12 +807,37 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     const root = document.documentElement;
     document.body.classList.add("color-chain-rotation-mode");
     root.classList.add("color-chain-rotation-mode");
+    const preloadTimer = window.setTimeout(() => {
+      [
+        ...Object.values(chromaAssets),
+        ...Object.values(mokoAssets)
+      ].forEach((asset) => {
+        const image = new Image();
+        image.src = `${asset}.webp`;
+      });
+    }, 250);
     return () => {
       runIdRef.current += 1;
+      window.clearTimeout(preloadTimer);
+      stopAllAudio();
       document.body.classList.remove("color-chain-rotation-mode");
       root.classList.remove("color-chain-rotation-mode");
     };
   }, []);
+
+  useEffect(() => {
+    if (phase === "idle" || phase === "clear" || phase === "timeout") {
+      setBlinkActive(false);
+      return;
+    }
+    const blinkTimer = window.setInterval(() => {
+      if (phaseRef.current === "ready" && !document.hidden) {
+        setBlinkActive(true);
+        window.setTimeout(() => setBlinkActive(false), 170);
+      }
+    }, 4200);
+    return () => window.clearInterval(blinkTimer);
+  }, [phase]);
 
   useEffect(() => {
     const handleVisibility = () => {
@@ -588,7 +845,10 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
       setDocumentHidden(hidden);
       if (hidden) {
         pointerRef.current = null;
+        pauseBgm();
         if (phaseRef.current === "selecting") commitPhase("ready");
+      } else if (!["idle", "clear", "timeout"].includes(phaseRef.current)) {
+        playBgm();
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
@@ -646,6 +906,15 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
               <span>{t.subtitle}</span>
             </div>
             <div className="color-chain-rotation-top-actions">
+              <button
+                aria-label={audioEnabled ? t.soundOff : t.soundOn}
+                aria-pressed={audioEnabled}
+                onClick={toggleAudio}
+                type="button"
+              >
+                {audioEnabled ? <Volume2 aria-hidden="true" /> : <VolumeX aria-hidden="true" />}
+                {audioEnabled ? "ON" : "OFF"}
+              </button>
               <button onClick={() => setLanguage(language === "ja" ? "en" : "ja")} type="button">
                 <Languages aria-hidden="true" />
                 {t.language}
@@ -659,8 +928,19 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
 
           <div className="color-chain-rotation-game-grid">
             <aside className="color-chain-rotation-side-panel is-goal">
-              <div className="color-chain-rotation-emblem" aria-hidden="true"><Sparkles /></div>
-              <p className="color-chain-rotation-panel-kicker">MAGICAL CHAIN</p>
+              <div className="color-chain-rotation-character-heading">
+                <span>CHARACTER</span>
+                <strong>{t.chromaName}</strong>
+              </div>
+              <div className={`color-chain-rotation-character-stage is-${chromaMood}`}>
+                <i aria-hidden="true"><Sparkles /></i>
+                <CharacterPicture
+                  alt={`${t.chromaName}: ${chromaStatus}`}
+                  asset={chromaAssets[chromaMood]}
+                  className="color-chain-rotation-character-picture is-chroma"
+                />
+              </div>
+              <p aria-live="polite" className="color-chain-rotation-character-copy">{chromaStatus}</p>
               <h2>{t.target}</h2>
               <div className="color-chain-rotation-gauge-copy">
                 <span>{t.sealGauge}</span>
@@ -680,7 +960,6 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                 <span>{t.selectedPoint}</span>
                 <strong>{t.pointValue(selectedPoint)}</strong>
               </div>
-              <p className="color-chain-rotation-keyboard-help">{t.keyboardHelp}</p>
             </aside>
 
             <section className="color-chain-rotation-board-panel">
@@ -795,9 +1074,14 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                         : t.startDescription}
                     </p>
                     {(phase === "clear" || phase === "timeout") && (
-                      <div className="color-chain-rotation-result-score">
-                        <span>{t.score}</span>
-                        <strong>{score.toLocaleString()}</strong>
+                      <div className="color-chain-rotation-result-grid">
+                        <span><small>{t.score}</small><strong>{score.toLocaleString()}</strong></span>
+                        <span><small>{t.cleared}</small><strong>{cleared}</strong></span>
+                        <span><small>{t.maxChain}</small><strong>{maxChain}</strong></span>
+                        <span><small>{t.remainingTime}</small><strong>{Math.ceil(timeLeft)}</strong></span>
+                        <span><small>{t.successfulMoves}</small><strong>{successfulMoves}</strong></span>
+                        <span><small>{t.invalidMoves}</small><strong>{invalidMoves}</strong></span>
+                        <span><small>{t.successRate}</small><strong>{successRate}%</strong></span>
                       </div>
                     )}
                     <button onClick={startGame} type="button">
@@ -818,11 +1102,26 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                 <span>{t.time}</span>
                 <strong>{Math.ceil(timeLeft)}</strong>
               </div>
+              <div className="color-chain-rotation-opponent-compact">
+                <div>
+                  <span>STAGE 1 / MAGIC FOREST</span>
+                  <strong>{t.mokoName}</strong>
+                </div>
+                <div className={`color-chain-rotation-opponent-stage is-${mokoMood}`}>
+                  <i aria-hidden="true" />
+                  <CharacterPicture
+                    alt={`${t.mokoName}: ${mokoStatus}`}
+                    asset={mokoAssets[mokoMood]}
+                    className="color-chain-rotation-character-picture is-moko"
+                  />
+                </div>
+                <p aria-live="polite">{mokoStatus}</p>
+              </div>
               <div className="color-chain-rotation-stats">
                 <span><small>{t.score}</small><strong>{score.toLocaleString()}</strong></span>
                 <span><small>{t.cleared}</small><strong>{cleared}</strong></span>
                 <span><small>{t.maxChain}</small><strong>{maxChain}</strong></span>
-                <span><small>{t.validMoves}</small><strong>{availableMoves.length}</strong></span>
+                <span><small>{t.successRate}</small><strong>{successRate}%</strong></span>
               </div>
               <div className="color-chain-rotation-manual-controls">
                 <button
@@ -853,6 +1152,12 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
               </div>
             </aside>
           </div>
+          {battleImpact && (
+            <div
+              aria-hidden="true"
+              className={`color-chain-rotation-battle-flash is-${battleImpact}`}
+            />
+          )}
         </section>
       </div>
     </div>
