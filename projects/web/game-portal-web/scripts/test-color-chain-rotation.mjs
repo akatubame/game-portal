@@ -23,9 +23,17 @@ function compileTypeScriptSource(relativePath, importMap = {}) {
 
 const tokensUrl = compileTypeScriptSource("../src/games/colorChain/tokens.ts");
 const tokens = await import(tokensUrl);
+const rotationSpecialsUrl = compileTypeScriptSource(
+  "../src/games/colorChain/rotationSpecials.ts",
+  { "./tokens": tokensUrl }
+);
+const rotationSpecials = await import(rotationSpecialsUrl);
 const rotationUrl = compileTypeScriptSource(
   "../src/games/colorChain/rotationLogic.ts",
-  { "./tokens": tokensUrl }
+  {
+    "./tokens": tokensUrl,
+    "./rotationSpecials": rotationSpecialsUrl,
+  }
 );
 const rotation = await import(rotationUrl);
 const interaction = await import(
@@ -53,12 +61,21 @@ const {
   shuffleToPlayableRotationBoard,
 } = rotation;
 const {
+  findRotationSpecialClearCells,
+  getRotationMatchRewards,
+} = rotationSpecials;
+const {
   classifyRotationGesture,
   findChangedOccupiedCells,
   findRefilledCells,
   moveRotationPoint,
 } = interaction;
-const { BOMB_BLOCK } = tokens;
+const {
+  BOMB_BLOCK,
+  COLOR_BREAKER_BLOCK,
+  HORIZONTAL_LASER_BLOCK,
+  VERTICAL_LASER_BLOCK,
+} = tokens;
 
 function seededRandom(seed) {
   let value = seed >>> 0;
@@ -317,6 +334,181 @@ function assertBoardShape(board) {
     isProductiveRotation(board, 0, 0, "clockwise"),
     true,
     "forming a new adjacent equal-special pair is productive"
+  );
+}
+
+{
+  const rewards = getRotationMatchRewards([
+    {
+      cells: ["3:1", "3:2", "3:3", "3:4", "3:5"],
+      color: "coral",
+      direction: "horizontal",
+    },
+  ], ["3:4"]);
+  assert.deepEqual(
+    rewards,
+    [{ key: "3:4", token: HORIZONTAL_LASER_BLOCK }],
+    "a five-block horizontal line rewards a Chain Wave at a rotated cell"
+  );
+
+  const crossedRewards = getRotationMatchRewards([
+    {
+      cells: ["3:1", "3:2", "3:3", "3:4"],
+      color: "gold",
+      direction: "horizontal",
+    },
+    {
+      cells: ["1:3", "2:3", "3:3", "4:3"],
+      color: "gold",
+      direction: "vertical",
+    },
+  ]);
+  assert.deepEqual(
+    crossedRewards,
+    [{ key: "3:3", token: BOMB_BLOCK }],
+    "crossing horizontal and vertical matches reward one Chain Bomb"
+  );
+
+  const verticalRewards = getRotationMatchRewards([
+    {
+      cells: ["1:5", "2:5", "3:5", "4:5", "5:5"],
+      color: "mint",
+      direction: "vertical",
+    },
+  ]);
+  assert.equal(verticalRewards[0]?.token, VERTICAL_LASER_BLOCK);
+
+  const diagonalRewards = getRotationMatchRewards([
+    {
+      cells: ["1:1", "2:2", "3:3", "4:4", "5:5"],
+      color: "sky",
+      direction: "diagonal-down",
+    },
+  ]);
+  assert.equal(diagonalRewards[0]?.token, COLOR_BREAKER_BLOCK);
+}
+
+{
+  const board = makePatternBoard();
+  board[4][4] = BOMB_BLOCK;
+  const result = findRotationSpecialClearCells(
+    board,
+    ["4:3"],
+    seededRandom(7)
+  );
+  assert.ok(
+    result.effects.some((effect) => effect.token === BOMB_BLOCK && !effect.super),
+    "a bomb next to a cleared block activates"
+  );
+  for (let row = 3; row <= 5; row += 1) {
+    for (let column = 3; column <= 5; column += 1) {
+      assert.ok(result.cells.has(`${row}:${column}`), "a normal bomb clears its 3x3 area");
+    }
+  }
+}
+
+{
+  const pillarBoard = makePatternBoard();
+  pillarBoard[4][4] = VERTICAL_LASER_BLOCK;
+  const pillar = findRotationSpecialClearCells(
+    pillarBoard,
+    ["4:3"],
+    seededRandom(70)
+  );
+  for (let row = 0; row < ROTATION_ROWS; row += 1) {
+    assert.ok(pillar.cells.has(`${row}:4`), "Chain Pillar clears one full column");
+  }
+
+  const waveBoard = makePatternBoard();
+  waveBoard[4][4] = HORIZONTAL_LASER_BLOCK;
+  const wave = findRotationSpecialClearCells(
+    waveBoard,
+    ["4:3"],
+    seededRandom(71)
+  );
+  for (let column = 0; column < ROTATION_COLUMNS; column += 1) {
+    assert.ok(wave.cells.has(`4:${column}`), "Chain Wave clears one full row");
+  }
+}
+
+{
+  const board = makePatternBoard();
+  board[3][3] = VERTICAL_LASER_BLOCK;
+  board[4][3] = VERTICAL_LASER_BLOCK;
+  const result = findRotationSpecialClearCells(board, [], seededRandom(8));
+  assert.ok(
+    result.effects.some((effect) => effect.token === VERTICAL_LASER_BLOCK && effect.super),
+    "adjacent pillars automatically activate Trinity Pillar"
+  );
+  for (let row = 0; row < ROTATION_ROWS; row += 1) {
+    for (let column = 2; column <= 4; column += 1) {
+      assert.ok(result.cells.has(`${row}:${column}`), "Trinity Pillar clears three columns");
+    }
+  }
+}
+
+{
+  const bombBoard = makePatternBoard();
+  bombBoard[3][3] = BOMB_BLOCK;
+  bombBoard[3][4] = BOMB_BLOCK;
+  const grandBomb = findRotationSpecialClearCells(bombBoard, [], seededRandom(80));
+  assert.equal(grandBomb.cells.size, 25, "Grand Chain Bomb clears a 5x5 area");
+  assert.ok(
+    grandBomb.effects.some((effect) => effect.token === BOMB_BLOCK && effect.super)
+  );
+
+  const waveBoard = makePatternBoard();
+  waveBoard[3][3] = HORIZONTAL_LASER_BLOCK;
+  waveBoard[4][3] = HORIZONTAL_LASER_BLOCK;
+  const trinityWave = findRotationSpecialClearCells(waveBoard, [], seededRandom(81));
+  for (let row = 3; row <= 5; row += 1) {
+    for (let column = 0; column < ROTATION_COLUMNS; column += 1) {
+      assert.ok(
+        trinityWave.cells.has(`${row}:${column}`),
+        "Trinity Wave clears three rows"
+      );
+    }
+  }
+
+  const prismBoard = makePatternBoard();
+  prismBoard[3][3] = COLOR_BREAKER_BLOCK;
+  prismBoard[3][4] = COLOR_BREAKER_BLOCK;
+  const prismNova = findRotationSpecialClearCells(prismBoard, [], seededRandom(82));
+  assert.equal(prismNova.cells.size, 64, "Prism Nova clears every normal color and its pair");
+  assert.ok(
+    prismNova.effects.some((effect) => effect.token === COLOR_BREAKER_BLOCK && effect.super)
+  );
+}
+
+{
+  const board = makePatternBoard();
+  board[4][4] = COLOR_BREAKER_BLOCK;
+  board[4][3] = "gold";
+  const result = findRotationSpecialClearCells(
+    board,
+    ["4:3"],
+    seededRandom(9)
+  );
+  const prism = result.effects.find((effect) => effect.token === COLOR_BREAKER_BLOCK);
+  assert.equal(prism?.targetColor, "gold", "Prism Break inherits the adjacent cleared color");
+  board.forEach((row, rowIndex) => row.forEach((cell, columnIndex) => {
+    if (cell === "gold") {
+      assert.ok(result.cells.has(`${rowIndex}:${columnIndex}`));
+    }
+  }));
+}
+
+{
+  const board = createEmptyRotationBoard();
+  const refilled = refillRotationBoard(
+    board,
+    () => 0,
+    { colorCount: 4, maxSpecialBlocks: 2, specialDropRate: 1 }
+  );
+  assert.equal(
+    refilled.flat().filter((cell) => cell === BOMB_BLOCK).length,
+    2,
+    "random refill respects the special-block cap"
   );
 }
 

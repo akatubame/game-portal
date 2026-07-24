@@ -9,6 +9,15 @@ import {
   type BoardCell,
   type SpecialBlock
 } from "./tokens";
+import {
+  calculateRotationSpecialScore,
+  clearRotationCellsWithRewards,
+  findRotationSpecialClearCells,
+  getRotationMatchRewards,
+  hasRotationSuperSpecialGroup,
+  type RotationRewardBlock,
+  type RotationSpecialEffect
+} from "./rotationSpecials";
 
 export const ROTATION_ROWS = 8;
 export const ROTATION_COLUMNS = 8;
@@ -42,11 +51,17 @@ export type RotationSettings = {
   colorCount: number;
   maxGenerateAttempts?: number;
   maxChainSteps?: number;
+  maxSpecialBlocks?: number;
+  specialDropRate?: number;
 };
 
 export type RotationChainStep = {
   chain: number;
+  clearedCells: Set<string>;
   matches: RotationMatchResult;
+  rewards: RotationRewardBlock[];
+  specialEffects: RotationSpecialEffect[];
+  specialScore: number;
   boardBeforeClear: Board;
   boardAfterClear: Board;
   boardAfterCollapse: Board;
@@ -134,6 +149,14 @@ function getAvailableColors(colorCount: number) {
 function randomColor(colors: readonly BlockColor[], random: () => number) {
   const index = Math.min(colors.length - 1, Math.max(0, Math.floor(random() * colors.length)));
   return colors[index];
+}
+
+function randomSpecialBlock(random: () => number): SpecialBlock {
+  const roll = random();
+  if (roll < 0.325) return BOMB_BLOCK;
+  if (roll < 0.6) return VERTICAL_LASER_BLOCK;
+  if (roll < 0.875) return HORIZONTAL_LASER_BLOCK;
+  return COLOR_BREAKER_BLOCK;
 }
 
 function makeSpecialPairKey(
@@ -368,13 +391,29 @@ export function refillRotationBoard(
 ): Board {
   assertRotationBoard(board);
   const colors = getAvailableColors(settings.colorCount);
-  return board.map((row) => row.map((cell) => cell ?? randomColor(colors, random)));
+  const specialDropRate = Math.max(0, Math.min(1, settings.specialDropRate ?? 0));
+  const maxSpecialBlocks = Math.max(0, Math.floor(settings.maxSpecialBlocks ?? 6));
+  let specialCount = board.flat().filter(isSpecialBlock).length;
+
+  return board.map((row) => row.map((cell) => {
+    if (cell !== null) return cell;
+    if (
+      specialDropRate > 0
+      && specialCount < maxSpecialBlocks
+      && random() < specialDropRate
+    ) {
+      specialCount += 1;
+      return randomSpecialBlock(random);
+    }
+    return randomColor(colors, random);
+  }));
 }
 
 export function resolveRotationChain(
   board: Board,
   random: () => number,
-  settings: RotationSettings
+  settings: RotationSettings,
+  preferredRewardKeys: Iterable<string> = []
 ): RotationChainResult {
   assertRotationBoard(board);
   const maxChainSteps = settings.maxChainSteps ?? ROTATION_MAX_CHAIN_STEPS;
@@ -383,17 +422,35 @@ export function resolveRotationChain(
 
   for (let chain = 1; chain <= maxChainSteps; chain += 1) {
     const matches = findRotationMatches(current);
-    if (matches.cells.size === 0) {
+    const specialResolution = findRotationSpecialClearCells(
+      current,
+      matches.cells,
+      random,
+      true
+    );
+    if (matches.cells.size === 0 && specialResolution.effects.length === 0) {
       return { board: current, steps, capped: false };
     }
 
     const boardBeforeClear = cloneBoard(current);
-    const boardAfterClear = clearRotationMatches(current, matches.cells);
+    const rewards = getRotationMatchRewards(
+      matches.lines,
+      chain === 1 ? preferredRewardKeys : []
+    );
+    const boardAfterClear = clearRotationCellsWithRewards(
+      current,
+      specialResolution.cells,
+      rewards
+    );
     const boardAfterCollapse = collapseRotationColumns(boardAfterClear);
     const boardAfterRefill = refillRotationBoard(boardAfterCollapse, random, settings);
     steps.push({
       chain,
+      clearedCells: specialResolution.cells,
       matches,
+      rewards,
+      specialEffects: specialResolution.effects,
+      specialScore: calculateRotationSpecialScore(specialResolution.effects),
       boardBeforeClear,
       boardAfterClear,
       boardAfterCollapse,
@@ -406,6 +463,7 @@ export function resolveRotationChain(
     board: current,
     steps,
     capped: findRotationMatches(current).cells.size > 0
+      || hasRotationSuperSpecialGroup(current)
   };
 }
 
@@ -430,7 +488,18 @@ export function resolveRotationMove(
     };
   }
 
-  const chain = resolveRotationChain(rotatedBoard, random, settings);
+  const preferredRewardKeys = [
+    cellKey(move.row, move.column),
+    cellKey(move.row, move.column + 1),
+    cellKey(move.row + 1, move.column),
+    cellKey(move.row + 1, move.column + 1)
+  ];
+  const chain = resolveRotationChain(
+    rotatedBoard,
+    random,
+    settings,
+    preferredRewardKeys
+  );
   return {
     board: chain.board,
     rotatedBoard,

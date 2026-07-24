@@ -24,7 +24,14 @@ import {
   type PointerEvent as ReactPointerEvent
 } from "react";
 import { useI18n } from "../../i18n";
-import type { Board, BlockToken } from "./tokens";
+import {
+  BOMB_BLOCK,
+  COLOR_BREAKER_BLOCK,
+  HORIZONTAL_LASER_BLOCK,
+  VERTICAL_LASER_BLOCK,
+  type Board,
+  type BlockToken
+} from "./tokens";
 import {
   classifyRotationGesture,
   findChangedOccupiedCells,
@@ -37,7 +44,6 @@ import {
   calculateRotationClearScore,
   createPlayableRotationBoard,
   enumerateProductiveRotations,
-  findRotationMatches,
   resolveRotationChain,
   rotateSquare,
   shuffleToPlayableRotationBoard,
@@ -45,6 +51,7 @@ import {
   type RotationMove,
   type RotationPoint
 } from "./rotationLogic";
+import type { RotationSpecialEffect } from "./rotationSpecials";
 
 type ColorChainRotationTestProps = {
   onBack: () => void;
@@ -99,7 +106,12 @@ const INVALID_PAUSE = 90;
 const CLEAR_DURATION = 250;
 const FALL_DURATION = 170;
 const REFILL_DURATION = 190;
-const rotationSettings = { colorCount: 4, maxChainSteps: 30 } as const;
+const rotationSettings = {
+  colorCount: 4,
+  maxChainSteps: 30,
+  maxSpecialBlocks: 6,
+  specialDropRate: 0.02
+} as const;
 const AUDIO_ENABLED_KEY = "game-shelf-color-chain-audio-enabled";
 const audioPaths = {
   bgm: "/audio/color-chain/block-puzzle-blues.mp3",
@@ -143,6 +155,36 @@ const blockSymbols: Partial<Record<BlockToken, string>> = {
   "color-breaker": "◎"
 };
 
+const specialNames = {
+  ja: {
+    [BOMB_BLOCK]: ["チェインボム", "グランドチェインボム"],
+    [VERTICAL_LASER_BLOCK]: ["チェインピラー", "トリニティピラー"],
+    [HORIZONTAL_LASER_BLOCK]: ["チェインウェーブ", "トリニティウェーブ"],
+    [COLOR_BREAKER_BLOCK]: ["プリズムブレイク", "プリズムノヴァ"]
+  },
+  en: {
+    [BOMB_BLOCK]: ["Chain Bomb", "Grand Chain Bomb"],
+    [VERTICAL_LASER_BLOCK]: ["Chain Pillar", "Trinity Pillar"],
+    [HORIZONTAL_LASER_BLOCK]: ["Chain Wave", "Trinity Wave"],
+    [COLOR_BREAKER_BLOCK]: ["Prism Break", "Prism Nova"]
+  }
+} as const;
+
+function getDominantSpecialEffect(effects: RotationSpecialEffect[]) {
+  const tokenPriority = {
+    [VERTICAL_LASER_BLOCK]: 1,
+    [HORIZONTAL_LASER_BLOCK]: 1,
+    [BOMB_BLOCK]: 2,
+    [COLOR_BREAKER_BLOCK]: 3
+  } as const;
+  return effects.reduce<RotationSpecialEffect | null>((dominant, effect) => {
+    if (!dominant) return effect;
+    const dominantPriority = (dominant.super ? 10 : 0) + tokenPriority[dominant.token];
+    const effectPriority = (effect.super ? 10 : 0) + tokenPriority[effect.token];
+    return effectPriority >= dominantPriority ? effect : dominant;
+  }, null);
+}
+
 const copy = {
   ja: {
     eyebrow: "ROTATION PROTOTYPE / PHASE R2",
@@ -174,6 +216,8 @@ const copy = {
     cancelled: "縦方向の操作はキャンセルされました。",
     invalid: "チェイン不成立。元の配置へ戻します。",
     chain: (chain: number, points: number) => `${chain} CHAIN!  +${points}`,
+    specialChain: (name: string, chain: number, points: number) =>
+      `${name}！  ${chain} CHAIN  +${points}`,
     shuffled: "成立手がなくなったため、盤面を再構成しました。",
     hintMessage: (direction: RotationDirection) =>
       `光っている交点を${direction === "clockwise" ? "時計回り" : "反時計回り"}に回してみましょう。`,
@@ -229,6 +273,8 @@ const copy = {
     cancelled: "Vertical input was cancelled.",
     invalid: "No chain formed. Restoring the previous layout.",
     chain: (chain: number, points: number) => `${chain} CHAIN!  +${points}`,
+    specialChain: (name: string, chain: number, points: number) =>
+      `${name}!  ${chain} CHAIN  +${points}`,
     shuffled: "No valid moves remained, so the board was reshuffled.",
     hintMessage: (direction: RotationDirection) =>
       `Try rotating the glowing point ${direction === "clockwise" ? "clockwise" : "counterclockwise"}.`,
@@ -566,9 +612,20 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     commitBoard(rotatedBoard);
     setRotationOverlay(null);
     commitPhase("validating");
-    const firstMatches = findRotationMatches(rotatedBoard);
+    const preferredRewardKeys = [
+      cellKey(point.row, point.column),
+      cellKey(point.row, point.column + 1),
+      cellKey(point.row + 1, point.column),
+      cellKey(point.row + 1, point.column + 1)
+    ];
+    const resolution = resolveRotationChain(
+      rotatedBoard,
+      Math.random,
+      rotationSettings,
+      preferredRewardKeys
+    );
 
-    if (firstMatches.cells.size === 0) {
+    if (resolution.steps.length === 0) {
       const nextInvalidMoves = invalidMovesRef.current + 1;
       invalidMovesRef.current = nextInvalidMoves;
       setInvalidMoves(nextInvalidMoves);
@@ -596,28 +653,43 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     const nextSuccessfulMoves = successfulMovesRef.current + 1;
     successfulMovesRef.current = nextSuccessfulMoves;
     setSuccessfulMoves(nextSuccessfulMoves);
-    const resolution = resolveRotationChain(rotatedBoard, Math.random, rotationSettings);
     for (const step of resolution.steps) {
       if (runIdRef.current !== currentRun) return;
       commitBoard(step.boardBeforeClear);
-      setClearingCells(new Set(step.matches.cells));
+      setClearingCells(new Set(step.clearedCells));
       commitPhase("clearing");
-      const points = calculateRotationClearScore(step.matches, step.chain);
-      const nextCleared = clearedRef.current + step.matches.cells.size;
-      const impact: Exclude<BattleImpact, null> = step.chain >= 3
+      const points = calculateRotationClearScore(step.matches, step.chain) + step.specialScore;
+      const nextCleared = clearedRef.current + step.clearedCells.size;
+      const dominantEffect = getDominantSpecialEffect(step.specialEffects);
+      const impact: Exclude<BattleImpact, null> = (
+        step.chain >= 3
+        || dominantEffect?.super
+        || dominantEffect?.token === COLOR_BREAKER_BLOCK
+      )
         ? "heavy"
-        : step.chain === 2
+        : step.chain === 2 || dominantEffect
           ? "medium"
           : "light";
+      const notice = dominantEffect
+        ? t.specialChain(
+            specialNames[language][dominantEffect.token][dominantEffect.super ? 1 : 0],
+            step.chain,
+            points
+          )
+        : t.chain(step.chain, points);
       clearedRef.current = nextCleared;
       setCleared(nextCleared);
       setBattleImpact(impact);
       setScore((current) => current + points);
       setMaxChain((current) => Math.max(current, step.chain));
-      setChainNotice(t.chain(step.chain, points));
-      setStatusMessage(t.chain(step.chain, points));
+      setChainNotice(notice);
+      setStatusMessage(notice);
       playAudioEffect(
-        step.chain >= 5 ? "moreStrong" : step.chain >= 3 ? "strong" : "chain"
+        step.chain >= 5 || dominantEffect?.super
+          ? "moreStrong"
+          : step.chain >= 3 || dominantEffect
+            ? "strong"
+            : "chain"
       );
 
       await delay(CLEAR_DURATION);
