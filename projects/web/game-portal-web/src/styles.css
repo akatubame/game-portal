@@ -181,8 +181,8 @@ body.color-chain-rotation-mode .game-screen.is-color-chain-rotation-test .game-t
 .color-chain-rotation-game-grid {
   align-items: center;
   display: grid;
-  gap: 20px;
-  grid-template-columns: 230px 580px 300px;
+  gap: 15px;
+  grid-template-columns: 270px 580px 270px;
   height: 612px;
   justify-content: center;
   padding: 14px 0 18px;
