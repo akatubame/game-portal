@@ -10367,14 +10367,39 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 }
 
 .color-chain-shell.is-mascot-test .color-chain-board {
-  background: #080d12;
-  border-color: #536577;
-  box-shadow: none;
+  background: var(--chain-panel-surface);
+  border-color: #6e3d21;
+  box-shadow: inset 0 0 18px rgba(94, 54, 29, 0.14);
 }
 
 .color-chain-shell.is-mascot-test .color-chain-cell {
-  background: rgba(255, 255, 255, 0.018);
-  border-color: rgba(123, 148, 170, 0.11);
+  background: rgba(103, 63, 37, 0.1);
+  border-color: rgba(105, 62, 31, 0.24);
+}
+
+/* Keep the original, high-contrast block palette on the lighter board. */
+.color-chain-shell.is-mascot-test .color-chain-board .color-chain-cell.is-coral {
+  background: radial-gradient(circle at 28% 20%, #fff 0 5%, transparent 7%), linear-gradient(145deg, #ffb4c5 0%, #ff617f 36%, #ef2e64 70%, #9e174b 100%);
+}
+
+.color-chain-shell.is-mascot-test .color-chain-board .color-chain-cell.is-gold {
+  background: radial-gradient(circle at 28% 20%, #fff 0 5%, transparent 7%), linear-gradient(145deg, #fff0a0 0%, #ffd24b 36%, #f2a928 70%, #a85d0d 100%);
+}
+
+.color-chain-shell.is-mascot-test .color-chain-board .color-chain-cell.is-mint {
+  background: radial-gradient(circle at 28% 20%, #fff 0 5%, transparent 7%), linear-gradient(145deg, #baffd8 0%, #59e4a2 36%, #24b978 70%, #08744e 100%);
+}
+
+.color-chain-shell.is-mascot-test .color-chain-board .color-chain-cell.is-sky {
+  background: radial-gradient(circle at 28% 20%, #fff 0 5%, transparent 7%), linear-gradient(145deg, #c1f8ff 0%, #4bdcff 36%, #1aaee7 70%, #12629f 100%);
+}
+
+.color-chain-shell.is-mascot-test .color-chain-board .color-chain-cell.is-violet {
+  background: radial-gradient(circle at 28% 20%, #fff 0 5%, transparent 7%), linear-gradient(145deg, #e3d1ff 0%, #a879ff 36%, #7645df 70%, #43209b 100%);
+}
+
+.color-chain-shell.is-mascot-test .color-chain-board .color-chain-cell.is-rose {
+  background: radial-gradient(circle at 28% 20%, #fff 0 5%, transparent 7%), linear-gradient(145deg, #ffc4ec 0%, #ff55ce 36%, #dd249f 70%, #8b176d 100%);
 }
 
 .color-chain-shell.is-mascot-test .color-chain-mascot-panel::after,
@@ -10418,14 +10443,25 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
   color: #8d4d2c;
 }
 
-.color-chain-shell.is-mascot-test .color-chain-score div,
 .color-chain-shell.is-mascot-test .color-chain-touch-controls button,
 .color-chain-shell.is-mascot-test .color-chain-compact-actions button,
 .color-chain-shell.is-mascot-test .color-chain-audio-toggle,
-.color-chain-shell.is-mascot-test .color-chain-landscape-notice button {
-  background: linear-gradient(145deg, rgba(250, 231, 183, 0.94), rgba(208, 176, 119, 0.94));
-  border-color: rgba(82, 46, 25, 0.48);
-  color: #344257;
+.color-chain-shell.is-mascot-test .color-chain-landscape-notice button,
+.color-chain-shell.is-mascot-test .color-chain-laser-panel > button,
+.color-chain-shell.is-mascot-test .color-chain-tool-card > button,
+.color-chain-shell.is-mascot-test .color-chain-difficulties button,
+.color-chain-shell.is-mascot-test .color-chain-actions button,
+.color-chain-shell.is-mascot-test .color-chain-overlay-launchers button {
+  background: linear-gradient(145deg, #7657b7, #347ca8);
+  border-color: rgba(237, 246, 255, 0.7);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.24), 0 3px 7px rgba(40, 29, 83, 0.28);
+  color: #ffffff;
+}
+
+.color-chain-shell.is-mascot-test .color-chain-score div {
+  background: rgba(255, 238, 198, 0.62);
+  border-color: rgba(91, 52, 27, 0.3);
+  color: var(--chain-panel-ink);
 }
 
 .color-chain-shell.is-mascot-test .color-chain-touch-controls button:hover,
@@ -10434,6 +10470,15 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 .color-chain-shell.is-mascot-test .color-chain-compact-actions button:focus-visible,
 .color-chain-shell.is-mascot-test .color-chain-audio-toggle:hover,
 .color-chain-shell.is-mascot-test .color-chain-audio-toggle:focus-visible {
-  background: linear-gradient(145deg, #ffe89e, #e4bd6c);
-  border-color: #7f421f;
+  background: linear-gradient(145deg, #a775e6, #42aebf);
+  border-color: #ffffff;
+}
+
+/* The active-play HUD needs its own selector because its compact layout has
+   a more specific dark default background. */
+.color-chain-shell.is-mascot-test.is-active-play .color-chain-compact-hud {
+  background: var(--chain-panel-surface) padding-box, var(--chain-wood-border) border-box;
+  border: 4px solid transparent;
+  box-shadow: 0 10px 22px rgba(69, 35, 21, 0.28), inset 0 0 0 1px rgba(255, 252, 224, 0.76);
+  color: var(--chain-panel-ink);
 }
