@@ -346,6 +346,13 @@ export function getMatchRewards(matchLines: MatchLine[]): RewardBlock[] {
     .filter((line) => line.cells.length >= 5)
     .forEach((line) => addReward(COLOR_BREAKER_BLOCK, [line]));
 
+  const clearedCellCount = new Set(matchLines.flatMap((line) => line.cells)).size;
+  const hasLongLineReward = matchLines.some((line) => line.cells.length >= 5);
+  const alreadyHasBombReward = rewards.some((reward) => reward.token === BOMB_BLOCK);
+  if (!hasLongLineReward && !alreadyHasBombReward && clearedCellCount >= 5) {
+    addReward(BOMB_BLOCK, matchLines);
+  }
+
   return rewards;
 }
 

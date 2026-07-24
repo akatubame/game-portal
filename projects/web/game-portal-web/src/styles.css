@@ -10402,6 +10402,27 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
   background: radial-gradient(circle at 28% 20%, #fff 0 5%, transparent 7%), linear-gradient(145deg, #ffc4ec 0%, #ff55ce 36%, #dd249f 70%, #8b176d 100%);
 }
 
+.color-chain-shell.is-mascot-test .color-chain-board .color-chain-cell.is-bomb {
+  background: radial-gradient(circle at 38% 32%, #fff4b0 0 8%, #ff9f43 9% 20%, #dc3e3e 38%, #21151d 72%);
+  border-color: #ffd166;
+  color: #fff4b0;
+}
+
+.color-chain-shell.is-mascot-test .color-chain-board .color-chain-cell.is-vertical-laser {
+  background: linear-gradient(135deg, #082a4a, #1ca7d9 42%, #d8fbff 50%, #1ca7d9 58%, #082a4a);
+  border-color: #9cf4ff;
+}
+
+.color-chain-shell.is-mascot-test .color-chain-board .color-chain-cell.is-horizontal-laser {
+  background: linear-gradient(45deg, #4a123e, #f057bd 42%, #fff1fa 50%, #f057bd 58%, #4a123e);
+  border-color: #ff9add;
+}
+
+.color-chain-shell.is-mascot-test .color-chain-board .color-chain-cell.is-color-breaker {
+  background: conic-gradient(from 25deg, #ff7798, #ffd66a, #78eaa8, #6fdfff, #a98bff, #ff83d5, #ff7798);
+  border-color: #fff2a6;
+}
+
 .color-chain-shell.is-mascot-test .color-chain-mascot-panel::after,
 .color-chain-shell.is-mascot-test .color-chain-opponent-panel::after {
   border-color: rgba(132, 80, 38, 0.24);

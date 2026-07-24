@@ -96,6 +96,17 @@ assert.deepEqual(
   "simultaneous horizontal and vertical lines create a bomb reward",
 );
 
+const multiClearBombBoard = createEmptyBoard();
+for (let column = 0; column < 4; column += 1) {
+  multiClearBombBoard[10][column] = "coral";
+  multiClearBombBoard[13][column] = "mint";
+}
+assert.deepEqual(
+  findMatches(multiClearBombBoard).rewardBlocks.map(({ token }) => token),
+  [BOMB_BLOCK],
+  "five or more simultaneous clears without a five-block line create a bomb reward",
+);
+
 const verticalRewardBoard = createEmptyBoard();
 for (let row = 10; row < 15; row += 1) verticalRewardBoard[row][2] = "coral";
 const verticalRewardMatch = findMatches(verticalRewardBoard);
