@@ -23,7 +23,12 @@ import {
 } from "react";
 import { useI18n } from "../../i18n";
 import type { Board, BlockToken } from "./tokens";
-import { classifyRotationGesture, moveRotationPoint } from "./rotationInteraction";
+import {
+  classifyRotationGesture,
+  findChangedOccupiedCells,
+  findRefilledCells,
+  moveRotationPoint
+} from "./rotationInteraction";
 import {
   ROTATION_COLUMNS,
   ROTATION_ROWS,
@@ -203,7 +208,11 @@ function isPointCell(row: number, column: number, point: RotationPoint | null) {
 }
 
 function useFixedStage() {
-  const [layout, setLayout] = useState({ scale: 1, portrait: false });
+  const [layout, setLayout] = useState({
+    scale: 1,
+    portrait: false,
+    coarsePointer: false
+  });
 
   useLayoutEffect(() => {
     const update = () => {
@@ -214,7 +223,11 @@ function useFixedStage() {
         0.1,
         Math.min((width - 12) / STAGE_WIDTH, (height - 12) / STAGE_HEIGHT)
       );
-      setLayout({ scale, portrait: height > width });
+      setLayout({
+        scale,
+        portrait: height > width,
+        coarsePointer: window.matchMedia("(pointer: coarse)").matches
+      });
     };
 
     update();
@@ -232,14 +245,18 @@ function useFixedStage() {
 export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) {
   const { language, setLanguage } = useI18n();
   const t = copy[language];
-  const { scale, portrait } = useFixedStage();
+  const { scale, portrait, coarsePointer } = useFixedStage();
   const initialBoard = useMemo(() => createPlayableRotationBoard(rotationSettings), []);
   const [board, setBoard] = useState<Board>(initialBoard);
+  const [availableMoves, setAvailableMoves] = useState<RotationMove[]>(
+    () => enumerateProductiveRotations(initialBoard)
+  );
   const [phase, setPhase] = useState<RotationPhase>("idle");
   const [selectedPoint, setSelectedPoint] = useState<RotationPoint>({ row: 3, column: 3 });
   const [focusedPoint, setFocusedPoint] = useState<RotationPoint>({ row: 3, column: 3 });
   const [rotationOverlay, setRotationOverlay] = useState<RotationOverlay | null>(null);
   const [clearingCells, setClearingCells] = useState<Set<string>>(new Set());
+  const [motionCells, setMotionCells] = useState<Set<string>>(new Set());
   const [invalidPoint, setInvalidPoint] = useState<RotationPoint | null>(null);
   const [hintMove, setHintMove] = useState<RotationMove | null>(null);
   const [chainNotice, setChainNotice] = useState("");
@@ -258,8 +275,8 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
   const stageScaleRef = useRef(scale);
   const pointButtonRefs = useRef(new Map<string, HTMLButtonElement>());
 
-  const availableMoves = useMemo(() => enumerateProductiveRotations(board), [board]);
   const sealPercent = Math.min(100, Math.round((cleared / CLEAR_TARGET) * 100));
+  const mobilePerformance = coarsePointer || scale < 0.72;
   const inputEnabled = phase === "ready" || phase === "selecting";
   const isResolving = [
     "rotating",
@@ -295,6 +312,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     pointerRef.current = null;
     setRotationOverlay(null);
     setClearingCells(new Set());
+    setMotionCells(new Set());
     setInvalidPoint(null);
     setHintMove(null);
     setChainNotice("");
@@ -378,13 +396,16 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
       commitPhase("falling");
       await delay(70);
       if (runIdRef.current !== currentRun) return;
+      setMotionCells(findChangedOccupiedCells(step.boardAfterClear, step.boardAfterCollapse));
       commitBoard(step.boardAfterCollapse);
       await delay(FALL_DURATION);
       if (runIdRef.current !== currentRun) return;
 
       commitPhase("refilling");
+      setMotionCells(findRefilledCells(step.boardAfterCollapse, step.boardAfterRefill));
       commitBoard(step.boardAfterRefill);
       await delay(REFILL_DURATION);
+      setMotionCells(new Set());
     }
 
     if (runIdRef.current !== currentRun) return;
@@ -401,13 +422,16 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     }
 
     if (runIdRef.current !== currentRun) return;
+    setAvailableMoves(enumerateProductiveRotations(stableBoard));
     setStatusMessage(t.ready);
     finishTurn();
   };
 
   const startGame = () => {
     runIdRef.current += 1;
-    commitBoard(createPlayableRotationBoard(rotationSettings));
+    const nextBoard = createPlayableRotationBoard(rotationSettings);
+    commitBoard(nextBoard);
+    setAvailableMoves(enumerateProductiveRotations(nextBoard));
     timeLeftRef.current = GAME_SECONDS;
     clearedRef.current = 0;
     setTimeLeft(GAME_SECONDS);
@@ -418,6 +442,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     setFocusedPoint({ row: 3, column: 3 });
     setRotationOverlay(null);
     setClearingCells(new Set());
+    setMotionCells(new Set());
     setInvalidPoint(null);
     setHintMove(null);
     setChainNotice("");
@@ -610,7 +635,10 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
       )}
 
       <div className="color-chain-rotation-stage-frame" style={stageFrameStyle}>
-        <section className={`color-chain-rotation-stage is-${phase}`} style={stageStyle}>
+        <section
+          className={`color-chain-rotation-stage is-${phase}${mobilePerformance ? " is-mobile-performance" : ""}`}
+          style={stageStyle}
+        >
           <header className="color-chain-rotation-stage-header">
             <div className="color-chain-rotation-title">
               <p>{t.eyebrow}</p>
@@ -671,8 +699,8 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                         rotationOverlay && isPointCell(rowIndex, columnIndex, rotationOverlay.point)
                           ? " is-under-overlay"
                           : "",
-                        phase === "falling" ? " is-rotation-falling" : "",
-                        phase === "refilling" ? " is-rotation-refilling" : ""
+                        phase === "falling" && motionCells.has(key) ? " is-rotation-falling" : "",
+                        phase === "refilling" && motionCells.has(key) ? " is-rotation-refilling" : ""
                       ].join("");
                       return renderToken(token, key, classes);
                     })

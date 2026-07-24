@@ -52,7 +52,12 @@ const {
   rotateSquare,
   shuffleToPlayableRotationBoard,
 } = rotation;
-const { classifyRotationGesture, moveRotationPoint } = interaction;
+const {
+  classifyRotationGesture,
+  findChangedOccupiedCells,
+  findRefilledCells,
+  moveRotationPoint,
+} = interaction;
 const { BOMB_BLOCK } = tokens;
 
 function seededRandom(seed) {
@@ -117,6 +122,23 @@ function assertBoardShape(board) {
     moveRotationPoint({ row: 3, column: 3 }, "ArrowLeft"),
     { row: 3, column: 2 },
     "keyboard navigation moves one intersection"
+  );
+
+  const beforeMotion = createEmptyRotationBoard();
+  beforeMotion[7][0] = "coral";
+  beforeMotion[7][1] = "gold";
+  const afterMotion = createEmptyRotationBoard();
+  afterMotion[7][0] = "coral";
+  afterMotion[6][1] = "gold";
+  assert.deepEqual(
+    [...findChangedOccupiedCells(beforeMotion, afterMotion)],
+    ["6:1"],
+    "only visibly changed occupied cells receive falling animation"
+  );
+  assert.deepEqual(
+    [...findRefilledCells(beforeMotion, afterMotion)],
+    ["6:1"],
+    "only newly occupied cells receive refill animation"
   );
 }
 

@@ -4,6 +4,7 @@ import {
   type RotationDirection,
   type RotationPoint
 } from "./rotationLogic";
+import type { Board } from "./tokens";
 
 export const ROTATION_TAP_DISTANCE = 12;
 export const ROTATION_TAP_DURATION = 320;
@@ -46,4 +47,28 @@ export function moveRotationPoint(
     row: Math.max(0, Math.min(ROTATION_ROWS - 2, point.row + rowDelta)),
     column: Math.max(0, Math.min(ROTATION_COLUMNS - 2, point.column + columnDelta))
   };
+}
+
+export function findChangedOccupiedCells(before: Board, after: Board) {
+  const cells = new Set<string>();
+  for (let row = 0; row < after.length; row += 1) {
+    for (let column = 0; column < after[row].length; column += 1) {
+      if (after[row][column] !== null && before[row]?.[column] !== after[row][column]) {
+        cells.add(`${row}:${column}`);
+      }
+    }
+  }
+  return cells;
+}
+
+export function findRefilledCells(before: Board, after: Board) {
+  const cells = new Set<string>();
+  for (let row = 0; row < after.length; row += 1) {
+    for (let column = 0; column < after[row].length; column += 1) {
+      if (before[row]?.[column] === null && after[row][column] !== null) {
+        cells.add(`${row}:${column}`);
+      }
+    }
+  }
+  return cells;
 }
