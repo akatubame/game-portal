@@ -365,8 +365,8 @@ function assertBoardShape(board) {
   ]);
   assert.deepEqual(
     crossedRewards,
-    [{ key: "3:3", token: BOMB_BLOCK }],
-    "crossing horizontal and vertical matches reward one Chain Bomb"
+    [],
+    "horizontal and vertical matches alone no longer reward a Chain Bomb"
   );
 
   const verticalRewards = getRotationMatchRewards([
@@ -385,7 +385,34 @@ function assertBoardShape(board) {
       direction: "diagonal-down",
     },
   ]);
-  assert.equal(diagonalRewards[0]?.token, COLOR_BREAKER_BLOCK);
+  assert.equal(
+    diagonalRewards[0]?.token,
+    BOMB_BLOCK,
+    "a five-block diagonal line rewards a Chain Bomb"
+  );
+
+  const prismRewards = getRotationMatchRewards([
+    {
+      cells: ["3:0", "3:1", "3:2", "3:3", "3:4"],
+      color: "coral",
+      direction: "horizontal",
+    },
+    {
+      cells: ["1:2", "2:2", "3:2", "4:2", "5:2"],
+      color: "gold",
+      direction: "vertical",
+    },
+    {
+      cells: ["0:0", "1:1", "2:2", "3:3"],
+      color: "mint",
+      direction: "diagonal-down",
+    },
+  ], ["3:2"]);
+  assert.deepEqual(
+    prismRewards,
+    [{ key: "3:2", token: COLOR_BREAKER_BLOCK }],
+    "nine or more simultaneous horizontal, vertical, and diagonal clears reward only Prism Break"
+  );
 }
 
 {
