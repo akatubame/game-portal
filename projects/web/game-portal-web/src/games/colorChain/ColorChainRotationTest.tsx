@@ -86,6 +86,7 @@ type RotationAudio = {
   bgm: HTMLAudioElement;
   chain: HTMLAudioElement;
   strong: HTMLAudioElement;
+  moreStrong: HTMLAudioElement;
   gameOver: HTMLAudioElement;
 };
 
@@ -104,6 +105,7 @@ const audioPaths = {
   bgm: "/audio/color-chain/block-puzzle-blues.mp3",
   chain: "/audio/color-chain/magical-chain.mp3",
   strong: "/audio/color-chain/strong-magic.mp3",
+  moreStrong: "/audio/color-chain/more-strong-magic.mp3",
   gameOver: "/audio/color-chain/game-over.mp3"
 } as const;
 const chromaAssets: Record<ChromaMood, string> = {
@@ -451,6 +453,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     const bgm = new Audio(audioPaths.bgm);
     const chain = new Audio(audioPaths.chain);
     const strong = new Audio(audioPaths.strong);
+    const moreStrong = new Audio(audioPaths.moreStrong);
     const gameOver = new Audio(audioPaths.gameOver);
     bgm.loop = true;
     bgm.preload = "metadata";
@@ -459,9 +462,11 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     chain.volume = 0.48;
     strong.preload = "auto";
     strong.volume = 0.56;
+    moreStrong.preload = "auto";
+    moreStrong.volume = 0.62;
     gameOver.preload = "auto";
     gameOver.volume = 0.56;
-    audioRef.current = { bgm, chain, strong, gameOver };
+    audioRef.current = { bgm, chain, strong, moreStrong, gameOver };
     return audioRef.current;
   };
 
@@ -481,7 +486,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     if (reset) audio.bgm.currentTime = 0;
   };
 
-  const playAudioEffect = (kind: "chain" | "strong" | "gameOver") => {
+  const playAudioEffect = (kind: "chain" | "strong" | "moreStrong" | "gameOver") => {
     if (!audioEnabledRef.current) return;
     const audio = ensureAudio();
     const effect = audio[kind];
@@ -611,7 +616,9 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
       setMaxChain((current) => Math.max(current, step.chain));
       setChainNotice(t.chain(step.chain, points));
       setStatusMessage(t.chain(step.chain, points));
-      playAudioEffect(step.chain >= 3 ? "strong" : "chain");
+      playAudioEffect(
+        step.chain >= 5 ? "moreStrong" : step.chain >= 3 ? "strong" : "chain"
+      );
 
       await delay(CLEAR_DURATION);
       if (runIdRef.current !== currentRun) return;
@@ -928,38 +935,43 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
 
           <div className="color-chain-rotation-game-grid">
             <aside className="color-chain-rotation-side-panel is-goal">
-              <div className="color-chain-rotation-character-heading">
-                <span>CHARACTER</span>
-                <strong>{t.chromaName}</strong>
-              </div>
-              <div className={`color-chain-rotation-character-stage is-${chromaMood}`}>
-                <i aria-hidden="true"><Sparkles /></i>
-                <CharacterPicture
-                  alt={`${t.chromaName}: ${chromaStatus}`}
-                  asset={chromaAssets[chromaMood]}
-                  className="color-chain-rotation-character-picture is-chroma"
-                />
-              </div>
-              <p aria-live="polite" className="color-chain-rotation-character-copy">{chromaStatus}</p>
-              <h2>{t.target}</h2>
-              <div className="color-chain-rotation-gauge-copy">
-                <span>{t.sealGauge}</span>
-                <strong>{sealPercent}%</strong>
-              </div>
-              <div
-                aria-label={`${t.sealGauge} ${sealPercent}%`}
-                aria-valuemax={100}
-                aria-valuemin={0}
-                aria-valuenow={sealPercent}
-                className="color-chain-rotation-gauge"
-                role="progressbar"
-              >
-                <i style={{ width: `${sealPercent}%` }} />
-              </div>
-              <div className="color-chain-rotation-point-readout">
-                <span>{t.selectedPoint}</span>
-                <strong>{t.pointValue(selectedPoint)}</strong>
-              </div>
+              <section className="color-chain-rotation-chroma-card">
+                <div className="color-chain-rotation-character-heading">
+                  <span>CHARACTER</span>
+                  <strong>{t.chromaName}</strong>
+                </div>
+                <div className={`color-chain-rotation-character-stage is-${chromaMood}`}>
+                  <i aria-hidden="true"><Sparkles /></i>
+                  <CharacterPicture
+                    alt={`${t.chromaName}: ${chromaStatus}`}
+                    asset={chromaAssets[chromaMood]}
+                    className="color-chain-rotation-character-picture is-chroma"
+                  />
+                </div>
+                <p aria-live="polite" className="color-chain-rotation-character-copy">{chromaStatus}</p>
+              </section>
+              <section className="color-chain-rotation-objective-card">
+                <p className="color-chain-rotation-objective-kicker">SEAL OBJECTIVE</p>
+                <h2>{t.target}</h2>
+                <div className="color-chain-rotation-gauge-copy">
+                  <span>{t.sealGauge}</span>
+                  <strong>{sealPercent}%</strong>
+                </div>
+                <div
+                  aria-label={`${t.sealGauge} ${sealPercent}%`}
+                  aria-valuemax={100}
+                  aria-valuemin={0}
+                  aria-valuenow={sealPercent}
+                  className="color-chain-rotation-gauge"
+                  role="progressbar"
+                >
+                  <i style={{ width: `${sealPercent}%` }} />
+                </div>
+                <div className="color-chain-rotation-point-readout">
+                  <span>{t.selectedPoint}</span>
+                  <strong>{t.pointValue(selectedPoint)}</strong>
+                </div>
+              </section>
             </aside>
 
             <section className="color-chain-rotation-board-panel">

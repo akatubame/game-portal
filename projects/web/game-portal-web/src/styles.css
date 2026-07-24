@@ -11857,3 +11857,68 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
   36% { opacity: 1; }
   to { opacity: 0; transform: scale(1.04); }
 }
+
+/* Rotation test: give Chroma a dedicated, larger panel while keeping the goal readable. */
+.color-chain-rotation-side-panel.is-goal {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  display: grid;
+  gap: 12px;
+  grid-template-rows: minmax(0, 1.45fr) minmax(0, 0.9fr);
+  padding: 0;
+}
+
+.color-chain-rotation-chroma-card,
+.color-chain-rotation-objective-card {
+  background:
+    linear-gradient(145deg, rgba(255, 250, 229, 0.92), rgba(246, 225, 181, 0.9)),
+    radial-gradient(circle at 16% 12%, rgba(255, 255, 255, 0.72), transparent 34%);
+  border: 6px solid transparent;
+  border-image: linear-gradient(135deg, #74411f, #b87837 32%, #5e3017 66%, #d29b52) 1;
+  box-shadow: 0 7px 0 rgba(83, 41, 19, 0.44), inset 0 0 0 2px rgba(255, 244, 206, 0.5);
+  min-height: 0;
+}
+
+.color-chain-rotation-chroma-card {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 14px 10px;
+}
+
+.color-chain-rotation-objective-card {
+  padding: 10px 14px;
+}
+
+.color-chain-rotation-chroma-card .color-chain-rotation-character-stage {
+  flex: 1 1 auto;
+  height: 210px;
+  margin: 7px 0 4px;
+}
+
+.color-chain-rotation-chroma-card .color-chain-rotation-character-picture.is-chroma {
+  inset: -16px -10px -10px;
+}
+
+.color-chain-rotation-chroma-card .color-chain-rotation-character-copy {
+  font-size: 10px;
+  min-height: 23px;
+}
+
+.color-chain-rotation-objective-kicker {
+  color: #7a4825;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  margin: 0;
+}
+
+.color-chain-rotation-side-panel.is-goal .color-chain-rotation-objective-card h2 {
+  font-size: 17px;
+  margin: 3px 0 7px;
+}
+
+.color-chain-rotation-side-panel.is-goal .color-chain-rotation-objective-card .color-chain-rotation-point-readout {
+  margin-top: 8px;
+  padding: 7px 9px;
+}
