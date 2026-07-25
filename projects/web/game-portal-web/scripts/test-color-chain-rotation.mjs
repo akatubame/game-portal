@@ -411,12 +411,12 @@ function assertBoardShape(board) {
   assert.deepEqual(
     prismRewards,
     [{ key: "3:2", token: COLOR_BREAKER_BLOCK }],
-    "nine or more simultaneous horizontal, vertical, and diagonal clears reward only Prism Break"
+    "ten or more simultaneous horizontal, vertical, and diagonal clears reward only Prism Break"
   );
 
   const twoDirectionPrismRewards = getRotationMatchRewards([
     {
-      cells: ["3:0", "3:1", "3:2", "3:3", "3:4"],
+      cells: ["3:0", "3:1", "3:2", "3:3", "3:4", "3:5"],
       color: "coral",
       direction: "horizontal",
     },
@@ -429,7 +429,25 @@ function assertBoardShape(board) {
   assert.deepEqual(
     twoDirectionPrismRewards,
     [{ key: "3:2", token: COLOR_BREAKER_BLOCK }],
-    "nine or more direct clears across any two direction types reward only Prism Break"
+    "ten or more direct clears across any two direction types reward only Prism Break"
+  );
+
+  const nineCellRewards = getRotationMatchRewards([
+    {
+      cells: ["3:0", "3:1", "3:2", "3:3", "3:4"],
+      color: "coral",
+      direction: "horizontal",
+    },
+    {
+      cells: ["1:2", "2:2", "3:2", "4:2", "5:2"],
+      color: "gold",
+      direction: "vertical",
+    },
+  ], ["3:2"]);
+  assert.equal(
+    nineCellRewards.some((reward) => reward.token === COLOR_BREAKER_BLOCK),
+    false,
+    "nine direct clears across two direction types do not reward Prism Break"
   );
 }
 

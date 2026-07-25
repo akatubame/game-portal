@@ -710,7 +710,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
             points
           )
         : t.chain(step.chain, points);
-      const isUltimateChain = step.chain >= 6;
+      const isUltimateChain = step.chain === 6;
       const hasGrandCutin = Boolean(dominantEffect?.super) || isUltimateChain;
       if (hasGrandCutin) {
         const superSpellName = dominantEffect?.super

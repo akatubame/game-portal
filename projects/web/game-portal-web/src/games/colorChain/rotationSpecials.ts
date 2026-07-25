@@ -135,7 +135,7 @@ export function getRotationMatchRewards(
 
   const clearedCellCount = new Set(matchLines.flatMap((line) => line.cells)).size;
   const createsPrismBreak = (
-    clearedCellCount >= 9
+    clearedCellCount >= 10
     && [
       horizontalLines.length > 0,
       verticalLines.length > 0,
