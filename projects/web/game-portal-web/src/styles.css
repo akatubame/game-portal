@@ -445,7 +445,7 @@ body.color-chain-rotation-mode .game-screen.is-color-chain-rotation-test .game-t
 .color-chain-rotation-point.is-hint i::after {
   color: #fffbd0;
   content: "↻";
-  font-size: 32px;
+  font-size: 42px;
   font-style: normal;
   font-weight: 1000;
   left: -10px;
@@ -456,6 +456,29 @@ body.color-chain-rotation-mode .game-screen.is-color-chain-rotation-test .game-t
 
 .color-chain-rotation-point.is-hint.is-counterclockwise i::after {
   content: "↺";
+}
+
+.color-chain-rotation-hint-preview {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  height: 25%;
+  pointer-events: none;
+  position: absolute;
+  transform-origin: center;
+  width: 25%;
+  z-index: 6;
+}
+
+.color-chain-rotation-hint-preview.is-clockwise {
+  animation: color-chain-rotation-hint-clockwise 1.05s ease-in-out infinite;
+}
+
+.color-chain-rotation-hint-preview.is-counterclockwise {
+  animation: color-chain-rotation-hint-counterclockwise 1.05s ease-in-out infinite;
+}
+
+.color-chain-rotation-hint-preview .color-chain-cell {
+  filter: brightness(1.18) saturate(1.1);
 }
 
 .color-chain-rotation-overlay {
@@ -731,6 +754,16 @@ body.color-chain-rotation-mode .game-screen.is-color-chain-rotation-test .game-t
 @keyframes color-chain-rotation-hint {
   from { filter: brightness(0.9); }
   to { filter: brightness(1.35); }
+}
+
+@keyframes color-chain-rotation-hint-clockwise {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  48% { transform: rotate(13deg) scale(0.97); }
+}
+
+@keyframes color-chain-rotation-hint-counterclockwise {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  48% { transform: rotate(-13deg) scale(0.97); }
 }
 
 @keyframes color-chain-rotation-chain-pop {

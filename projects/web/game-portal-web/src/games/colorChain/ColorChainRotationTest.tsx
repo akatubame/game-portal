@@ -106,6 +106,8 @@ const INVALID_PAUSE = 90;
 const CLEAR_DURATION = 250;
 const FALL_DURATION = 170;
 const REFILL_DURATION = 190;
+const AUTO_HINT_DELAY = 10_000;
+const HINT_VISIBLE_DURATION = 3_500;
 const rotationSettings = {
   colorCount: 4,
   maxChainSteps: 30,
@@ -426,6 +428,8 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
   const runIdRef = useRef(0);
   const pointerRef = useRef<PointerStart | null>(null);
   const stageScaleRef = useRef(scale);
+  const lastBoardActionRef = useRef(performance.now());
+  const hintSequenceRef = useRef(0);
   const pointButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const audioRef = useRef<RotationAudio | null>(null);
   const audioEnabledRef = useRef(audioEnabled);
@@ -569,6 +573,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
   };
 
   const finishGame = (result: "clear" | "timeout") => {
+    hintSequenceRef.current += 1;
     pointerRef.current = null;
     setRotationOverlay(null);
     setClearingCells(new Set());
@@ -588,6 +593,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     } else if (timeLeftRef.current <= 0) {
       finishGame("timeout");
     } else {
+      lastBoardActionRef.current = performance.now();
       commitPhase("ready");
     }
   };
@@ -595,6 +601,8 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
   const performMove = async (point: RotationPoint, direction: RotationDirection) => {
     if (!inputEnabled || !["ready", "selecting"].includes(phaseRef.current)) return;
 
+    lastBoardActionRef.current = performance.now();
+    hintSequenceRef.current += 1;
     const currentRun = ++runIdRef.current;
     const sourceBoard = boardRef.current.map((row) => [...row]);
     setSelectedPoint(point);
@@ -734,6 +742,8 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
 
   const startGame = () => {
     runIdRef.current += 1;
+    hintSequenceRef.current += 1;
+    lastBoardActionRef.current = performance.now();
     const nextBoard = createPlayableRotationBoard(rotationSettings);
     commitBoard(nextBoard);
     setAvailableMoves(enumerateProductiveRotations(nextBoard));
@@ -764,11 +774,14 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
   const showHint = () => {
     if (!inputEnabled || availableMoves.length === 0) return;
     const move = availableMoves[0];
+    const hintSequence = ++hintSequenceRef.current;
+    lastBoardActionRef.current = performance.now();
     setHintMove(move);
     setSelectedPoint(move);
     setFocusedPoint(move);
     setStatusMessage(t.hintMessage(move.direction));
     window.setTimeout(() => {
+      if (hintSequenceRef.current !== hintSequence) return;
       setHintMove((current) => (
         current?.row === move.row
         && current.column === move.column
@@ -776,7 +789,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
           ? null
           : current
       ));
-    }, 3500);
+    }, HINT_VISIBLE_DURATION);
   };
 
   const handlePointerDown = (
@@ -955,6 +968,25 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     return () => window.clearInterval(timer);
   }, [documentHidden, phase]);
 
+  useEffect(() => {
+    if (
+      phase !== "ready"
+      || documentHidden
+      || hintMove
+      || availableMoves.length === 0
+    ) {
+      return;
+    }
+
+    const elapsed = performance.now() - lastBoardActionRef.current;
+    const timer = window.setTimeout(() => {
+      if (phaseRef.current === "ready" && !document.hidden) {
+        showHint();
+      }
+    }, Math.max(0, AUTO_HINT_DELAY - elapsed));
+    return () => window.clearTimeout(timer);
+  }, [availableMoves, documentHidden, hintMove, phase]);
+
   const renderToken = (token: BlockToken | null, key: string, extraClass = "") => (
     <span
       aria-hidden="true"
@@ -1115,6 +1147,24 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                     })
                   )}
                 </div>
+
+                {hintMove && !rotationOverlay && (
+                  <div
+                    aria-hidden="true"
+                    className={`color-chain-rotation-hint-preview is-${hintMove.direction}`}
+                    style={{
+                      left: `${hintMove.column * 12.5}%`,
+                      top: `${hintMove.row * 12.5}%`
+                    }}
+                  >
+                    {[
+                      board[hintMove.row][hintMove.column],
+                      board[hintMove.row][hintMove.column + 1],
+                      board[hintMove.row + 1][hintMove.column],
+                      board[hintMove.row + 1][hintMove.column + 1]
+                    ].map((token, index) => renderToken(token, `hint-${index}`))}
+                  </div>
+                )}
 
                 {rotationOverlay && (
                   <div
