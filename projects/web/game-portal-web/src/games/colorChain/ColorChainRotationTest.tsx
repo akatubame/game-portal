@@ -99,8 +99,8 @@ type RotationAudio = {
 
 const STAGE_WIDTH = 1280;
 const STAGE_HEIGHT = 720;
-const GAME_SECONDS = 90;
-const CLEAR_TARGET = 60;
+const GAME_SECONDS = 120;
+const CLEAR_TARGET = 90;
 const ROTATION_DURATION = 160;
 const INVALID_PAUSE = 90;
 const CLEAR_DURATION = 250;
@@ -211,7 +211,7 @@ const copy = {
     hint: "ヒント",
     start: "試作ゲームを開始",
     retry: "もう一度遊ぶ",
-    startDescription: "90秒以内に60個消して封印ゲージを満タンにしてください。",
+    startDescription: `${GAME_SECONDS}秒以内に${CLEAR_TARGET}個消して封印ゲージを満タンにしてください。`,
     ready: "交点をタップ、または右・左へスワイプして2×2を回転します。",
     cancelled: "縦方向の操作はキャンセルされました。",
     invalid: "チェイン不成立。元の配置へ戻します。",
@@ -268,7 +268,7 @@ const copy = {
     hint: "Hint",
     start: "Start Prototype",
     retry: "Play Again",
-    startDescription: "Clear 60 blocks within 90 seconds to fill the Seal Gauge.",
+    startDescription: `Clear ${CLEAR_TARGET} blocks within ${GAME_SECONDS} seconds to fill the Seal Gauge.`,
     ready: "Tap an intersection, or swipe right or left, to rotate its 2×2 group.",
     cancelled: "Vertical input was cancelled.",
     invalid: "No chain formed. Restoring the previous layout.",
