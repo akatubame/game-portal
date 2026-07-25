@@ -11799,6 +11799,180 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
   padding: 6px;
 }
 
+.color-chain-rotation-grand-cutin {
+  --grand-spell-accent: #ffe66d;
+  --grand-spell-glow: rgba(255, 99, 178, 0.72);
+  align-items: center;
+  display: grid;
+  grid-template-columns: 43% 57%;
+  inset: 92px 0 0;
+  isolation: isolate;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  z-index: 30;
+}
+
+.color-chain-rotation-grand-cutin-backdrop {
+  animation: color-chain-rotation-grand-backdrop 760ms ease-out both;
+  background:
+    linear-gradient(112deg, rgba(25, 12, 56, 0.98) 0 36%, rgba(25, 12, 56, 0.58) 52%, rgba(6, 7, 31, 0.94) 100%),
+    repeating-linear-gradient(118deg, transparent 0 24px, rgba(255, 255, 255, 0.2) 26px 29px, transparent 31px 54px);
+  inset: 0;
+  position: absolute;
+  z-index: -3;
+}
+
+.color-chain-rotation-grand-cutin-backdrop::before,
+.color-chain-rotation-grand-cutin-backdrop::after {
+  border: 8px solid var(--grand-spell-accent);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 10px rgba(255, 255, 255, 0.09),
+    0 0 34px var(--grand-spell-glow),
+    inset 0 0 32px var(--grand-spell-glow);
+  content: "";
+  height: 380px;
+  opacity: 0.7;
+  position: absolute;
+  right: 7%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 380px;
+}
+
+.color-chain-rotation-grand-cutin-backdrop::after {
+  border-style: dashed;
+  height: 285px;
+  right: calc(7% + 48px);
+  width: 285px;
+}
+
+.color-chain-rotation-grand-cutin-chains {
+  inset: 0;
+  overflow: hidden;
+  position: absolute;
+  z-index: -1;
+}
+
+.color-chain-rotation-grand-cutin-chains i {
+  animation: color-chain-rotation-grand-chain 760ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  border: 12px dashed var(--grand-spell-accent);
+  border-radius: 50%;
+  box-shadow: 0 0 20px var(--grand-spell-glow);
+  height: 88px;
+  left: -13%;
+  opacity: 0.68;
+  position: absolute;
+  top: 18%;
+  transform: rotate(-11deg);
+  width: 126%;
+}
+
+.color-chain-rotation-grand-cutin-chains i:nth-child(2) {
+  animation-delay: 45ms;
+  left: -8%;
+  top: 48%;
+  transform: rotate(8deg);
+}
+
+.color-chain-rotation-grand-cutin-chains i:nth-child(3) {
+  animation-delay: 80ms;
+  left: -18%;
+  top: 76%;
+  transform: rotate(-5deg);
+}
+
+.color-chain-rotation-grand-cutin-chroma {
+  align-self: end;
+  animation: color-chain-rotation-grand-chroma 760ms cubic-bezier(0.16, 0.82, 0.22, 1) both;
+  display: block;
+  height: 112%;
+  justify-self: center;
+  margin-bottom: -10%;
+  position: relative;
+  width: 92%;
+  z-index: 2;
+}
+
+.color-chain-rotation-grand-cutin-chroma img {
+  filter: drop-shadow(0 0 18px var(--grand-spell-glow));
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  width: 100%;
+}
+
+.color-chain-rotation-grand-cutin-copy {
+  align-content: center;
+  animation: color-chain-rotation-grand-copy 760ms cubic-bezier(0.14, 0.82, 0.18, 1) both;
+  display: grid;
+  justify-items: center;
+  padding: 24px 42px 24px 8px;
+  position: relative;
+  text-align: center;
+  transform: skewX(-7deg);
+  z-index: 3;
+}
+
+.color-chain-rotation-grand-cutin-copy span {
+  color: var(--grand-spell-accent);
+  font-size: 22px;
+  font-weight: 1000;
+  letter-spacing: 0.28em;
+  text-shadow: 0 2px 0 #2b1538, 0 0 18px var(--grand-spell-glow);
+}
+
+.color-chain-rotation-grand-cutin-copy strong {
+  -webkit-text-stroke: 2px rgba(43, 21, 56, 0.9);
+  color: #fff;
+  filter: drop-shadow(0 5px 0 rgba(43, 21, 56, 0.8)) drop-shadow(0 0 18px var(--grand-spell-glow));
+  font-size: clamp(44px, 4.8vw, 68px);
+  font-weight: 1000;
+  letter-spacing: 0.04em;
+  line-height: 1.03;
+  margin-top: 10px;
+  text-wrap: balance;
+}
+
+.color-chain-rotation-grand-cutin.is-grand-chain-bomb {
+  --grand-spell-accent: #ffe067;
+  --grand-spell-glow: rgba(255, 94, 82, 0.78);
+}
+
+.color-chain-rotation-grand-cutin.is-trinity-pillar {
+  --grand-spell-accent: #8ff8ff;
+  --grand-spell-glow: rgba(49, 170, 255, 0.82);
+}
+
+.color-chain-rotation-grand-cutin.is-trinity-pillar .color-chain-rotation-grand-cutin-backdrop {
+  background:
+    linear-gradient(90deg, rgba(10, 18, 62, 0.96), rgba(56, 193, 255, 0.52), rgba(10, 18, 62, 0.96)),
+    repeating-linear-gradient(90deg, transparent 0 64px, rgba(255, 255, 255, 0.28) 68px 72px, transparent 76px 124px);
+}
+
+.color-chain-rotation-grand-cutin.is-trinity-wave {
+  --grand-spell-accent: #99ffd0;
+  --grand-spell-glow: rgba(51, 236, 199, 0.78);
+}
+
+.color-chain-rotation-grand-cutin.is-trinity-wave .color-chain-rotation-grand-cutin-backdrop {
+  background:
+    linear-gradient(112deg, rgba(14, 39, 66, 0.97), rgba(34, 183, 181, 0.46), rgba(10, 13, 48, 0.96)),
+    repeating-linear-gradient(0deg, transparent 0 42px, rgba(255, 255, 255, 0.25) 44px 47px, transparent 49px 84px);
+}
+
+.color-chain-rotation-grand-cutin.is-prism-nova {
+  --grand-spell-accent: #fff;
+  --grand-spell-glow: rgba(233, 126, 255, 0.9);
+}
+
+.color-chain-rotation-grand-cutin.is-prism-nova .color-chain-rotation-grand-cutin-backdrop {
+  background:
+    radial-gradient(circle at 73% 50%, rgba(255, 255, 255, 0.72), transparent 21%),
+    conic-gradient(from 245deg at 73% 50%, #ff5a86, #ffd45a, #69edba, #54c8ff, #af7dff, #ff5a86);
+}
+
 .color-chain-rotation-battle-flash {
   animation: color-chain-rotation-battle-flash 430ms ease-out both;
   background: radial-gradient(circle at 84% 52%, rgba(255, 250, 190, 0.9), rgba(255, 120, 158, 0.32) 20%, transparent 46%);
@@ -11850,6 +12024,20 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
   background: radial-gradient(circle at 84% 52%, rgba(255, 250, 190, 0.72), rgba(255, 120, 158, 0.18) 18%, transparent 42%);
 }
 
+.color-chain-rotation-stage.is-mobile-performance .color-chain-rotation-grand-cutin-chroma img,
+.color-chain-rotation-stage.is-mobile-performance .color-chain-rotation-grand-cutin-copy strong {
+  filter: none;
+}
+
+.color-chain-rotation-stage.is-mobile-performance .color-chain-rotation-grand-cutin-backdrop::before,
+.color-chain-rotation-stage.is-mobile-performance .color-chain-rotation-grand-cutin-backdrop::after {
+  box-shadow: none;
+}
+
+.color-chain-rotation-stage.is-mobile-performance .color-chain-rotation-grand-cutin-chains i {
+  box-shadow: none;
+}
+
 .color-chain-rotation-stage.is-mobile-performance .color-chain-rotation-character-picture {
   will-change: transform;
 }
@@ -11889,6 +12077,34 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
   from { opacity: 0; transform: scale(0.9); }
   36% { opacity: 1; }
   to { opacity: 0; transform: scale(1.04); }
+}
+
+@keyframes color-chain-rotation-grand-backdrop {
+  0% { opacity: 0; transform: scaleX(0.15); }
+  18% { opacity: 1; transform: scaleX(1); }
+  76% { opacity: 1; transform: scaleX(1); }
+  100% { opacity: 0; transform: scaleX(1.04); }
+}
+
+@keyframes color-chain-rotation-grand-chain {
+  0% { opacity: 0; translate: -24% 0; }
+  28% { opacity: 0.74; }
+  78% { opacity: 0.56; }
+  100% { opacity: 0; translate: 24% 0; }
+}
+
+@keyframes color-chain-rotation-grand-chroma {
+  0% { opacity: 0; transform: translateX(-54px) scale(0.9); }
+  24% { opacity: 1; transform: translateX(0) scale(1.04); }
+  72% { opacity: 1; transform: translateX(0) scale(1); }
+  100% { opacity: 0; transform: translateX(22px) scale(1.03); }
+}
+
+@keyframes color-chain-rotation-grand-copy {
+  0% { opacity: 0; translate: 90px 0; }
+  22% { opacity: 1; translate: 0 0; }
+  74% { opacity: 1; translate: 0 0; }
+  100% { opacity: 0; translate: -24px 0; }
 }
 
 /* Rotation test: give Chroma a dedicated, larger panel while keeping the goal readable. */

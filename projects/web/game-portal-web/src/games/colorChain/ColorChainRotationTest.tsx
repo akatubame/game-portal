@@ -64,6 +64,7 @@ type RotationPhase =
   | "rotating"
   | "validating"
   | "reverting"
+  | "grand-spell"
   | "clearing"
   | "falling"
   | "refilling"
@@ -89,6 +90,16 @@ type PointerStart = {
 type ChromaMood = "idle" | "blink" | "chain" | "danger" | "defeat";
 type MokoMood = "idle" | "light" | "medium" | "heavy" | "purified";
 type BattleImpact = "light" | "medium" | "heavy" | null;
+type GrandSpellId =
+  | "grand-chain-bomb"
+  | "trinity-pillar"
+  | "trinity-wave"
+  | "prism-nova";
+type GrandSpellCutin = {
+  id: GrandSpellId;
+  name: string;
+  sequence: number;
+};
 type RotationAudio = {
   bgm: HTMLAudioElement;
   chain: HTMLAudioElement;
@@ -106,6 +117,7 @@ const INVALID_PAUSE = 90;
 const CLEAR_DURATION = 250;
 const FALL_DURATION = 170;
 const REFILL_DURATION = 190;
+const GRAND_SPELL_DURATION = 760;
 const AUTO_HINT_DELAY = 10_000;
 const HINT_VISIBLE_DURATION = 3_500;
 const rotationSettings = {
@@ -136,6 +148,12 @@ const mokoAssets: Record<MokoMood, string> = {
   heavy: "/characters/moko/moko-hit-heavy",
   purified: "/characters/moko/moko-purified"
 };
+const grandSpellIds = {
+  [BOMB_BLOCK]: "grand-chain-bomb",
+  [VERTICAL_LASER_BLOCK]: "trinity-pillar",
+  [HORIZONTAL_LASER_BLOCK]: "trinity-wave",
+  [COLOR_BREAKER_BLOCK]: "prism-nova"
+} as const satisfies Record<RotationSpecialEffect["token"], GrandSpellId>;
 const clockPhases = new Set<RotationPhase>([
   "ready",
   "selecting",
@@ -418,6 +436,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
   const [documentHidden, setDocumentHidden] = useState(document.hidden);
   const [audioEnabled, setAudioEnabled] = useState(readAudioEnabled);
   const [battleImpact, setBattleImpact] = useState<BattleImpact>(null);
+  const [grandSpell, setGrandSpell] = useState<GrandSpellCutin | null>(null);
   const [blinkActive, setBlinkActive] = useState(false);
   const boardRef = useRef(board);
   const phaseRef = useRef(phase);
@@ -430,6 +449,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
   const stageScaleRef = useRef(scale);
   const lastBoardActionRef = useRef(performance.now());
   const hintSequenceRef = useRef(0);
+  const grandSpellSequenceRef = useRef(0);
   const pointButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const audioRef = useRef<RotationAudio | null>(null);
   const audioEnabledRef = useRef(audioEnabled);
@@ -441,7 +461,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     : 0;
   const chromaMood: ChromaMood = phase === "timeout"
     ? "defeat"
-    : battleImpact
+    : grandSpell || battleImpact
       ? "chain"
       : timeLeft <= 10 && phase !== "idle" && phase !== "clear"
         ? "danger"
@@ -472,6 +492,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     "rotating",
     "validating",
     "reverting",
+    "grand-spell",
     "clearing",
     "falling",
     "refilling",
@@ -582,6 +603,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     setHintMove(null);
     setChainNotice("");
     setBattleImpact(null);
+    setGrandSpell(null);
     pauseBgm();
     playAudioEffect(result === "timeout" ? "gameOver" : "strong");
     commitPhase(result);
@@ -664,8 +686,6 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     for (const step of resolution.steps) {
       if (runIdRef.current !== currentRun) return;
       commitBoard(step.boardBeforeClear);
-      setClearingCells(new Set(step.clearedCells));
-      commitPhase("clearing");
       const points = calculateRotationClearScore(step.matches, step.chain) + step.specialScore;
       const nextCleared = clearedRef.current + step.clearedCells.size;
       const dominantEffect = getDominantSpecialEffect(step.specialEffects);
@@ -685,6 +705,34 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
             points
           )
         : t.chain(step.chain, points);
+      if (dominantEffect?.super) {
+        const spellName = specialNames[language][dominantEffect.token][1];
+        const sequence = ++grandSpellSequenceRef.current;
+        setGrandSpell({
+          id: grandSpellIds[dominantEffect.token],
+          name: spellName,
+          sequence
+        });
+        setChainNotice("");
+        setStatusMessage(spellName);
+        commitPhase("grand-spell");
+        playAudioEffect("moreStrong");
+        const prefersReducedMotion = window.matchMedia(
+          "(prefers-reduced-motion: reduce)"
+        ).matches;
+        await delay(
+          prefersReducedMotion
+            ? 180
+            : mobilePerformance
+              ? 620
+              : GRAND_SPELL_DURATION
+        );
+        if (runIdRef.current !== currentRun) return;
+        setGrandSpell(null);
+      }
+
+      setClearingCells(new Set(step.clearedCells));
+      commitPhase("clearing");
       clearedRef.current = nextCleared;
       setCleared(nextCleared);
       setBattleImpact(impact);
@@ -692,13 +740,15 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
       setMaxChain((current) => Math.max(current, step.chain));
       setChainNotice(notice);
       setStatusMessage(notice);
-      playAudioEffect(
-        step.chain >= 5 || dominantEffect?.super
-          ? "moreStrong"
-          : step.chain >= 3 || dominantEffect
-            ? "strong"
-            : "chain"
-      );
+      if (!dominantEffect?.super) {
+        playAudioEffect(
+          step.chain >= 5
+            ? "moreStrong"
+            : step.chain >= 3 || dominantEffect
+              ? "strong"
+              : "chain"
+        );
+      }
 
       await delay(CLEAR_DURATION);
       if (runIdRef.current !== currentRun) return;
@@ -766,6 +816,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     setHintMove(null);
     setChainNotice("");
     setBattleImpact(null);
+    setGrandSpell(null);
     setStatusMessage(t.ready);
     commitPhase("ready");
     playBgm(true);
@@ -1291,6 +1342,30 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
               aria-hidden="true"
               className={`color-chain-rotation-battle-flash is-${battleImpact}`}
             />
+          )}
+          {grandSpell && (
+            <div
+              aria-live="assertive"
+              className={`color-chain-rotation-grand-cutin is-${grandSpell.id}`}
+              key={grandSpell.sequence}
+              role="status"
+            >
+              <div aria-hidden="true" className="color-chain-rotation-grand-cutin-backdrop" />
+              <div aria-hidden="true" className="color-chain-rotation-grand-cutin-chains">
+                <i />
+                <i />
+                <i />
+              </div>
+              <CharacterPicture
+                alt=""
+                asset={chromaAssets.chain}
+                className="color-chain-rotation-grand-cutin-chroma"
+              />
+              <div className="color-chain-rotation-grand-cutin-copy">
+                <span>SUPER MAGIC</span>
+                <strong>{grandSpell.name}</strong>
+              </div>
+            </div>
           )}
         </section>
       </div>
