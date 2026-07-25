@@ -94,9 +94,12 @@ type GrandSpellId =
   | "grand-chain-bomb"
   | "trinity-pillar"
   | "trinity-wave"
-  | "prism-nova";
+  | "prism-nova"
+  | "ultimate-magical-chain";
 type GrandSpellCutin = {
+  detail?: string;
   id: GrandSpellId;
+  kicker: string;
   name: string;
   sequence: number;
 };
@@ -238,6 +241,7 @@ const copy = {
     chain: (chain: number, points: number) => `${chain} CHAIN!  +${points}`,
     specialChain: (name: string, chain: number, points: number) =>
       `${name}！  ${chain} CHAIN  +${points}`,
+    ultimateChain: "アルティメットマジカルチェイン",
     shuffled: "成立手がなくなったため、盤面を再構成しました。",
     hintMessage: (direction: RotationDirection) =>
       `光っている交点を${direction === "clockwise" ? "時計回り" : "反時計回り"}に回してみましょう。`,
@@ -295,6 +299,7 @@ const copy = {
     chain: (chain: number, points: number) => `${chain} CHAIN!  +${points}`,
     specialChain: (name: string, chain: number, points: number) =>
       `${name}!  ${chain} CHAIN  +${points}`,
+    ultimateChain: "Ultimate Magical Chain",
     shuffled: "No valid moves remained, so the board was reshuffled.",
     hintMessage: (direction: RotationDirection) =>
       `Try rotating the glowing point ${direction === "clockwise" ? "clockwise" : "counterclockwise"}.`,
@@ -705,28 +710,45 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
             points
           )
         : t.chain(step.chain, points);
-      if (dominantEffect?.super) {
-        const spellName = specialNames[language][dominantEffect.token][1];
+      const isUltimateChain = step.chain >= 6;
+      const hasGrandCutin = Boolean(dominantEffect?.super) || isUltimateChain;
+      if (hasGrandCutin) {
+        const superSpellName = dominantEffect?.super
+          ? specialNames[language][dominantEffect.token][1]
+          : undefined;
+        const cutinName = isUltimateChain ? t.ultimateChain : superSpellName!;
         const sequence = ++grandSpellSequenceRef.current;
         setGrandSpell({
-          id: grandSpellIds[dominantEffect.token],
-          name: spellName,
+          detail: isUltimateChain ? superSpellName : undefined,
+          id: isUltimateChain
+            ? "ultimate-magical-chain"
+            : grandSpellIds[dominantEffect!.token],
+          kicker: isUltimateChain ? `${step.chain} CHAIN / ULTIMATE` : "SUPER MAGIC",
+          name: cutinName,
           sequence
         });
         setChainNotice("");
-        setStatusMessage(spellName);
+        setStatusMessage(cutinName);
         commitPhase("grand-spell");
-        playAudioEffect("moreStrong");
         const prefersReducedMotion = window.matchMedia(
           "(prefers-reduced-motion: reduce)"
         ).matches;
-        await delay(
-          prefersReducedMotion
-            ? 180
-            : mobilePerformance
-              ? 620
-              : GRAND_SPELL_DURATION
-        );
+        const cutinDuration = prefersReducedMotion
+          ? 180
+          : mobilePerformance
+            ? 620
+            : GRAND_SPELL_DURATION;
+        if (isUltimateChain) {
+          const soundLead = prefersReducedMotion ? 35 : 80;
+          playAudioEffect("strong");
+          await delay(soundLead);
+          if (runIdRef.current !== currentRun) return;
+          playAudioEffect("moreStrong");
+          await delay(cutinDuration - soundLead);
+        } else {
+          playAudioEffect("moreStrong");
+          await delay(cutinDuration);
+        }
         if (runIdRef.current !== currentRun) return;
         setGrandSpell(null);
       }
@@ -740,7 +762,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
       setMaxChain((current) => Math.max(current, step.chain));
       setChainNotice(notice);
       setStatusMessage(notice);
-      if (!dominantEffect?.super) {
+      if (!hasGrandCutin) {
         playAudioEffect(
           step.chain >= 5
             ? "moreStrong"
@@ -1058,7 +1080,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
 
       <div className="color-chain-rotation-stage-frame" style={stageFrameStyle}>
         <section
-          className={`color-chain-rotation-stage is-${phase}${mobilePerformance ? " is-mobile-performance" : ""}`}
+          className={`color-chain-rotation-stage is-${phase}${mobilePerformance ? " is-mobile-performance" : ""}${grandSpell ? " is-grand-cutin-active" : ""}${grandSpell?.id === "ultimate-magical-chain" ? " is-ultimate-cutin" : ""}`}
           style={stageStyle}
         >
           <header className="color-chain-rotation-stage-header">
@@ -1356,14 +1378,20 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                 <i />
                 <i />
               </div>
+              <div aria-hidden="true" className="color-chain-rotation-grand-cutin-summon">
+                <i />
+                <i />
+                <i />
+              </div>
               <CharacterPicture
                 alt=""
                 asset={chromaAssets.chain}
                 className="color-chain-rotation-grand-cutin-chroma"
               />
               <div className="color-chain-rotation-grand-cutin-copy">
-                <span>SUPER MAGIC</span>
+                <span>{grandSpell.kicker}</span>
                 <strong>{grandSpell.name}</strong>
+                {grandSpell.detail && <small>× {grandSpell.detail}</small>}
               </div>
             </div>
           )}
