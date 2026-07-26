@@ -132,7 +132,7 @@ type GrandSpellCutin = {
   sequence: number;
 };
 type ChainWaveEffect = {
-  row: number;
+  rows: number[];
   sequence: number;
 };
 type RotationAudio = {
@@ -240,6 +240,24 @@ const specialNames = {
     [COLOR_BREAKER_BLOCK]: ["Prism Break", "Prism Nova"]
   }
 } as const;
+
+function getChainWaveRows(effects: RotationSpecialEffect[]) {
+  const rows = effects.flatMap((effect) => {
+    if (effect.token !== HORIZONTAL_LASER_BLOCK) return [];
+    const originRows = effect.originKeys
+      .map((key) => Number(key.split(":")[0]))
+      .filter((row) => Number.isInteger(row));
+    if (originRows.length === 0) return [];
+    if (!effect.super) return originRows;
+    const centerRow = Math.round(
+      originRows.reduce((sum, row) => sum + row, 0) / originRows.length
+    );
+    return [centerRow - 1, centerRow, centerRow + 1];
+  });
+  return [...new Set(rows)]
+    .filter((row) => row >= 0 && row < ROTATION_ROWS)
+    .sort((left, right) => left - right);
+}
 
 function getDominantSpecialEffect(effects: RotationSpecialEffect[]) {
   const tokenPriority = {
@@ -1063,6 +1081,7 @@ export function ColorChainRotationTest({
     setBattleImpact(null);
     setGrandSpell(null);
     setChainWaveTargeting(false);
+    setChainWaveEffect(null);
     updateTimeVeilRemaining(0);
     updateSlimeForecastPoint(null);
     updateSlimeLockedPoint(null);
@@ -1115,8 +1134,29 @@ export function ColorChainRotationTest({
       const hasGrandCutin = Boolean(dominantEffect?.super) || step.chain === 6;
       if (!(await playGrandCutin(dominantEffect, step.chain, currentRun))) return false;
 
-      setClearingCells(new Set(step.clearedCells));
+      const chainWaveRows = getChainWaveRows(step.specialEffects);
+      const showWaveEffect = (
+        chainWaveRows.length > 0
+        && effectsEnabledRef.current
+      );
+      setBattleImpact(impact);
+      setChainNotice(notice);
+      setStatusMessage(notice);
       commitPhase("clearing");
+      if (chainWaveRows.length > 0) {
+        playAudioEffect("chainWave");
+        if (showWaveEffect) {
+          chainWaveEffectSequenceRef.current += 1;
+          setChainWaveEffect({
+            rows: chainWaveRows,
+            sequence: chainWaveEffectSequenceRef.current
+          });
+          await delay(CHAIN_WAVE_IMPACT_DELAY);
+          if (runIdRef.current !== currentRun) return false;
+        }
+      }
+
+      setClearingCells(new Set(step.clearedCells));
       clearedRef.current = nextCleared;
       setCleared(nextCleared);
       chargeSupportSkills(step.clearedCells.size);
@@ -1133,12 +1173,9 @@ export function ColorChainRotationTest({
         updateSlimeRemaining(nextSlimeRemaining);
         if (nextSlimeRemaining <= 0) updateSlimeLockedPoint(null);
       }
-      setBattleImpact(impact);
       setScore((current) => current + points);
       setMaxChain((current) => Math.max(current, step.chain));
-      setChainNotice(notice);
-      setStatusMessage(notice);
-      if (!hasGrandCutin) {
+      if (!hasGrandCutin && chainWaveRows.length === 0) {
         playAudioEffect(
           step.chain >= 5
             ? "moreStrong"
@@ -1148,8 +1185,13 @@ export function ColorChainRotationTest({
         );
       }
 
-      await delay(CLEAR_DURATION);
+      await delay(
+        showWaveEffect
+          ? CHAIN_WAVE_EFFECT_DURATION - CHAIN_WAVE_IMPACT_DELAY
+          : CLEAR_DURATION
+      );
       if (runIdRef.current !== currentRun) return false;
+      if (showWaveEffect) setChainWaveEffect(null);
       setClearingCells(new Set());
       commitBoard(step.boardAfterClear);
 
@@ -1338,7 +1380,7 @@ export function ColorChainRotationTest({
     if (showWaveEffect) {
       chainWaveEffectSequenceRef.current += 1;
       setChainWaveEffect({
-        row,
+        rows: [row],
         sequence: chainWaveEffectSequenceRef.current
       });
     }
@@ -2006,18 +2048,18 @@ export function ColorChainRotationTest({
                   </div>
                 )}
 
-                {chainWaveEffect && effectsEnabled && (
+                {chainWaveEffect && effectsEnabled && chainWaveEffect.rows.map((row) => (
                   <div
                     aria-hidden="true"
                     className="color-chain-rotation-chain-wave-effect"
-                    key={chainWaveEffect.sequence}
+                    key={`${chainWaveEffect.sequence}-${row}`}
                     style={{
-                      top: `${((chainWaveEffect.row + 0.5) * 100) / ROTATION_ROWS}%`
+                      top: `${((row + 0.5) * 100) / ROTATION_ROWS}%`
                     }}
                   >
                     <i />
                   </div>
-                )}
+                ))}
 
                 {hintMove && !rotationOverlay && (
                   <div
