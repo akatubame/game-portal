@@ -688,8 +688,7 @@ body.color-chain-rotation-mode .game-screen.is-color-chain-rotation-test .game-t
   background-image: url("/effects/color-chain/grand-chain-bomb-sprite.png");
 }
 
-.color-chain-rotation-board-spell-effect.is-chain-pillar,
-.color-chain-rotation-board-spell-effect.is-trinity-pillar {
+.color-chain-rotation-board-spell-effect.is-chain-pillar {
   top: 50% !important;
   width: 100%;
 }
@@ -698,12 +697,25 @@ body.color-chain-rotation-mode .game-screen.is-color-chain-rotation-test .game-t
   background-image: url("/effects/color-chain/chain-pillar-sprite.png");
 }
 
+.color-chain-rotation-board-spell-effect.is-trinity-pillar {
+  /* 画像内の3本を、盤面の隣接3列と同じ12.5%間隔へ合わせる。 */
+  aspect-ratio: auto;
+  height: 110%;
+  top: 50% !important;
+  transform: translate(-48%, -50%);
+  width: 50%;
+}
+
 .color-chain-rotation-board-spell-effect.is-trinity-pillar > i {
   background-image: url("/effects/color-chain/trinity-pillar-sprite.png");
 }
 
 .color-chain-rotation-board-spell-effect.is-trinity-wave {
+  /* 画像内の3本を、盤面の隣接3行と同じ12.5%間隔へ合わせる。 */
+  aspect-ratio: auto;
+  height: 72%;
   left: 50% !important;
+  transform: translate(-50%, -48.5%);
   width: 104%;
 }
 
