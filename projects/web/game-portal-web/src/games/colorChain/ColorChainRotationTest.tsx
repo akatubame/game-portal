@@ -135,14 +135,40 @@ type ChainWaveEffect = {
   rows: number[];
   sequence: number;
 };
+type BoardSpellEffectId =
+  | "chain-bomb"
+  | "grand-chain-bomb"
+  | "chain-pillar"
+  | "trinity-pillar"
+  | "trinity-wave"
+  | "prism-nova";
+type BoardSpellEffectItem = {
+  column: number;
+  id: BoardSpellEffectId;
+  key: string;
+  row: number;
+};
+type BoardSpellEffect = {
+  items: BoardSpellEffectItem[];
+  sequence: number;
+};
 type RotationAudio = {
   bgm: HTMLAudioElement;
   chain: HTMLAudioElement;
+  chainBomb: HTMLAudioElement;
+  chainPillar: HTMLAudioElement;
   chainWave: HTMLAudioElement;
-  strong: HTMLAudioElement;
-  moreStrong: HTMLAudioElement;
   gameOver: HTMLAudioElement;
+  grandChainBomb: HTMLAudioElement;
+  moreStrong: HTMLAudioElement;
+  prismBreak: HTMLAudioElement;
+  prismNova: HTMLAudioElement;
+  strong: HTMLAudioElement;
+  trinityPillar: HTMLAudioElement;
+  trinityWave: HTMLAudioElement;
+  ultimateMagicalChain: HTMLAudioElement;
 };
+type RotationAudioEffect = Exclude<keyof RotationAudio, "bgm">;
 
 const STAGE_WIDTH = 1280;
 const STAGE_HEIGHT = 720;
@@ -161,6 +187,8 @@ const CHAIN_WAVE_CHARGE_BLOCKS = 24;
 const CHAIN_WAVE_SCORE_PER_BLOCK = 18;
 const CHAIN_WAVE_IMPACT_DELAY = 300;
 const CHAIN_WAVE_EFFECT_DURATION = 560;
+const BOARD_SPELL_EFFECT_DURATION = 640;
+const BOARD_SPELL_IMPACT_DELAY = 280;
 const MOKO_ATTACK_SECONDS = 24;
 const MOKO_ATTACK_FORECAST_PERCENT = 72;
 const MOKO_SLIME_DURATION = 6;
@@ -181,9 +209,17 @@ const ROTATION_CHROMA_KEY = "game-shelf-color-chain-rotate-v1-chroma";
 const audioPaths = {
   bgm: "/audio/color-chain/block-puzzle-blues.mp3",
   chain: "/audio/color-chain/magical-chain.mp3",
+  chainBomb: "/audio/color-chain/chain-bomb.mp3",
+  chainPillar: "/audio/color-chain/chain-pillar.mp3",
   chainWave: "/audio/color-chain/chain-wave.mp3",
+  grandChainBomb: "/audio/color-chain/grand-chain-bomb.mp3",
+  prismBreak: "/audio/color-chain/prism-break.mp3",
+  prismNova: "/audio/color-chain/prism-nova.mp3",
   strong: "/audio/color-chain/strong-magic.mp3",
   moreStrong: "/audio/color-chain/more-strong-magic.mp3",
+  trinityPillar: "/audio/color-chain/trinity-pillar.mp3",
+  trinityWave: "/audio/color-chain/trinity-wave.mp3",
+  ultimateMagicalChain: "/audio/color-chain/ultimate-magical-chain.mp3",
   gameOver: "/audio/color-chain/game-over.mp3"
 } as const;
 const chromaAssets: Record<ChromaMood, string> = {
@@ -244,16 +280,11 @@ const specialNames = {
 
 function getChainWaveRows(effects: RotationSpecialEffect[]) {
   const rows = effects.flatMap((effect) => {
-    if (effect.token !== HORIZONTAL_LASER_BLOCK) return [];
+    if (effect.token !== HORIZONTAL_LASER_BLOCK || effect.super) return [];
     const originRows = effect.originKeys
       .map((key) => Number(key.split(":")[0]))
       .filter((row) => Number.isInteger(row));
-    if (originRows.length === 0) return [];
-    if (!effect.super) return originRows;
-    const centerRow = Math.round(
-      originRows.reduce((sum, row) => sum + row, 0) / originRows.length
-    );
-    return [centerRow - 1, centerRow, centerRow + 1];
+    return originRows;
   });
   return [...new Set(rows)]
     .filter((row) => row >= 0 && row < ROTATION_ROWS)
@@ -279,6 +310,55 @@ function getPrismBreakCells(
       });
     });
   return prismCells;
+}
+
+function getEffectCenter(effect: RotationSpecialEffect) {
+  const positions = effect.originKeys.map((key) => {
+    const [row, column] = key.split(":").map(Number);
+    return { row, column };
+  });
+  if (positions.length === 0) return { row: 3, column: 3 };
+  return {
+    row: Math.round(
+      positions.reduce((sum, position) => sum + position.row, 0) / positions.length
+    ),
+    column: Math.round(
+      positions.reduce((sum, position) => sum + position.column, 0) / positions.length
+    )
+  };
+}
+
+function getBoardSpellEffectItems(effects: RotationSpecialEffect[]) {
+  return effects.flatMap<BoardSpellEffectItem>((effect, index) => {
+    const center = getEffectCenter(effect);
+    const id: BoardSpellEffectId | null = effect.token === BOMB_BLOCK
+      ? effect.super ? "grand-chain-bomb" : "chain-bomb"
+      : effect.token === VERTICAL_LASER_BLOCK
+        ? effect.super ? "trinity-pillar" : "chain-pillar"
+        : effect.token === HORIZONTAL_LASER_BLOCK
+          ? effect.super ? "trinity-wave" : null
+          : effect.super ? "prism-nova" : null;
+    return id
+      ? [{
+          ...center,
+          id,
+          key: `${id}-${effect.originKeys.join("-")}-${index}`
+        }]
+      : [];
+  });
+}
+
+function getSpecialAudioEffect(effect: RotationSpecialEffect): RotationAudioEffect {
+  if (effect.token === BOMB_BLOCK) {
+    return effect.super ? "grandChainBomb" : "chainBomb";
+  }
+  if (effect.token === VERTICAL_LASER_BLOCK) {
+    return effect.super ? "trinityPillar" : "chainPillar";
+  }
+  if (effect.token === HORIZONTAL_LASER_BLOCK) {
+    return effect.super ? "trinityWave" : "chainWave";
+  }
+  return effect.super ? "prismNova" : "prismBreak";
 }
 
 function getDominantSpecialEffect(effects: RotationSpecialEffect[]) {
@@ -713,6 +793,7 @@ export function ColorChainRotationTest({
   const [chainWaveCharge, setChainWaveCharge] = useState(0);
   const [chainWaveTargeting, setChainWaveTargeting] = useState(false);
   const [chainWaveEffect, setChainWaveEffect] = useState<ChainWaveEffect | null>(null);
+  const [boardSpellEffect, setBoardSpellEffect] = useState<BoardSpellEffect | null>(null);
   const [mokoAttackCharge, setMokoAttackCharge] = useState(0);
   const [slimeForecastPoint, setSlimeForecastPoint] = useState<RotationPoint | null>(null);
   const [slimeLockedPoint, setSlimeLockedPoint] = useState<RotationPoint | null>(null);
@@ -756,6 +837,7 @@ export function ColorChainRotationTest({
   const timeVeilRemainingRef = useRef(0);
   const chainWaveChargeRef = useRef(0);
   const chainWaveEffectSequenceRef = useRef(0);
+  const boardSpellEffectSequenceRef = useRef(0);
   const mokoAttackChargeRef = useRef(0);
   const slimeForecastPointRef = useRef<RotationPoint | null>(null);
   const slimeLockedPointRef = useRef<RotationPoint | null>(null);
@@ -844,24 +926,63 @@ export function ColorChainRotationTest({
     if (audioRef.current) return audioRef.current;
     const bgm = new Audio(audioPaths.bgm);
     const chain = new Audio(audioPaths.chain);
+    const chainBomb = new Audio(audioPaths.chainBomb);
+    const chainPillar = new Audio(audioPaths.chainPillar);
     const chainWave = new Audio(audioPaths.chainWave);
+    const grandChainBomb = new Audio(audioPaths.grandChainBomb);
+    const prismBreak = new Audio(audioPaths.prismBreak);
+    const prismNova = new Audio(audioPaths.prismNova);
     const strong = new Audio(audioPaths.strong);
     const moreStrong = new Audio(audioPaths.moreStrong);
+    const trinityPillar = new Audio(audioPaths.trinityPillar);
+    const trinityWave = new Audio(audioPaths.trinityWave);
+    const ultimateMagicalChain = new Audio(audioPaths.ultimateMagicalChain);
     const gameOver = new Audio(audioPaths.gameOver);
     bgm.loop = true;
     bgm.preload = "metadata";
     bgm.volume = 0.25;
     chain.preload = "auto";
     chain.volume = 0.48;
+    chainBomb.preload = "auto";
+    chainBomb.volume = 0.58;
+    chainPillar.preload = "auto";
+    chainPillar.volume = 0.58;
     chainWave.preload = "auto";
     chainWave.volume = 0.58;
+    grandChainBomb.preload = "auto";
+    grandChainBomb.volume = 0.64;
+    prismBreak.preload = "auto";
+    prismBreak.volume = 0.6;
+    prismNova.preload = "auto";
+    prismNova.volume = 0.66;
     strong.preload = "auto";
     strong.volume = 0.56;
     moreStrong.preload = "auto";
     moreStrong.volume = 0.62;
+    trinityPillar.preload = "auto";
+    trinityPillar.volume = 0.64;
+    trinityWave.preload = "auto";
+    trinityWave.volume = 0.64;
+    ultimateMagicalChain.preload = "auto";
+    ultimateMagicalChain.volume = 0.66;
     gameOver.preload = "auto";
     gameOver.volume = 0.56;
-    audioRef.current = { bgm, chain, chainWave, strong, moreStrong, gameOver };
+    audioRef.current = {
+      bgm,
+      chain,
+      chainBomb,
+      chainPillar,
+      chainWave,
+      gameOver,
+      grandChainBomb,
+      moreStrong,
+      prismBreak,
+      prismNova,
+      strong,
+      trinityPillar,
+      trinityWave,
+      ultimateMagicalChain
+    };
     return audioRef.current;
   };
 
@@ -881,9 +1002,7 @@ export function ColorChainRotationTest({
     if (reset) audio.bgm.currentTime = 0;
   };
 
-  const playAudioEffect = (
-    kind: "chain" | "chainWave" | "strong" | "moreStrong" | "gameOver"
-  ) => {
+  const playAudioEffect = (kind: RotationAudioEffect) => {
     if (!audioEnabledRef.current) return;
     const audio = ensureAudio();
     const effect = audio[kind];
@@ -1047,7 +1166,7 @@ export function ColorChainRotationTest({
     const hasGrandCutin = Boolean(dominantEffect?.super) || isUltimateChain;
     if (!hasGrandCutin) return true;
     if (!effectsEnabledRef.current) {
-      playAudioEffect("moreStrong");
+      if (isUltimateChain) playAudioEffect("ultimateMagicalChain");
       return true;
     }
 
@@ -1076,17 +1195,8 @@ export function ColorChainRotationTest({
       : mobilePerformance
         ? 620
         : GRAND_SPELL_DURATION;
-    if (isUltimateChain) {
-      const soundLead = prefersReducedMotion ? 35 : 80;
-      playAudioEffect("strong");
-      await delay(soundLead);
-      if (runIdRef.current !== currentRun) return false;
-      playAudioEffect("moreStrong");
-      await delay(cutinDuration - soundLead);
-    } else {
-      playAudioEffect("moreStrong");
-      await delay(cutinDuration);
-    }
+    playAudioEffect(isUltimateChain ? "ultimateMagicalChain" : "strong");
+    await delay(cutinDuration);
     if (runIdRef.current !== currentRun) return false;
     setGrandSpell(null);
     return true;
@@ -1106,6 +1216,7 @@ export function ColorChainRotationTest({
     setGrandSpell(null);
     setChainWaveTargeting(false);
     setChainWaveEffect(null);
+    setBoardSpellEffect(null);
     updateTimeVeilRemaining(0);
     updateSlimeForecastPoint(null);
     updateSlimeLockedPoint(null);
@@ -1159,6 +1270,7 @@ export function ColorChainRotationTest({
       if (!(await playGrandCutin(dominantEffect, step.chain, currentRun))) return false;
 
       const chainWaveRows = getChainWaveRows(step.specialEffects);
+      const boardSpellItems = getBoardSpellEffectItems(step.specialEffects);
       const nextPrismBreakCells = getPrismBreakCells(
         step.boardBeforeClear,
         step.clearedCells,
@@ -1172,21 +1284,46 @@ export function ColorChainRotationTest({
         nextPrismBreakCells.size > 0
         && effectsEnabledRef.current
       );
+      const showBoardSpellEffect = (
+        boardSpellItems.length > 0
+        && effectsEnabledRef.current
+      );
+      const effectLead = Math.max(
+        showWaveEffect ? CHAIN_WAVE_IMPACT_DELAY : 0,
+        showBoardSpellEffect ? BOARD_SPELL_IMPACT_DELAY : 0
+      );
       setBattleImpact(impact);
       setChainNotice(notice);
       setStatusMessage(notice);
       commitPhase("clearing");
-      if (chainWaveRows.length > 0) {
-        playAudioEffect("chainWave");
-        if (showWaveEffect) {
-          chainWaveEffectSequenceRef.current += 1;
-          setChainWaveEffect({
-            rows: chainWaveRows,
-            sequence: chainWaveEffectSequenceRef.current
-          });
-          await delay(CHAIN_WAVE_IMPACT_DELAY);
-          if (runIdRef.current !== currentRun) return false;
-        }
+      if (dominantEffect) {
+        playAudioEffect(getSpecialAudioEffect(dominantEffect));
+      } else if (!hasGrandCutin) {
+        playAudioEffect(
+          step.chain >= 5
+            ? "moreStrong"
+            : step.chain >= 3
+              ? "strong"
+              : "chain"
+        );
+      }
+      if (showWaveEffect) {
+        chainWaveEffectSequenceRef.current += 1;
+        setChainWaveEffect({
+          rows: chainWaveRows,
+          sequence: chainWaveEffectSequenceRef.current
+        });
+      }
+      if (showBoardSpellEffect) {
+        boardSpellEffectSequenceRef.current += 1;
+        setBoardSpellEffect({
+          items: boardSpellItems,
+          sequence: boardSpellEffectSequenceRef.current
+        });
+      }
+      if (effectLead > 0) {
+        await delay(effectLead);
+        if (runIdRef.current !== currentRun) return false;
       }
 
       setPrismBreakCells(
@@ -1211,26 +1348,18 @@ export function ColorChainRotationTest({
       }
       setScore((current) => current + points);
       setMaxChain((current) => Math.max(current, step.chain));
-      if (!hasGrandCutin && chainWaveRows.length === 0) {
-        playAudioEffect(
-          step.chain >= 5
-            ? "moreStrong"
-            : step.chain >= 3 || dominantEffect
-              ? "strong"
-              : "chain"
-        );
-      }
 
       await delay(
         Math.max(
-          showWaveEffect
-            ? CHAIN_WAVE_EFFECT_DURATION - CHAIN_WAVE_IMPACT_DELAY
-            : CLEAR_DURATION,
+          CLEAR_DURATION,
+          showWaveEffect ? CHAIN_WAVE_EFFECT_DURATION - effectLead : 0,
+          showBoardSpellEffect ? BOARD_SPELL_EFFECT_DURATION - effectLead : 0,
           showPrismBreakEffect ? PRISM_BREAK_DURATION : CLEAR_DURATION
         )
       );
       if (runIdRef.current !== currentRun) return false;
       if (showWaveEffect) setChainWaveEffect(null);
+      if (showBoardSpellEffect) setBoardSpellEffect(null);
       setClearingCells(new Set());
       setPrismBreakCells(new Set());
       commitBoard(step.boardAfterClear);
@@ -1417,11 +1546,36 @@ export function ColorChainRotationTest({
     );
     const notice = t.chainWaveResult(row + 1, clearedCells.size);
     const showWaveEffect = effectsEnabledRef.current;
+    const boardSpellItems = getBoardSpellEffectItems(specialResolution.effects);
+    const nextPrismBreakCells = getPrismBreakCells(
+      sourceBoard,
+      clearedCells,
+      specialResolution.effects
+    );
+    const showBoardSpellEffect = (
+      boardSpellItems.length > 0
+      && effectsEnabledRef.current
+    );
+    const showPrismBreakEffect = (
+      nextPrismBreakCells.size > 0
+      && effectsEnabledRef.current
+    );
+    const effectLead = Math.max(
+      showWaveEffect ? CHAIN_WAVE_IMPACT_DELAY : 0,
+      showBoardSpellEffect ? BOARD_SPELL_IMPACT_DELAY : 0
+    );
     if (showWaveEffect) {
       chainWaveEffectSequenceRef.current += 1;
       setChainWaveEffect({
         rows: [row],
         sequence: chainWaveEffectSequenceRef.current
+      });
+    }
+    if (showBoardSpellEffect) {
+      boardSpellEffectSequenceRef.current += 1;
+      setBoardSpellEffect({
+        items: boardSpellItems,
+        sequence: boardSpellEffectSequenceRef.current
       });
     }
     setBattleImpact(dominantEffect ? "heavy" : "medium");
@@ -1430,11 +1584,15 @@ export function ColorChainRotationTest({
     commitPhase("clearing");
     playAudioEffect("chainWave");
 
-    if (showWaveEffect) {
-      await delay(CHAIN_WAVE_IMPACT_DELAY);
+    if (effectLead > 0) {
+      await delay(effectLead);
       if (runIdRef.current !== currentRun) return;
     }
+    if (dominantEffect) playAudioEffect(getSpecialAudioEffect(dominantEffect));
 
+    setPrismBreakCells(
+      showPrismBreakEffect ? nextPrismBreakCells : new Set()
+    );
     setClearingCells(new Set(clearedCells));
     clearedRef.current += clearedCells.size;
     setCleared(clearedRef.current);
@@ -1442,13 +1600,18 @@ export function ColorChainRotationTest({
     setScore((current) => current + points);
 
     await delay(
-      showWaveEffect
-        ? CHAIN_WAVE_EFFECT_DURATION - CHAIN_WAVE_IMPACT_DELAY
-        : CLEAR_DURATION
+      Math.max(
+        CLEAR_DURATION,
+        showWaveEffect ? CHAIN_WAVE_EFFECT_DURATION - effectLead : 0,
+        showBoardSpellEffect ? BOARD_SPELL_EFFECT_DURATION - effectLead : 0,
+        showPrismBreakEffect ? PRISM_BREAK_DURATION : 0
+      )
     );
     if (runIdRef.current !== currentRun) return;
     setChainWaveEffect(null);
+    setBoardSpellEffect(null);
     setClearingCells(new Set());
+    setPrismBreakCells(new Set());
     const boardAfterClear = clearRotationCellsWithRewards(
       sourceBoard,
       clearedCells,
@@ -1541,6 +1704,7 @@ export function ColorChainRotationTest({
     updateChainWaveCharge(0);
     setChainWaveTargeting(false);
     setChainWaveEffect(null);
+    setBoardSpellEffect(null);
     updateMokoAttackCharge(0);
     updateSlimeForecastPoint(null);
     updateSlimeLockedPoint(null);
@@ -2099,6 +2263,20 @@ export function ColorChainRotationTest({
                     key={`${chainWaveEffect.sequence}-${row}`}
                     style={{
                       top: `${((row + 0.5) * 100) / ROTATION_ROWS}%`
+                    }}
+                  >
+                    <i />
+                  </div>
+                ))}
+
+                {boardSpellEffect && effectsEnabled && boardSpellEffect.items.map((effect) => (
+                  <div
+                    aria-hidden="true"
+                    className={`color-chain-rotation-board-spell-effect is-${effect.id}`}
+                    key={`${boardSpellEffect.sequence}-${effect.key}`}
+                    style={{
+                      left: `${((effect.column + 0.5) * 100) / ROTATION_COLUMNS}%`,
+                      top: `${((effect.row + 0.5) * 100) / ROTATION_ROWS}%`
                     }}
                   >
                     <i />

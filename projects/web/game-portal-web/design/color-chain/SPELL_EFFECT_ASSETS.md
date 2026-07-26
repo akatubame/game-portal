@@ -86,3 +86,22 @@
 - 不透明しきい値: 220
 - ソフトマット: 有効
 - グリーンデスピル: 有効
+
+## SE割り当て
+
+| 魔法 | 公開音源 |
+|---|---|
+| チェインボム | `public/audio/color-chain/chain-bomb.mp3` |
+| チェインピラー | `public/audio/color-chain/chain-pillar.mp3` |
+| チェインウェーブ | `public/audio/color-chain/chain-wave.mp3` |
+| グランドチェインボム | `public/audio/color-chain/grand-chain-bomb.mp3` |
+| トリニティピラー | `public/audio/color-chain/trinity-pillar.mp3` |
+| トリニティウェーブ | `public/audio/color-chain/trinity-wave.mp3` |
+| プリズムブレイク | `public/audio/color-chain/prism-break.mp3` |
+| プリズムノヴァ | `public/audio/color-chain/prism-nova.mp3` |
+| アルティメットマジカルチェイン | `public/audio/color-chain/ultimate-magical-chain.mp3` |
+
+現時点では、チェインピラーとチェインウェーブが同一音源である。
+グランドチェインボム、トリニティピラー、トリニティウェーブ、
+プリズムノヴァ、アルティメットマジカルチェインも同一の暫定音源を使用する。
+ファイルを魔法別に分けているため、今後はコードを変更せずMP3の差し替えだけで更新できる。
