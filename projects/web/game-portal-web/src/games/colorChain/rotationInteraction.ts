@@ -2,6 +2,7 @@ import {
   ROTATION_COLUMNS,
   ROTATION_ROWS,
   type RotationDirection,
+  type RotationMove,
   type RotationPoint
 } from "./rotationLogic";
 import type { Board } from "./tokens";
@@ -47,6 +48,33 @@ export function moveRotationPoint(
     row: Math.max(0, Math.min(ROTATION_ROWS - 2, point.row + rowDelta)),
     column: Math.max(0, Math.min(ROTATION_COLUMNS - 2, point.column + columnDelta))
   };
+}
+
+export function chooseSafeBlockedRotationPoint(
+  moves: RotationMove[],
+  preferred: RotationPoint | null,
+  random: () => number
+): RotationPoint | null {
+  const points = Array.from(
+    new Map(
+      moves.map((move) => [
+        `${move.row}:${move.column}`,
+        { row: move.row, column: move.column }
+      ])
+    ).values()
+  );
+  if (points.length < 2) return null;
+  if (
+    preferred
+    && points.some((point) => point.row === preferred.row && point.column === preferred.column)
+  ) {
+    return preferred;
+  }
+  const index = Math.min(
+    points.length - 1,
+    Math.max(0, Math.floor(random() * points.length))
+  );
+  return points[index] ?? null;
 }
 
 export function findChangedOccupiedCells(before: Board, after: Board) {

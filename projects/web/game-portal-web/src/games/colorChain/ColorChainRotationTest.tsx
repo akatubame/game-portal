@@ -33,6 +33,7 @@ import {
   type BlockToken
 } from "./tokens";
 import {
+  chooseSafeBlockedRotationPoint,
   classifyRotationGesture,
   findChangedOccupiedCells,
   findRefilledCells,
@@ -42,16 +43,24 @@ import {
   ROTATION_COLUMNS,
   ROTATION_ROWS,
   calculateRotationClearScore,
+  collapseRotationColumns,
   createPlayableRotationBoard,
   enumerateProductiveRotations,
+  refillRotationBoard,
   resolveRotationChain,
   rotateSquare,
   shuffleToPlayableRotationBoard,
   type RotationDirection,
+  type RotationChainStep,
   type RotationMove,
   type RotationPoint
 } from "./rotationLogic";
-import type { RotationSpecialEffect } from "./rotationSpecials";
+import {
+  calculateRotationSpecialScore,
+  clearRotationCellsWithRewards,
+  findRotationSpecialClearCells,
+  type RotationSpecialEffect
+} from "./rotationSpecials";
 
 type ColorChainRotationTestProps = {
   onBack: () => void;
@@ -121,6 +130,13 @@ const CLEAR_DURATION = 250;
 const FALL_DURATION = 170;
 const REFILL_DURATION = 190;
 const GRAND_SPELL_DURATION = 760;
+const TIME_VEIL_DURATION = 6;
+const TIME_VEIL_CHARGE_BLOCKS = 20;
+const CHAIN_WAVE_CHARGE_BLOCKS = 24;
+const CHAIN_WAVE_SCORE_PER_BLOCK = 18;
+const MOKO_ATTACK_SECONDS = 24;
+const MOKO_ATTACK_FORECAST_PERCENT = 72;
+const MOKO_SLIME_DURATION = 6;
 const AUTO_HINT_DELAY = 10_000;
 const HINT_VISIBLE_DURATION = 3_500;
 const rotationSettings = {
@@ -242,6 +258,27 @@ const copy = {
     specialChain: (name: string, chain: number, points: number) =>
       `${name}！  ${chain} CHAIN  +${points}`,
     ultimateChain: "アルティメットマジカルチェイン",
+    supportSkills: "補助技",
+    timeVeil: "タイムヴェール",
+    timeVeilActive: (seconds: number) => `時間停止 ${seconds.toFixed(1)}秒`,
+    timeVeilStarted: "タイムヴェール！ 6秒間、操作中の制限時間を停止します。",
+    timeVeilEnded: "タイムヴェールの効果が終了しました。",
+    chainWave: "チェインウェーブ",
+    chainWaveSelect: "消去する横一列を選んでください。",
+    chainWaveCancel: "行選択をキャンセル",
+    chainWaveResult: (row: number, count: number) =>
+      `チェインウェーブ！ ${row}行目から${count}個消去`,
+    waveRowAria: (row: number) => `${row}行目へチェインウェーブを発動`,
+    charge: (percent: number) => `${percent}%`,
+    readyLabel: "READY",
+    interference: "ぬめり結び",
+    interferenceForecast: "ぬめり結びの予告地点が現れました。",
+    interferenceCast: (point: RotationPoint) =>
+      `${point.row + 1}行・${point.column + 1}列の交点が6秒間ぬめりで封鎖されました。`,
+    interferenceBlocked: "この交点はぬめり結びで封鎖されています。",
+    interferenceEnded: "ぬめり結びが解けました。",
+    interferenceFizzle: "安全に封じられる交点がなく、ぬめり結びは不発になりました。",
+    interferenceReady: "発動間近",
     shuffled: "成立手がなくなったため、盤面を再構成しました。",
     hintMessage: (direction: RotationDirection) =>
       `光っている交点を${direction === "clockwise" ? "時計回り" : "反時計回り"}に回してみましょう。`,
@@ -300,6 +337,27 @@ const copy = {
     specialChain: (name: string, chain: number, points: number) =>
       `${name}!  ${chain} CHAIN  +${points}`,
     ultimateChain: "Ultimate Magical Chain",
+    supportSkills: "Support Spells",
+    timeVeil: "Time Veil",
+    timeVeilActive: (seconds: number) => `Time stopped: ${seconds.toFixed(1)}s`,
+    timeVeilStarted: "Time Veil! The play timer is stopped for 6 seconds.",
+    timeVeilEnded: "Time Veil has ended.",
+    chainWave: "Chain Wave",
+    chainWaveSelect: "Select one row to clear.",
+    chainWaveCancel: "Cancel row selection",
+    chainWaveResult: (row: number, count: number) =>
+      `Chain Wave! Cleared ${count} blocks from row ${row}.`,
+    waveRowAria: (row: number) => `Cast Chain Wave on row ${row}`,
+    charge: (percent: number) => `${percent}%`,
+    readyLabel: "READY",
+    interference: "Slime Bind",
+    interferenceForecast: "Slime Bind is targeting an intersection.",
+    interferenceCast: (point: RotationPoint) =>
+      `Intersection ${point.row + 1}-${point.column + 1} is sealed for 6 seconds.`,
+    interferenceBlocked: "Slime Bind is blocking this intersection.",
+    interferenceEnded: "Slime Bind has worn off.",
+    interferenceFizzle: "No safe intersection could be sealed. Slime Bind fizzled.",
+    interferenceReady: "DANGER",
     shuffled: "No valid moves remained, so the board was reshuffled.",
     hintMessage: (direction: RotationDirection) =>
       `Try rotating the glowing point ${direction === "clockwise" ? "clockwise" : "counterclockwise"}.`,
@@ -442,6 +500,14 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
   const [audioEnabled, setAudioEnabled] = useState(readAudioEnabled);
   const [battleImpact, setBattleImpact] = useState<BattleImpact>(null);
   const [grandSpell, setGrandSpell] = useState<GrandSpellCutin | null>(null);
+  const [timeVeilCharge, setTimeVeilCharge] = useState(0);
+  const [timeVeilRemaining, setTimeVeilRemaining] = useState(0);
+  const [chainWaveCharge, setChainWaveCharge] = useState(0);
+  const [chainWaveTargeting, setChainWaveTargeting] = useState(false);
+  const [mokoAttackCharge, setMokoAttackCharge] = useState(0);
+  const [slimeForecastPoint, setSlimeForecastPoint] = useState<RotationPoint | null>(null);
+  const [slimeLockedPoint, setSlimeLockedPoint] = useState<RotationPoint | null>(null);
+  const [slimeRemaining, setSlimeRemaining] = useState(0);
   const [blinkActive, setBlinkActive] = useState(false);
   const boardRef = useRef(board);
   const phaseRef = useRef(phase);
@@ -455,6 +521,13 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
   const lastBoardActionRef = useRef(performance.now());
   const hintSequenceRef = useRef(0);
   const grandSpellSequenceRef = useRef(0);
+  const timeVeilChargeRef = useRef(0);
+  const timeVeilRemainingRef = useRef(0);
+  const chainWaveChargeRef = useRef(0);
+  const mokoAttackChargeRef = useRef(0);
+  const slimeForecastPointRef = useRef<RotationPoint | null>(null);
+  const slimeLockedPointRef = useRef<RotationPoint | null>(null);
+  const slimeRemainingRef = useRef(0);
   const pointButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const audioRef = useRef<RotationAudio | null>(null);
   const audioEnabledRef = useRef(audioEnabled);
@@ -493,6 +566,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
           ? t.mokoLight
           : t.mokoIdle;
   const inputEnabled = phase === "ready" || phase === "selecting";
+  const boardInputEnabled = inputEnabled && !chainWaveTargeting;
   const isResolving = [
     "rotating",
     "validating",
@@ -598,6 +672,122 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     }
   };
 
+  const updateTimeVeilCharge = (next: number) => {
+    const normalized = Math.max(0, Math.min(100, next));
+    timeVeilChargeRef.current = normalized;
+    setTimeVeilCharge(normalized);
+  };
+
+  const updateTimeVeilRemaining = (next: number) => {
+    const normalized = Math.max(0, next);
+    timeVeilRemainingRef.current = normalized;
+    setTimeVeilRemaining(normalized);
+  };
+
+  const updateChainWaveCharge = (next: number) => {
+    const normalized = Math.max(0, Math.min(100, next));
+    chainWaveChargeRef.current = normalized;
+    setChainWaveCharge(normalized);
+  };
+
+  const updateMokoAttackCharge = (next: number) => {
+    const normalized = Math.max(0, Math.min(100, next));
+    mokoAttackChargeRef.current = normalized;
+    setMokoAttackCharge(normalized);
+  };
+
+  const updateSlimeForecastPoint = (next: RotationPoint | null) => {
+    slimeForecastPointRef.current = next;
+    setSlimeForecastPoint(next);
+  };
+
+  const updateSlimeLockedPoint = (next: RotationPoint | null) => {
+    slimeLockedPointRef.current = next;
+    setSlimeLockedPoint(next);
+  };
+
+  const updateSlimeRemaining = (next: number) => {
+    const normalized = Math.max(0, next);
+    slimeRemainingRef.current = normalized;
+    setSlimeRemaining(normalized);
+  };
+
+  const commitAvailableMoves = (nextMoves: RotationMove[]) => {
+    const locked = slimeLockedPointRef.current;
+    if (
+      locked
+      && !nextMoves.some((move) => move.row !== locked.row || move.column !== locked.column)
+    ) {
+      updateSlimeLockedPoint(null);
+      updateSlimeRemaining(0);
+    }
+    setAvailableMoves(nextMoves);
+  };
+
+  const chargeSupportSkills = (count: number, chargeWave = true) => {
+    if (count <= 0) return;
+    if (timeVeilRemainingRef.current <= 0) {
+      updateTimeVeilCharge(
+        timeVeilChargeRef.current + (count / TIME_VEIL_CHARGE_BLOCKS) * 100
+      );
+    }
+    if (chargeWave) {
+      updateChainWaveCharge(
+        chainWaveChargeRef.current + (count / CHAIN_WAVE_CHARGE_BLOCKS) * 100
+      );
+    }
+  };
+
+  const playGrandCutin = async (
+    dominantEffect: RotationSpecialEffect | null,
+    chain: number,
+    currentRun: number
+  ) => {
+    const isUltimateChain = chain === 6;
+    const hasGrandCutin = Boolean(dominantEffect?.super) || isUltimateChain;
+    if (!hasGrandCutin) return true;
+
+    const superSpellName = dominantEffect?.super
+      ? specialNames[language][dominantEffect.token][1]
+      : undefined;
+    const cutinName = isUltimateChain ? t.ultimateChain : superSpellName!;
+    const sequence = ++grandSpellSequenceRef.current;
+    setGrandSpell({
+      detail: isUltimateChain ? superSpellName : undefined,
+      id: isUltimateChain
+        ? "ultimate-magical-chain"
+        : grandSpellIds[dominantEffect!.token],
+      kicker: isUltimateChain ? `${chain} CHAIN / ULTIMATE` : "SUPER MAGIC",
+      name: cutinName,
+      sequence
+    });
+    setChainNotice("");
+    setStatusMessage(cutinName);
+    commitPhase("grand-spell");
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    const cutinDuration = prefersReducedMotion
+      ? 180
+      : mobilePerformance
+        ? 620
+        : GRAND_SPELL_DURATION;
+    if (isUltimateChain) {
+      const soundLead = prefersReducedMotion ? 35 : 80;
+      playAudioEffect("strong");
+      await delay(soundLead);
+      if (runIdRef.current !== currentRun) return false;
+      playAudioEffect("moreStrong");
+      await delay(cutinDuration - soundLead);
+    } else {
+      playAudioEffect("moreStrong");
+      await delay(cutinDuration);
+    }
+    if (runIdRef.current !== currentRun) return false;
+    setGrandSpell(null);
+    return true;
+  };
+
   const finishGame = (result: "clear" | "timeout") => {
     hintSequenceRef.current += 1;
     pointerRef.current = null;
@@ -609,6 +799,11 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     setChainNotice("");
     setBattleImpact(null);
     setGrandSpell(null);
+    setChainWaveTargeting(false);
+    updateTimeVeilRemaining(0);
+    updateSlimeForecastPoint(null);
+    updateSlimeLockedPoint(null);
+    updateSlimeRemaining(0);
     pauseBgm();
     playAudioEffect(result === "timeout" ? "gameOver" : "strong");
     commitPhase(result);
@@ -625,8 +820,106 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     }
   };
 
+  const animateRotationSteps = async (
+    steps: RotationChainStep[],
+    currentRun: number
+  ) => {
+    for (const step of steps) {
+      if (runIdRef.current !== currentRun) return false;
+      commitBoard(step.boardBeforeClear);
+      const points = calculateRotationClearScore(step.matches, step.chain) + step.specialScore;
+      const nextCleared = clearedRef.current + step.clearedCells.size;
+      const dominantEffect = getDominantSpecialEffect(step.specialEffects);
+      const impact: Exclude<BattleImpact, null> = (
+        step.chain >= 3
+        || dominantEffect?.super
+        || dominantEffect?.token === COLOR_BREAKER_BLOCK
+      )
+        ? "heavy"
+        : step.chain === 2 || dominantEffect
+          ? "medium"
+          : "light";
+      const notice = dominantEffect
+        ? t.specialChain(
+            specialNames[language][dominantEffect.token][dominantEffect.super ? 1 : 0],
+            step.chain,
+            points
+          )
+        : t.chain(step.chain, points);
+      const hasGrandCutin = Boolean(dominantEffect?.super) || step.chain === 6;
+      if (!(await playGrandCutin(dominantEffect, step.chain, currentRun))) return false;
+
+      setClearingCells(new Set(step.clearedCells));
+      commitPhase("clearing");
+      clearedRef.current = nextCleared;
+      setCleared(nextCleared);
+      chargeSupportSkills(step.clearedCells.size);
+      updateMokoAttackCharge(
+        mokoAttackChargeRef.current
+        - step.clearedCells.size * 0.35
+        - (step.chain >= 3 ? 4 : 0)
+      );
+      if (
+        slimeRemainingRef.current > 0
+        && (step.chain >= 3 || dominantEffect)
+      ) {
+        const nextSlimeRemaining = Math.max(0, slimeRemainingRef.current - 1.25);
+        updateSlimeRemaining(nextSlimeRemaining);
+        if (nextSlimeRemaining <= 0) updateSlimeLockedPoint(null);
+      }
+      setBattleImpact(impact);
+      setScore((current) => current + points);
+      setMaxChain((current) => Math.max(current, step.chain));
+      setChainNotice(notice);
+      setStatusMessage(notice);
+      if (!hasGrandCutin) {
+        playAudioEffect(
+          step.chain >= 5
+            ? "moreStrong"
+            : step.chain >= 3 || dominantEffect
+              ? "strong"
+              : "chain"
+        );
+      }
+
+      await delay(CLEAR_DURATION);
+      if (runIdRef.current !== currentRun) return false;
+      setClearingCells(new Set());
+      commitBoard(step.boardAfterClear);
+
+      commitPhase("falling");
+      await delay(70);
+      if (runIdRef.current !== currentRun) return false;
+      setMotionCells(findChangedOccupiedCells(step.boardAfterClear, step.boardAfterCollapse));
+      commitBoard(step.boardAfterCollapse);
+      await delay(FALL_DURATION);
+      if (runIdRef.current !== currentRun) return false;
+
+      commitPhase("refilling");
+      setMotionCells(findRefilledCells(step.boardAfterCollapse, step.boardAfterRefill));
+      commitBoard(step.boardAfterRefill);
+      await delay(REFILL_DURATION);
+      if (runIdRef.current !== currentRun) return false;
+      setMotionCells(new Set());
+    }
+    return true;
+  };
+
   const performMove = async (point: RotationPoint, direction: RotationDirection) => {
-    if (!inputEnabled || !["ready", "selecting"].includes(phaseRef.current)) return;
+    if (!boardInputEnabled || !["ready", "selecting"].includes(phaseRef.current)) return;
+    if (
+      slimeLockedPointRef.current?.row === point.row
+      && slimeLockedPointRef.current.column === point.column
+    ) {
+      setInvalidPoint(point);
+      setStatusMessage(t.interferenceBlocked);
+      window.setTimeout(() => {
+        setInvalidPoint((current) => (
+          current?.row === point.row && current.column === point.column ? null : current
+        ));
+      }, 360);
+      return;
+    }
 
     lastBoardActionRef.current = performance.now();
     hintSequenceRef.current += 1;
@@ -688,109 +981,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     const nextSuccessfulMoves = successfulMovesRef.current + 1;
     successfulMovesRef.current = nextSuccessfulMoves;
     setSuccessfulMoves(nextSuccessfulMoves);
-    for (const step of resolution.steps) {
-      if (runIdRef.current !== currentRun) return;
-      commitBoard(step.boardBeforeClear);
-      const points = calculateRotationClearScore(step.matches, step.chain) + step.specialScore;
-      const nextCleared = clearedRef.current + step.clearedCells.size;
-      const dominantEffect = getDominantSpecialEffect(step.specialEffects);
-      const impact: Exclude<BattleImpact, null> = (
-        step.chain >= 3
-        || dominantEffect?.super
-        || dominantEffect?.token === COLOR_BREAKER_BLOCK
-      )
-        ? "heavy"
-        : step.chain === 2 || dominantEffect
-          ? "medium"
-          : "light";
-      const notice = dominantEffect
-        ? t.specialChain(
-            specialNames[language][dominantEffect.token][dominantEffect.super ? 1 : 0],
-            step.chain,
-            points
-          )
-        : t.chain(step.chain, points);
-      const isUltimateChain = step.chain === 6;
-      const hasGrandCutin = Boolean(dominantEffect?.super) || isUltimateChain;
-      if (hasGrandCutin) {
-        const superSpellName = dominantEffect?.super
-          ? specialNames[language][dominantEffect.token][1]
-          : undefined;
-        const cutinName = isUltimateChain ? t.ultimateChain : superSpellName!;
-        const sequence = ++grandSpellSequenceRef.current;
-        setGrandSpell({
-          detail: isUltimateChain ? superSpellName : undefined,
-          id: isUltimateChain
-            ? "ultimate-magical-chain"
-            : grandSpellIds[dominantEffect!.token],
-          kicker: isUltimateChain ? `${step.chain} CHAIN / ULTIMATE` : "SUPER MAGIC",
-          name: cutinName,
-          sequence
-        });
-        setChainNotice("");
-        setStatusMessage(cutinName);
-        commitPhase("grand-spell");
-        const prefersReducedMotion = window.matchMedia(
-          "(prefers-reduced-motion: reduce)"
-        ).matches;
-        const cutinDuration = prefersReducedMotion
-          ? 180
-          : mobilePerformance
-            ? 620
-            : GRAND_SPELL_DURATION;
-        if (isUltimateChain) {
-          const soundLead = prefersReducedMotion ? 35 : 80;
-          playAudioEffect("strong");
-          await delay(soundLead);
-          if (runIdRef.current !== currentRun) return;
-          playAudioEffect("moreStrong");
-          await delay(cutinDuration - soundLead);
-        } else {
-          playAudioEffect("moreStrong");
-          await delay(cutinDuration);
-        }
-        if (runIdRef.current !== currentRun) return;
-        setGrandSpell(null);
-      }
-
-      setClearingCells(new Set(step.clearedCells));
-      commitPhase("clearing");
-      clearedRef.current = nextCleared;
-      setCleared(nextCleared);
-      setBattleImpact(impact);
-      setScore((current) => current + points);
-      setMaxChain((current) => Math.max(current, step.chain));
-      setChainNotice(notice);
-      setStatusMessage(notice);
-      if (!hasGrandCutin) {
-        playAudioEffect(
-          step.chain >= 5
-            ? "moreStrong"
-            : step.chain >= 3 || dominantEffect
-              ? "strong"
-              : "chain"
-        );
-      }
-
-      await delay(CLEAR_DURATION);
-      if (runIdRef.current !== currentRun) return;
-      setClearingCells(new Set());
-      commitBoard(step.boardAfterClear);
-
-      commitPhase("falling");
-      await delay(70);
-      if (runIdRef.current !== currentRun) return;
-      setMotionCells(findChangedOccupiedCells(step.boardAfterClear, step.boardAfterCollapse));
-      commitBoard(step.boardAfterCollapse);
-      await delay(FALL_DURATION);
-      if (runIdRef.current !== currentRun) return;
-
-      commitPhase("refilling");
-      setMotionCells(findRefilledCells(step.boardAfterCollapse, step.boardAfterRefill));
-      commitBoard(step.boardAfterRefill);
-      await delay(REFILL_DURATION);
-      setMotionCells(new Set());
-    }
+    if (!(await animateRotationSteps(resolution.steps, currentRun))) return;
 
     if (runIdRef.current !== currentRun) return;
     setChainNotice("");
@@ -807,7 +998,136 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     }
 
     if (runIdRef.current !== currentRun) return;
-    setAvailableMoves(enumerateProductiveRotations(stableBoard));
+    commitAvailableMoves(enumerateProductiveRotations(stableBoard));
+    setStatusMessage(t.ready);
+    finishTurn();
+  };
+
+  const activateTimeVeil = () => {
+    if (
+      !boardInputEnabled
+      || timeVeilChargeRef.current < 100
+      || timeVeilRemainingRef.current > 0
+    ) return;
+    updateTimeVeilCharge(0);
+    updateTimeVeilRemaining(TIME_VEIL_DURATION);
+    setStatusMessage(t.timeVeilStarted);
+    playAudioEffect("strong");
+  };
+
+  const toggleChainWaveTargeting = () => {
+    if (chainWaveTargeting) {
+      setChainWaveTargeting(false);
+      commitPhase("ready");
+      setStatusMessage(t.ready);
+      return;
+    }
+    if (!inputEnabled || chainWaveChargeRef.current < 100) return;
+    hintSequenceRef.current += 1;
+    setHintMove(null);
+    setChainWaveTargeting(true);
+    commitPhase("selecting");
+    setStatusMessage(t.chainWaveSelect);
+  };
+
+  const activateChainWave = async (row: number) => {
+    if (
+      !chainWaveTargeting
+      || chainWaveChargeRef.current < 100
+      || !["ready", "selecting"].includes(phaseRef.current)
+    ) return;
+
+    const currentRun = ++runIdRef.current;
+    const sourceBoard = boardRef.current.map((sourceRow) => [...sourceRow]);
+    const rowCells = Array.from(
+      { length: ROTATION_COLUMNS },
+      (_, column) => cellKey(row, column)
+    );
+    const specialResolution = findRotationSpecialClearCells(
+      sourceBoard,
+      rowCells,
+      Math.random,
+      true
+    );
+    const dominantEffect = getDominantSpecialEffect(specialResolution.effects);
+    setChainWaveTargeting(false);
+    updateChainWaveCharge(0);
+    setHintMove(null);
+    setChainNotice("");
+
+    if (!(await playGrandCutin(dominantEffect, 0, currentRun))) return;
+
+    const clearedCells = specialResolution.cells;
+    const points = (
+      clearedCells.size * CHAIN_WAVE_SCORE_PER_BLOCK
+      + calculateRotationSpecialScore(specialResolution.effects)
+    );
+    const notice = t.chainWaveResult(row + 1, clearedCells.size);
+    setClearingCells(new Set(clearedCells));
+    setBattleImpact(dominantEffect ? "heavy" : "medium");
+    setStatusMessage(notice);
+    setChainNotice(notice);
+    commitPhase("clearing");
+    clearedRef.current += clearedCells.size;
+    setCleared(clearedRef.current);
+    chargeSupportSkills(clearedCells.size, false);
+    setScore((current) => current + points);
+    if (!dominantEffect?.super) playAudioEffect("strong");
+
+    await delay(CLEAR_DURATION);
+    if (runIdRef.current !== currentRun) return;
+    setClearingCells(new Set());
+    const boardAfterClear = clearRotationCellsWithRewards(
+      sourceBoard,
+      clearedCells,
+      []
+    );
+    commitBoard(boardAfterClear);
+
+    commitPhase("falling");
+    await delay(70);
+    if (runIdRef.current !== currentRun) return;
+    const boardAfterCollapse = collapseRotationColumns(boardAfterClear);
+    setMotionCells(findChangedOccupiedCells(boardAfterClear, boardAfterCollapse));
+    commitBoard(boardAfterCollapse);
+    await delay(FALL_DURATION);
+    if (runIdRef.current !== currentRun) return;
+
+    commitPhase("refilling");
+    const boardAfterRefill = refillRotationBoard(
+      boardAfterCollapse,
+      Math.random,
+      rotationSettings
+    );
+    setMotionCells(findRefilledCells(boardAfterCollapse, boardAfterRefill));
+    commitBoard(boardAfterRefill);
+    await delay(REFILL_DURATION);
+    if (runIdRef.current !== currentRun) return;
+    setMotionCells(new Set());
+
+    const resolution = resolveRotationChain(
+      boardAfterRefill,
+      Math.random,
+      rotationSettings
+    );
+    if (!(await animateRotationSteps(resolution.steps, currentRun))) return;
+    if (runIdRef.current !== currentRun) return;
+
+    setChainNotice("");
+    setBattleImpact(null);
+    let stableBoard = resolution.board;
+    if (resolution.capped || enumerateProductiveRotations(stableBoard).length === 0) {
+      commitPhase("shuffling");
+      setStatusMessage(t.shuffled);
+      await delay(220);
+      if (runIdRef.current !== currentRun) return;
+      stableBoard = shuffleToPlayableRotationBoard(stableBoard, Math.random, rotationSettings);
+      commitBoard(stableBoard);
+      await delay(220);
+    }
+
+    if (runIdRef.current !== currentRun) return;
+    commitAvailableMoves(enumerateProductiveRotations(stableBoard));
     setStatusMessage(t.ready);
     finishTurn();
   };
@@ -818,7 +1138,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     lastBoardActionRef.current = performance.now();
     const nextBoard = createPlayableRotationBoard(rotationSettings);
     commitBoard(nextBoard);
-    setAvailableMoves(enumerateProductiveRotations(nextBoard));
+    commitAvailableMoves(enumerateProductiveRotations(nextBoard));
     timeLeftRef.current = GAME_SECONDS;
     clearedRef.current = 0;
     setTimeLeft(GAME_SECONDS);
@@ -839,13 +1159,21 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     setChainNotice("");
     setBattleImpact(null);
     setGrandSpell(null);
+    updateTimeVeilCharge(0);
+    updateTimeVeilRemaining(0);
+    updateChainWaveCharge(0);
+    setChainWaveTargeting(false);
+    updateMokoAttackCharge(0);
+    updateSlimeForecastPoint(null);
+    updateSlimeLockedPoint(null);
+    updateSlimeRemaining(0);
     setStatusMessage(t.ready);
     commitPhase("ready");
     playBgm(true);
   };
 
   const showHint = () => {
-    if (!inputEnabled || availableMoves.length === 0) return;
+    if (!boardInputEnabled || availableMoves.length === 0) return;
     const move = availableMoves[0];
     const hintSequence = ++hintSequenceRef.current;
     lastBoardActionRef.current = performance.now();
@@ -869,7 +1197,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     event: ReactPointerEvent<HTMLButtonElement>,
     point: RotationPoint
   ) => {
-    if (!inputEnabled || phaseRef.current !== "ready" || !event.isPrimary || event.button !== 0) {
+    if (!boardInputEnabled || phaseRef.current !== "ready" || !event.isPrimary || event.button !== 0) {
       return;
     }
     event.preventDefault();
@@ -925,7 +1253,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     event: ReactKeyboardEvent<HTMLButtonElement>,
     point: RotationPoint
   ) => {
-    if (!inputEnabled) return;
+    if (!boardInputEnabled) return;
     if (
       event.key === "ArrowUp"
       || event.key === "ArrowDown"
@@ -1027,6 +1355,55 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
       const now = performance.now();
       const elapsed = (now - previous) / 1000;
       previous = now;
+      if (timeVeilRemainingRef.current > 0) {
+        const nextVeil = Math.max(0, timeVeilRemainingRef.current - elapsed);
+        updateTimeVeilRemaining(nextVeil);
+        if (nextVeil <= 0) setStatusMessage(t.timeVeilEnded);
+        return;
+      }
+      if (slimeRemainingRef.current > 0) {
+        const nextSlime = Math.max(0, slimeRemainingRef.current - elapsed);
+        updateSlimeRemaining(nextSlime);
+        if (nextSlime <= 0) {
+          updateSlimeLockedPoint(null);
+          setStatusMessage(t.interferenceEnded);
+        }
+      } else {
+        const nextAttackCharge = Math.min(
+          100,
+          mokoAttackChargeRef.current + (elapsed / MOKO_ATTACK_SECONDS) * 100
+        );
+        updateMokoAttackCharge(nextAttackCharge);
+        if (
+          nextAttackCharge >= MOKO_ATTACK_FORECAST_PERCENT
+          && !slimeForecastPointRef.current
+        ) {
+          const forecast = chooseSafeBlockedRotationPoint(
+            enumerateProductiveRotations(boardRef.current),
+            null,
+            Math.random
+          );
+          updateSlimeForecastPoint(forecast);
+          if (forecast) setStatusMessage(t.interferenceForecast);
+        }
+        if (nextAttackCharge >= 100) {
+          const target = chooseSafeBlockedRotationPoint(
+            enumerateProductiveRotations(boardRef.current),
+            slimeForecastPointRef.current,
+            Math.random
+          );
+          updateSlimeForecastPoint(null);
+          if (target) {
+            updateSlimeLockedPoint(target);
+            updateSlimeRemaining(MOKO_SLIME_DURATION);
+            updateMokoAttackCharge(0);
+            setStatusMessage(t.interferenceCast(target));
+          } else {
+            updateMokoAttackCharge(50);
+            setStatusMessage(t.interferenceFizzle);
+          }
+        }
+      }
       const next = Math.max(0, timeLeftRef.current - elapsed);
       timeLeftRef.current = next;
       setTimeLeft(next);
@@ -1183,6 +1560,14 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                       const isSelected = selectedPoint.row === row && selectedPoint.column === column;
                       const isHint = hintMove?.row === row && hintMove.column === column;
                       const isInvalid = invalidPoint?.row === row && invalidPoint.column === column;
+                      const isSlimeForecast = (
+                        slimeForecastPoint?.row === row
+                        && slimeForecastPoint.column === column
+                      );
+                      const isSlimeLocked = (
+                        slimeLockedPoint?.row === row
+                        && slimeLockedPoint.column === column
+                      );
                       return (
                         <button
                           aria-label={t.ariaPoint(point)}
@@ -1191,8 +1576,11 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                             "color-chain-rotation-point",
                             isSelected ? "is-selected" : "",
                             isHint ? `is-hint is-${hintMove.direction}` : "",
-                            isInvalid ? "is-invalid" : ""
+                            isInvalid ? "is-invalid" : "",
+                            isSlimeForecast ? "is-slime-forecast" : "",
+                            isSlimeLocked ? "is-slime-locked" : ""
                           ].filter(Boolean).join(" ")}
+                          disabled={!boardInputEnabled}
                           key={key}
                           style={{
                             left: `${(column + 0.5) * 12.5}%`,
@@ -1220,6 +1608,25 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                     })
                   )}
                 </div>
+
+                {chainWaveTargeting && (
+                  <div className="color-chain-rotation-wave-targets">
+                    {Array.from({ length: ROTATION_ROWS }, (_, row) => (
+                      <button
+                        aria-label={t.waveRowAria(row + 1)}
+                        key={row}
+                        onClick={() => void activateChainWave(row)}
+                        style={{
+                          height: `${100 / ROTATION_ROWS}%`,
+                          top: `${(row * 100) / ROTATION_ROWS}%`
+                        }}
+                        type="button"
+                      >
+                        <span>{row + 1}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 {hintMove && !rotationOverlay && (
                   <div
@@ -1323,6 +1730,27 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                   />
                 </div>
                 <p aria-live="polite">{mokoStatus}</p>
+                <div
+                  className={[
+                    "color-chain-rotation-interference",
+                    slimeLockedPoint ? "is-active" : "",
+                    slimeForecastPoint ? "is-forecast" : ""
+                  ].filter(Boolean).join(" ")}
+                >
+                  <span>{t.interference}</span>
+                  <strong>
+                    {slimeLockedPoint
+                      ? `${slimeRemaining.toFixed(1)}s`
+                      : mokoAttackCharge >= MOKO_ATTACK_FORECAST_PERCENT
+                        ? t.interferenceReady
+                        : `${Math.round(mokoAttackCharge)}%`}
+                  </strong>
+                  <i style={{
+                    width: `${slimeLockedPoint
+                      ? (slimeRemaining / MOKO_SLIME_DURATION) * 100
+                      : mokoAttackCharge}%`
+                  }} />
+                </div>
               </div>
               <div className="color-chain-rotation-stats">
                 <span><small>{t.score}</small><strong>{score.toLocaleString()}</strong></span>
@@ -1330,9 +1758,56 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                 <span><small>{t.maxChain}</small><strong>{maxChain}</strong></span>
                 <span><small>{t.successRate}</small><strong>{successRate}%</strong></span>
               </div>
+              <section className="color-chain-rotation-support-skills">
+                <p>{t.supportSkills}</p>
+                <div>
+                  <button
+                    className={timeVeilRemaining > 0 || timeVeilCharge >= 100 ? "is-ready" : ""}
+                    disabled={
+                      !boardInputEnabled
+                      || timeVeilRemaining > 0
+                      || timeVeilCharge < 100
+                    }
+                    onClick={activateTimeVeil}
+                    type="button"
+                  >
+                    <Clock3 aria-hidden="true" />
+                    <span>{t.timeVeil}</span>
+                    <strong>
+                      {timeVeilRemaining > 0
+                        ? t.timeVeilActive(timeVeilRemaining)
+                        : timeVeilCharge >= 100
+                          ? t.readyLabel
+                          : t.charge(Math.round(timeVeilCharge))}
+                    </strong>
+                    <i style={{
+                      width: `${timeVeilRemaining > 0
+                        ? (timeVeilRemaining / TIME_VEIL_DURATION) * 100
+                        : timeVeilCharge}%`
+                    }} />
+                  </button>
+                  <button
+                    className={chainWaveTargeting || chainWaveCharge >= 100 ? "is-ready" : ""}
+                    disabled={!chainWaveTargeting && (!inputEnabled || chainWaveCharge < 100)}
+                    onClick={toggleChainWaveTargeting}
+                    type="button"
+                  >
+                    <Sparkles aria-hidden="true" />
+                    <span>{t.chainWave}</span>
+                    <strong>
+                      {chainWaveTargeting
+                        ? t.chainWaveCancel
+                        : chainWaveCharge >= 100
+                          ? t.readyLabel
+                          : t.charge(Math.round(chainWaveCharge))}
+                    </strong>
+                    <i style={{ width: `${chainWaveCharge}%` }} />
+                  </button>
+                </div>
+              </section>
               <div className="color-chain-rotation-manual-controls">
                 <button
-                  disabled={!inputEnabled}
+                  disabled={!boardInputEnabled}
                   onClick={() => void performMove(selectedPoint, "counterclockwise")}
                   type="button"
                 >
@@ -1340,14 +1815,14 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                   {t.counterclockwise}
                 </button>
                 <button
-                  disabled={!inputEnabled}
+                  disabled={!boardInputEnabled}
                   onClick={() => void performMove(selectedPoint, "clockwise")}
                   type="button"
                 >
                   <RotateCw aria-hidden="true" />
                   {t.clockwise}
                 </button>
-                <button disabled={!inputEnabled} onClick={showHint} type="button">
+                <button disabled={!boardInputEnabled} onClick={showHint} type="button">
                   <Lightbulb aria-hidden="true" />
                   {t.hint}
                 </button>

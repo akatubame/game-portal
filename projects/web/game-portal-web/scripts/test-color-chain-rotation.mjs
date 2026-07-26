@@ -65,6 +65,7 @@ const {
   getRotationMatchRewards,
 } = rotationSpecials;
 const {
+  chooseSafeBlockedRotationPoint,
   classifyRotationGesture,
   findChangedOccupiedCells,
   findRefilledCells,
@@ -139,6 +140,30 @@ function assertBoardShape(board) {
     moveRotationPoint({ row: 3, column: 3 }, "ArrowLeft"),
     { row: 3, column: 2 },
     "keyboard navigation moves one intersection"
+  );
+  assert.equal(
+    chooseSafeBlockedRotationPoint(
+      [
+        { row: 2, column: 2, direction: "clockwise" },
+        { row: 2, column: 2, direction: "counterclockwise" },
+      ],
+      null,
+      () => 0
+    ),
+    null,
+    "an intersection is not blocked when it would remove every productive move"
+  );
+  assert.deepEqual(
+    chooseSafeBlockedRotationPoint(
+      [
+        { row: 2, column: 2, direction: "clockwise" },
+        { row: 4, column: 4, direction: "clockwise" },
+      ],
+      { row: 4, column: 4 },
+      () => 0
+    ),
+    { row: 4, column: 4 },
+    "a forecast point is retained when another productive intersection remains"
   );
 
   const beforeMotion = createEmptyRotationBoard();
