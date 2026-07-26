@@ -151,6 +151,7 @@ const CLEAR_TARGET = 90;
 const ROTATION_DURATION = 160;
 const INVALID_PAUSE = 90;
 const CLEAR_DURATION = 250;
+const PRISM_BREAK_DURATION = 430;
 const FALL_DURATION = 170;
 const REFILL_DURATION = 190;
 const GRAND_SPELL_DURATION = 760;
@@ -257,6 +258,27 @@ function getChainWaveRows(effects: RotationSpecialEffect[]) {
   return [...new Set(rows)]
     .filter((row) => row >= 0 && row < ROTATION_ROWS)
     .sort((left, right) => left - right);
+}
+
+function getPrismBreakCells(
+  board: Board,
+  clearedCells: ReadonlySet<string>,
+  effects: RotationSpecialEffect[]
+) {
+  const prismCells = new Set<string>();
+  effects
+    .filter((effect) => effect.token === COLOR_BREAKER_BLOCK && !effect.super)
+    .forEach((effect) => {
+      effect.originKeys.forEach((key) => {
+        if (clearedCells.has(key)) prismCells.add(key);
+      });
+      if (!effect.targetColor) return;
+      clearedCells.forEach((key) => {
+        const [row, column] = key.split(":").map(Number);
+        if (board[row]?.[column] === effect.targetColor) prismCells.add(key);
+      });
+    });
+  return prismCells;
 }
 
 function getDominantSpecialEffect(effects: RotationSpecialEffect[]) {
@@ -670,6 +692,7 @@ export function ColorChainRotationTest({
   const [focusedPoint, setFocusedPoint] = useState<RotationPoint>({ row: 3, column: 3 });
   const [rotationOverlay, setRotationOverlay] = useState<RotationOverlay | null>(null);
   const [clearingCells, setClearingCells] = useState<Set<string>>(new Set());
+  const [prismBreakCells, setPrismBreakCells] = useState<Set<string>>(new Set());
   const [motionCells, setMotionCells] = useState<Set<string>>(new Set());
   const [invalidPoint, setInvalidPoint] = useState<RotationPoint | null>(null);
   const [hintMove, setHintMove] = useState<RotationMove | null>(null);
@@ -1074,6 +1097,7 @@ export function ColorChainRotationTest({
     pointerRef.current = null;
     setRotationOverlay(null);
     setClearingCells(new Set());
+    setPrismBreakCells(new Set());
     setMotionCells(new Set());
     setInvalidPoint(null);
     setHintMove(null);
@@ -1135,8 +1159,17 @@ export function ColorChainRotationTest({
       if (!(await playGrandCutin(dominantEffect, step.chain, currentRun))) return false;
 
       const chainWaveRows = getChainWaveRows(step.specialEffects);
+      const nextPrismBreakCells = getPrismBreakCells(
+        step.boardBeforeClear,
+        step.clearedCells,
+        step.specialEffects
+      );
       const showWaveEffect = (
         chainWaveRows.length > 0
+        && effectsEnabledRef.current
+      );
+      const showPrismBreakEffect = (
+        nextPrismBreakCells.size > 0
         && effectsEnabledRef.current
       );
       setBattleImpact(impact);
@@ -1156,6 +1189,9 @@ export function ColorChainRotationTest({
         }
       }
 
+      setPrismBreakCells(
+        showPrismBreakEffect ? nextPrismBreakCells : new Set()
+      );
       setClearingCells(new Set(step.clearedCells));
       clearedRef.current = nextCleared;
       setCleared(nextCleared);
@@ -1186,13 +1222,17 @@ export function ColorChainRotationTest({
       }
 
       await delay(
-        showWaveEffect
-          ? CHAIN_WAVE_EFFECT_DURATION - CHAIN_WAVE_IMPACT_DELAY
-          : CLEAR_DURATION
+        Math.max(
+          showWaveEffect
+            ? CHAIN_WAVE_EFFECT_DURATION - CHAIN_WAVE_IMPACT_DELAY
+            : CLEAR_DURATION,
+          showPrismBreakEffect ? PRISM_BREAK_DURATION : CLEAR_DURATION
+        )
       );
       if (runIdRef.current !== currentRun) return false;
       if (showWaveEffect) setChainWaveEffect(null);
       setClearingCells(new Set());
+      setPrismBreakCells(new Set());
       commitBoard(step.boardAfterClear);
 
       commitPhase("falling");
@@ -1489,6 +1529,7 @@ export function ColorChainRotationTest({
     setFocusedPoint({ row: 3, column: 3 });
     setRotationOverlay(null);
     setClearingCells(new Set());
+    setPrismBreakCells(new Set());
     setMotionCells(new Set());
     setInvalidPoint(null);
     setHintMove(null);
@@ -1958,8 +1999,11 @@ export function ColorChainRotationTest({
                   {board.flatMap((row, rowIndex) =>
                     row.map((token, columnIndex) => {
                       const key = cellKey(rowIndex, columnIndex);
+                      const isPrismBreaking = prismBreakCells.has(key);
                       const classes = [
-                        clearingCells.has(key) ? " is-clearing" : "",
+                        isPrismBreaking
+                          ? " is-prism-breaking"
+                          : clearingCells.has(key) ? " is-clearing" : "",
                         isPointCell(rowIndex, columnIndex, selectedPoint) ? " is-selected-area" : "",
                         rotationOverlay && isPointCell(rowIndex, columnIndex, rotationOverlay.point)
                           ? " is-under-overlay"
