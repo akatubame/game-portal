@@ -448,7 +448,7 @@ export const games: Game[] = [
     id: "colorChain",
     title: "カラーチェイン",
     englishTitle: "COLOR CHAIN",
-    description: "同じ色を4個以上そろえて魔法の鎖を結ぶ落ちものパズル。特殊ブロックと大連鎖で強力なマジカルチェインを狙えます。",
+    description: "2×2のブロックを回し、同じ色を縦・横・斜めに4個以上つなぐパズル。特殊ブロックと大連鎖でモコスライムの浄化を目指します。",
     genre: "PUZZLE",
     href: "?game=colorChain",
     screenshot: "/screenshots/color-chain.svg",

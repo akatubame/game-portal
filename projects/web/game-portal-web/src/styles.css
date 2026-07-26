@@ -546,6 +546,108 @@ body.color-chain-rotation-mode .game-screen.is-color-chain-rotation-test .game-t
   width: 28px;
 }
 
+.color-chain-rotation-chain-wave-effect {
+  height: 26%;
+  left: -3%;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  right: -3%;
+  transform: translateY(-50%);
+  z-index: 8;
+}
+
+.color-chain-rotation-chain-wave-effect > i {
+  animation:
+    color-chain-rotation-chain-wave-sprite 560ms steps(3, end) both,
+    color-chain-rotation-chain-wave-fade 560ms ease-out both;
+  background-image: url("/effects/color-chain/chain-wave-sprite.png");
+  background-position: 0 50%;
+  background-repeat: no-repeat;
+  background-size: 400% 100%;
+  filter:
+    drop-shadow(0 0 5px rgba(91, 240, 255, 0.95))
+    drop-shadow(0 0 9px rgba(255, 229, 110, 0.7));
+  inset: 0;
+  position: absolute;
+  will-change: background-position;
+}
+
+.color-chain-rotation-chain-wave-effect::before {
+  animation: color-chain-rotation-chain-wave-flash 560ms ease-out both;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(93, 235, 255, 0.18) 18%,
+    rgba(255, 252, 196, 0.86) 48%,
+    rgba(76, 220, 255, 0.24) 72%,
+    transparent
+  );
+  box-shadow: 0 0 18px rgba(80, 226, 255, 0.75);
+  content: "";
+  height: 20%;
+  left: -45%;
+  position: absolute;
+  top: 40%;
+  width: 45%;
+  z-index: 1;
+}
+
+.color-chain-rotation-chain-wave-effect::after {
+  animation: color-chain-rotation-chain-wave-row-glow 560ms ease-out both;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(82, 225, 255, 0.24),
+    rgba(255, 231, 112, 0.38),
+    rgba(82, 225, 255, 0.24),
+    transparent
+  );
+  content: "";
+  inset: 28% 0;
+  position: absolute;
+}
+
+@keyframes color-chain-rotation-chain-wave-sprite {
+  from { background-position: 0 50%; }
+  to { background-position: 100% 50%; }
+}
+
+@keyframes color-chain-rotation-chain-wave-fade {
+  0% { opacity: 0; transform: scaleX(0.92); }
+  8% { opacity: 1; }
+  82% { opacity: 1; }
+  100% { opacity: 0.12; transform: scaleX(1); }
+}
+
+@keyframes color-chain-rotation-chain-wave-flash {
+  0% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  12% {
+    opacity: 1;
+  }
+  78% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(325%);
+  }
+}
+
+@keyframes color-chain-rotation-chain-wave-row-glow {
+  0%, 100% {
+    opacity: 0;
+    transform: scaleY(0.25);
+  }
+  24%, 62% {
+    opacity: 0.72;
+    transform: scaleY(1);
+  }
+}
+
 .color-chain-rotation-hint-preview {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -12360,57 +12462,6 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 .color-chain-rotation-records > p strong {
   color: #ffdc76;
   font-size: 10px;
-}
-
-.color-chain-rotation-records > div {
-  display: grid;
-  gap: 5px;
-  grid-template-columns: 1fr auto;
-}
-
-.color-chain-rotation-records input {
-  background: #fff9e5;
-  border: 1px solid #9a6b43;
-  border-radius: 7px;
-  color: #3d3040;
-  font: inherit;
-  font-size: 10px;
-  min-width: 0;
-  padding: 5px 7px;
-}
-
-.color-chain-rotation-records > div button {
-  border-radius: 7px;
-  font-size: 9px;
-  min-height: 0;
-  padding: 4px 8px;
-}
-
-.color-chain-rotation-records ol {
-  display: grid;
-  gap: 2px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.color-chain-rotation-records li {
-  align-items: center;
-  color: #f4ead9;
-  display: grid;
-  font-size: 8px;
-  gap: 5px;
-  grid-template-columns: 16px 1fr auto;
-}
-
-.color-chain-rotation-records li > span {
-  color: #ffdc76;
-  font-weight: 1000;
-}
-
-.color-chain-rotation-records li em {
-  color: #8ff4ff;
-  font-style: normal;
 }
 
 .color-chain-rotation-dialog-backdrop {

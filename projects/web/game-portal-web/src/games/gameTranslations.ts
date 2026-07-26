@@ -187,8 +187,8 @@ export const gameTranslations: Record<string, Record<Language, GameTranslation>>
     en: { title: "Solitaire", description: "Play classic Klondike solitaire: build foundations from Ace to King while arranging tableau cards in alternating colors." }
   },
   colorChain: {
-    ja: { title: "カラーチェイン", description: "同じ色を4個以上そろえて魔法の鎖を結ぶ落ちものパズル。特殊ブロックと大連鎖で強力なマジカルチェインを狙えます。" },
-    en: { title: "Color Chain", description: "Match four or more colors to weave magical chains, trigger special blocks, and build powerful chain reactions." }
+    ja: { title: "カラーチェイン", description: "2×2のブロックを回し、同じ色を縦・横・斜めに4個以上つなぐパズル。特殊ブロックと大連鎖でモコスライムの浄化を目指します。" },
+    en: { title: "Color Chain", description: "Rotate 2×2 groups, connect four or more matching colors, and use special blocks and chain reactions to purify Moko Slime." }
   }
 };
 

@@ -43,7 +43,7 @@ const gameViews: Record<string, GameView> = {
   nonogram: lazy(() => import("./games/nonogram/Nonogram").then((module) => ({ default: module.Nonogram }))),
   wordGuess: lazy(() => import("./games/wordGuess/WordGuess").then((module) => ({ default: module.WordGuess }))),
   solitaire: lazy(() => import("./games/solitaire/Solitaire").then((module) => ({ default: module.Solitaire }))),
-  colorChain: lazy(() => import("./games/colorChain/ColorChain").then((module) => ({ default: module.ColorChain }))),
+  colorChain: lazy(() => import("./games/colorChain/ColorChainRotationTest").then((module) => ({ default: module.ColorChainRotation }))),
   colorChainMascotTest: lazy(() => import("./games/colorChain/ColorChain").then((module) => ({ default: module.ColorChainMascotTest }))),
   colorChainRotationTest: lazy(() => import("./games/colorChain/ColorChainRotationTest").then((module) => ({ default: module.ColorChainRotationTest })))
 };

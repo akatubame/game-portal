@@ -27,7 +27,6 @@ import {
   type PointerEvent as ReactPointerEvent
 } from "react";
 import { useI18n } from "../../i18n";
-import { useRanking } from "../ranking";
 import {
   BOMB_BLOCK,
   COLOR_BREAKER_BLOCK,
@@ -76,6 +75,7 @@ import {
 
 type ColorChainRotationTestProps = {
   onBack: () => void;
+  presentation?: "official" | "test";
 };
 
 type RotationPhase =
@@ -131,9 +131,14 @@ type GrandSpellCutin = {
   name: string;
   sequence: number;
 };
+type ChainWaveEffect = {
+  row: number;
+  sequence: number;
+};
 type RotationAudio = {
   bgm: HTMLAudioElement;
   chain: HTMLAudioElement;
+  chainWave: HTMLAudioElement;
   strong: HTMLAudioElement;
   moreStrong: HTMLAudioElement;
   gameOver: HTMLAudioElement;
@@ -153,6 +158,8 @@ const TIME_VEIL_DURATION = 6;
 const TIME_VEIL_CHARGE_BLOCKS = 20;
 const CHAIN_WAVE_CHARGE_BLOCKS = 24;
 const CHAIN_WAVE_SCORE_PER_BLOCK = 18;
+const CHAIN_WAVE_IMPACT_DELAY = 300;
+const CHAIN_WAVE_EFFECT_DURATION = 560;
 const MOKO_ATTACK_SECONDS = 24;
 const MOKO_ATTACK_FORECAST_PERCENT = 72;
 const MOKO_SLIME_DURATION = 6;
@@ -173,6 +180,7 @@ const ROTATION_CHROMA_KEY = "game-shelf-color-chain-rotate-v1-chroma";
 const audioPaths = {
   bgm: "/audio/color-chain/block-puzzle-blues.mp3",
   chain: "/audio/color-chain/magical-chain.mp3",
+  chainWave: "/audio/color-chain/chain-wave.mp3",
   strong: "/audio/color-chain/strong-magic.mp3",
   moreStrong: "/audio/color-chain/more-strong-magic.mp3",
   gameOver: "/audio/color-chain/game-over.mp3"
@@ -253,6 +261,10 @@ const copy = {
     eyebrow: "ROTATION PROTOTYPE / PHASE R2",
     title: "クロマのマジカルチェイン 回転式試作",
     subtitle: "2×2を回し、縦・横・斜めに同じ色を4個つなげよう",
+    officialEyebrow: "MAGICAL CHAIN / PUZZLE BATTLE",
+    officialTitle: "カラーチェイン",
+    officialSubtitle: "2×2を回し、魔法の鎖をつないでモコスライムを浄化しよう",
+    officialStart: "ゲームを開始",
     boardLabel: "8×8の回転式マジカルチェイン盤面",
     back: "ゲーム一覧",
     language: "English",
@@ -332,10 +344,6 @@ const copy = {
     tutorialStep: (step: number) => `STEP ${step}/4`,
     bestRecord: "ベスト記録",
     noBest: "まだ記録がありません",
-    rankingTitle: "ローカルランキング",
-    rankingName: "名前",
-    rankingSubmit: "記録を登録",
-    rankingSubmitted: "登録済み",
     evaluationTitle: "試作評価データ",
     evaluationEmpty: "プレイ完了後に端末内へ集計されます。",
     evaluationSummary: (plays: number, clearRate: number, averageTime: number, averageChain: number) =>
@@ -384,6 +392,10 @@ const copy = {
     eyebrow: "ROTATION PROTOTYPE / PHASE R2",
     title: "Chroma's Magical Chain: Rotation Prototype",
     subtitle: "Rotate 2×2 groups and connect four matching colors vertically, horizontally, or diagonally",
+    officialEyebrow: "MAGICAL CHAIN / PUZZLE BATTLE",
+    officialTitle: "Color Chain",
+    officialSubtitle: "Rotate 2×2 groups, weave magical chains, and purify Moko Slime",
+    officialStart: "Start Game",
     boardLabel: "8×8 Magical Chain rotation board",
     back: "Game Shelf",
     language: "日本語",
@@ -463,10 +475,6 @@ const copy = {
     tutorialStep: (step: number) => `STEP ${step}/4`,
     bestRecord: "Best Record",
     noBest: "No record yet",
-    rankingTitle: "Local Ranking",
-    rankingName: "Name",
-    rankingSubmit: "Save Score",
-    rankingSubmitted: "Saved",
     evaluationTitle: "Prototype Evaluation",
     evaluationEmpty: "Results are summarized on this device after each play.",
     evaluationSummary: (plays: number, clearRate: number, averageTime: number, averageChain: number) =>
@@ -622,9 +630,17 @@ function useFixedStage() {
   return layout;
 }
 
-export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) {
+export function ColorChainRotationTest({
+  onBack,
+  presentation = "test"
+}: ColorChainRotationTestProps) {
   const { language, setLanguage } = useI18n();
   const t = copy[language];
+  const isOfficial = presentation === "official";
+  const pageEyebrow = isOfficial ? t.officialEyebrow : t.eyebrow;
+  const pageTitle = isOfficial ? t.officialTitle : t.title;
+  const pageSubtitle = isOfficial ? t.officialSubtitle : t.subtitle;
+  const startLabel = isOfficial ? t.officialStart : t.start;
   const { scale, portrait, coarsePointer } = useFixedStage();
   const initialBoard = useMemo(() => createPlayableRotationBoard(rotationSettings), []);
   const [board, setBoard] = useState<Board>(initialBoard);
@@ -655,6 +671,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
   const [timeVeilRemaining, setTimeVeilRemaining] = useState(0);
   const [chainWaveCharge, setChainWaveCharge] = useState(0);
   const [chainWaveTargeting, setChainWaveTargeting] = useState(false);
+  const [chainWaveEffect, setChainWaveEffect] = useState<ChainWaveEffect | null>(null);
   const [mokoAttackCharge, setMokoAttackCharge] = useState(0);
   const [slimeForecastPoint, setSlimeForecastPoint] = useState<RotationPoint | null>(null);
   const [slimeLockedPoint, setSlimeLockedPoint] = useState<RotationPoint | null>(null);
@@ -681,8 +698,6 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
   );
   const [specialActivations, setSpecialActivations] = useState(0);
   const [shuffleCount, setShuffleCount] = useState(0);
-  const [rankingName, setRankingName] = useState("");
-  const [rankingSubmitted, setRankingSubmitted] = useState(false);
   const [blinkActive, setBlinkActive] = useState(false);
   const boardRef = useRef(board);
   const phaseRef = useRef(phase);
@@ -699,6 +714,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
   const timeVeilChargeRef = useRef(0);
   const timeVeilRemainingRef = useRef(0);
   const chainWaveChargeRef = useRef(0);
+  const chainWaveEffectSequenceRef = useRef(0);
   const mokoAttackChargeRef = useRef(0);
   const slimeForecastPointRef = useRef<RotationPoint | null>(null);
   const slimeLockedPointRef = useRef<RotationPoint | null>(null);
@@ -709,12 +725,6 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
   const pointButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const audioRef = useRef<RotationAudio | null>(null);
   const audioEnabledRef = useRef(audioEnabled);
-  const ranking = useRanking({
-    gameId: "color-chain-rotate-stage-1",
-    metricLabel: "Score",
-    mode: "higher"
-  });
-
   const sealPercent = Math.min(100, Math.round((cleared / CLEAR_TARGET) * 100));
   const mobilePerformance = coarsePointer || scale < 0.72;
   const successRate = successfulMoves + invalidMoves > 0
@@ -793,6 +803,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     if (audioRef.current) return audioRef.current;
     const bgm = new Audio(audioPaths.bgm);
     const chain = new Audio(audioPaths.chain);
+    const chainWave = new Audio(audioPaths.chainWave);
     const strong = new Audio(audioPaths.strong);
     const moreStrong = new Audio(audioPaths.moreStrong);
     const gameOver = new Audio(audioPaths.gameOver);
@@ -801,13 +812,15 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     bgm.volume = 0.25;
     chain.preload = "auto";
     chain.volume = 0.48;
+    chainWave.preload = "auto";
+    chainWave.volume = 0.58;
     strong.preload = "auto";
     strong.volume = 0.56;
     moreStrong.preload = "auto";
     moreStrong.volume = 0.62;
     gameOver.preload = "auto";
     gameOver.volume = 0.56;
-    audioRef.current = { bgm, chain, strong, moreStrong, gameOver };
+    audioRef.current = { bgm, chain, chainWave, strong, moreStrong, gameOver };
     return audioRef.current;
   };
 
@@ -827,7 +840,9 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     if (reset) audio.bgm.currentTime = 0;
   };
 
-  const playAudioEffect = (kind: "chain" | "strong" | "moreStrong" | "gameOver") => {
+  const playAudioEffect = (
+    kind: "chain" | "chainWave" | "strong" | "moreStrong" | "gameOver"
+  ) => {
     if (!audioEnabledRef.current) return;
     const audio = ensureAudio();
     const effect = audio[kind];
@@ -1319,19 +1334,38 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
       + calculateRotationSpecialScore(specialResolution.effects)
     );
     const notice = t.chainWaveResult(row + 1, clearedCells.size);
-    setClearingCells(new Set(clearedCells));
+    const showWaveEffect = effectsEnabledRef.current;
+    if (showWaveEffect) {
+      chainWaveEffectSequenceRef.current += 1;
+      setChainWaveEffect({
+        row,
+        sequence: chainWaveEffectSequenceRef.current
+      });
+    }
     setBattleImpact(dominantEffect ? "heavy" : "medium");
     setStatusMessage(notice);
     setChainNotice(notice);
     commitPhase("clearing");
+    playAudioEffect("chainWave");
+
+    if (showWaveEffect) {
+      await delay(CHAIN_WAVE_IMPACT_DELAY);
+      if (runIdRef.current !== currentRun) return;
+    }
+
+    setClearingCells(new Set(clearedCells));
     clearedRef.current += clearedCells.size;
     setCleared(clearedRef.current);
     chargeSupportSkills(clearedCells.size, false);
     setScore((current) => current + points);
-    if (!dominantEffect?.super) playAudioEffect("strong");
 
-    await delay(CLEAR_DURATION);
+    await delay(
+      showWaveEffect
+        ? CHAIN_WAVE_EFFECT_DURATION - CHAIN_WAVE_IMPACT_DELAY
+        : CLEAR_DURATION
+    );
     if (runIdRef.current !== currentRun) return;
+    setChainWaveEffect(null);
     setClearingCells(new Set());
     const boardAfterClear = clearRotationCellsWithRewards(
       sourceBoard,
@@ -1408,7 +1442,6 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     setInvalidMoves(0);
     setSpecialActivations(0);
     setShuffleCount(0);
-    setRankingSubmitted(false);
     evaluationSavedRef.current = false;
     setSelectedPoint({ row: 3, column: 3 });
     setFocusedPoint({ row: 3, column: 3 });
@@ -1424,6 +1457,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     updateTimeVeilRemaining(0);
     updateChainWaveCharge(0);
     setChainWaveTargeting(false);
+    setChainWaveEffect(null);
     updateMokoAttackCharge(0);
     updateSlimeForecastPoint(null);
     updateSlimeLockedPoint(null);
@@ -1786,9 +1820,9 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
         >
           <header className="color-chain-rotation-stage-header">
             <div className="color-chain-rotation-title">
-              <p>{t.eyebrow}</p>
-              <h1>{t.title}</h1>
-              <span>{t.subtitle}</span>
+              <p>{pageEyebrow}</p>
+              <h1>{pageTitle}</h1>
+              <span>{pageSubtitle}</span>
             </div>
             <div className="color-chain-rotation-top-actions">
               <button
@@ -1972,6 +2006,19 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                   </div>
                 )}
 
+                {chainWaveEffect && effectsEnabled && (
+                  <div
+                    aria-hidden="true"
+                    className="color-chain-rotation-chain-wave-effect"
+                    key={chainWaveEffect.sequence}
+                    style={{
+                      top: `${((chainWaveEffect.row + 0.5) * 100) / ROTATION_ROWS}%`
+                    }}
+                  >
+                    <i />
+                  </div>
+                )}
+
                 {hintMove && !rotationOverlay && (
                   <div
                     aria-hidden="true"
@@ -2022,7 +2069,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                         ? t.clearTitle
                         : phase === "timeout"
                         ? t.timeoutTitle
-                        : t.title}
+                        : pageTitle}
                     </h2>
                     <p>
                       {phase === "clear"
@@ -2051,54 +2098,12 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                                 : t.noBest}
                             </strong>
                           </p>
-                          <div>
-                            <input
-                              aria-label={t.rankingName}
-                              maxLength={18}
-                              onChange={(event) => {
-                                setRankingName(event.target.value);
-                                setRankingSubmitted(false);
-                              }}
-                              placeholder={t.rankingName}
-                              type="text"
-                              value={rankingName}
-                            />
-                            <button
-                              disabled={rankingSubmitted}
-                              onClick={() => {
-                                ranking.submit(rankingName, {
-                                  display: language === "ja"
-                                    ? `${score.toLocaleString()}点`
-                                    : `${score.toLocaleString()} pts`,
-                                  meta: language === "ja"
-                                    ? `${maxChain} CHAIN / ${cleared}個`
-                                    : `${maxChain} CHAIN / ${cleared} blocks`,
-                                  score
-                                });
-                                setRankingSubmitted(true);
-                              }}
-                              type="button"
-                            >
-                              {rankingSubmitted ? t.rankingSubmitted : t.rankingSubmit}
-                            </button>
-                          </div>
-                          {ranking.entries.length > 0 && (
-                            <ol aria-label={t.rankingTitle}>
-                              {ranking.entries.slice(0, 3).map((entry, index) => (
-                                <li key={entry.id}>
-                                  <span>{index + 1}</span>
-                                  <strong>{entry.name}</strong>
-                                  <em>{entry.display}</em>
-                                </li>
-                              ))}
-                            </ol>
-                          )}
                         </div>
                       </>
                     )}
                     <button onClick={startGame} type="button">
                       <Play aria-hidden="true" />
-                      {phase === "idle" ? t.start : t.retry}
+                      {phase === "idle" ? startLabel : t.retry}
                     </button>
                   </div>
                 )}
@@ -2351,7 +2356,8 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                       </button>
                     ))}
                     <p>{t.settingsSaved}</p>
-                    <section className="color-chain-rotation-evaluation">
+                    {!isOfficial && (
+                      <section className="color-chain-rotation-evaluation">
                       <h3>{t.evaluationTitle}</h3>
                       <p>
                         {evaluationSummary
@@ -2448,7 +2454,8 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                         <RotateCcw aria-hidden="true" />
                         {t.comparisonRefresh}
                       </button>
-                    </section>
+                      </section>
+                    )}
                   </div>
                 )}
               </section>
@@ -2494,4 +2501,8 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
       </div>
     </div>
   );
+}
+
+export function ColorChainRotation({ onBack }: ColorChainRotationTestProps) {
+  return <ColorChainRotationTest onBack={onBack} presentation="official" />;
 }
