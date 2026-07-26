@@ -65,6 +65,14 @@ import {
   findRotationSpecialClearCells,
   type RotationSpecialEffect
 } from "./rotationSpecials";
+import {
+  appendColorChainEvaluation,
+  FALLING_EVALUATION_KEY,
+  readColorChainEvaluations,
+  ROTATION_EVALUATION_KEY,
+  summarizeColorChainEvaluations,
+  type ColorChainEvaluation
+} from "./evaluation";
 
 type ColorChainRotationTestProps = {
   onBack: () => void;
@@ -109,17 +117,6 @@ type RotationBest = {
   maxChain: number;
   remainingTime: number;
   score: number;
-};
-type RotationEvaluation = {
-  cleared: number;
-  completed: boolean;
-  invalidMoves: number;
-  maxChain: number;
-  playedSeconds: number;
-  score: number;
-  shuffles: number;
-  specialActivations: number;
-  successfulMoves: number;
 };
 type GrandSpellId =
   | "grand-chain-bomb"
@@ -173,7 +170,6 @@ const ROTATION_TUTORIAL_KEY = "game-shelf-color-chain-rotate-v1-tutorial";
 const ROTATION_AUTO_HINT_KEY = "game-shelf-color-chain-rotate-v1-auto-hint";
 const ROTATION_EFFECTS_KEY = "game-shelf-color-chain-rotate-v1-effects";
 const ROTATION_CHROMA_KEY = "game-shelf-color-chain-rotate-v1-chroma";
-const ROTATION_EVALUATION_KEY = "game-shelf-color-chain-rotate-v1-evaluation";
 const audioPaths = {
   bgm: "/audio/color-chain/block-puzzle-blues.mp3",
   chain: "/audio/color-chain/magical-chain.mp3",
@@ -344,6 +340,21 @@ const copy = {
     evaluationEmpty: "プレイ完了後に端末内へ集計されます。",
     evaluationSummary: (plays: number, clearRate: number, averageTime: number, averageChain: number) =>
       `${plays}回 / クリア率${clearRate}% / 平均${averageTime}秒 / 平均最大${averageChain} CHAIN`,
+    comparisonTitle: "落下式との比較",
+    comparisonDescription: "同じ端末・ブラウザに保存された直近20プレイを比較します。",
+    rotationMode: "盤面回転式",
+    fallingMode: "落下式",
+    comparisonPlays: "回数",
+    comparisonClearRate: "達成率",
+    comparisonTime: "平均時間",
+    comparisonChain: "平均最大CHAIN",
+    comparisonSpecials: "平均特殊技",
+    comparisonInvalid: "不成立率",
+    comparisonShuffles: "平均再構成",
+    comparisonUnavailable: "未計測",
+    comparisonNotApplicable: "対象外",
+    comparisonRefresh: "比較データを再読込",
+    comparisonNote: "落下式はモコスライム浄化（50個消去）まで、回転式は封印完了（90個消去）までを達成として計測します。",
     shuffled: "成立手がなくなったため、盤面を再構成しました。",
     hintMessage: (direction: RotationDirection) =>
       `光っている交点を${direction === "clockwise" ? "時計回り" : "反時計回り"}に回してみましょう。`,
@@ -460,6 +471,21 @@ const copy = {
     evaluationEmpty: "Results are summarized on this device after each play.",
     evaluationSummary: (plays: number, clearRate: number, averageTime: number, averageChain: number) =>
       `${plays} plays / ${clearRate}% clear / ${averageTime}s avg / ${averageChain} avg max chain`,
+    comparisonTitle: "Comparison with Falling Mode",
+    comparisonDescription: "Compares the latest 20 plays saved in this browser on this device.",
+    rotationMode: "Rotation",
+    fallingMode: "Falling",
+    comparisonPlays: "Plays",
+    comparisonClearRate: "Goal rate",
+    comparisonTime: "Avg time",
+    comparisonChain: "Avg max chain",
+    comparisonSpecials: "Avg specials",
+    comparisonInvalid: "Invalid rate",
+    comparisonShuffles: "Avg shuffles",
+    comparisonUnavailable: "No data",
+    comparisonNotApplicable: "N/A",
+    comparisonRefresh: "Reload comparison data",
+    comparisonNote: "Falling mode records Moko purification (50 blocks); rotation mode records seal completion (90 blocks).",
     shuffled: "No valid moves remained, so the board was reshuffled.",
     hintMessage: (direction: RotationDirection) =>
       `Try rotating the glowing point ${direction === "clockwise" ? "clockwise" : "counterclockwise"}.`,
@@ -535,15 +561,6 @@ function readRotationBest(): RotationBest | null {
       : null;
   } catch {
     return null;
-  }
-}
-
-function readRotationEvaluations(): RotationEvaluation[] {
-  try {
-    const value = JSON.parse(window.localStorage.getItem(ROTATION_EVALUATION_KEY) ?? "[]");
-    return Array.isArray(value) ? value.slice(-20) : [];
-  } catch {
-    return [];
   }
 }
 
@@ -656,7 +673,12 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     () => readStoredBoolean(ROTATION_CHROMA_KEY, true)
   );
   const [bestRecord, setBestRecord] = useState<RotationBest | null>(readRotationBest);
-  const [evaluations, setEvaluations] = useState<RotationEvaluation[]>(readRotationEvaluations);
+  const [evaluations, setEvaluations] = useState<ColorChainEvaluation[]>(
+    () => readColorChainEvaluations(ROTATION_EVALUATION_KEY)
+  );
+  const [fallingEvaluations, setFallingEvaluations] = useState<ColorChainEvaluation[]>(
+    () => readColorChainEvaluations(FALLING_EVALUATION_KEY)
+  );
   const [specialActivations, setSpecialActivations] = useState(0);
   const [shuffleCount, setShuffleCount] = useState(0);
   const [rankingName, setRankingName] = useState("");
@@ -698,22 +720,14 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
   const successRate = successfulMoves + invalidMoves > 0
     ? Math.round((successfulMoves / (successfulMoves + invalidMoves)) * 100)
     : 0;
-  const evaluationSummary = useMemo(() => {
-    if (evaluations.length === 0) return null;
-    const plays = evaluations.length;
-    return {
-      averageChain: Math.round(
-        (evaluations.reduce((sum, item) => sum + item.maxChain, 0) / plays) * 10
-      ) / 10,
-      averageTime: Math.round(
-        evaluations.reduce((sum, item) => sum + item.playedSeconds, 0) / plays
-      ),
-      clearRate: Math.round(
-        (evaluations.filter((item) => item.completed).length / plays) * 100
-      ),
-      plays
-    };
-  }, [evaluations]);
+  const evaluationSummary = useMemo(
+    () => summarizeColorChainEvaluations(evaluations),
+    [evaluations]
+  );
+  const fallingEvaluationSummary = useMemo(
+    () => summarizeColorChainEvaluations(fallingEvaluations),
+    [fallingEvaluations]
+  );
   const chromaMood: ChromaMood = phase === "timeout"
     ? "defeat"
     : grandSpell || battleImpact
@@ -866,6 +880,11 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     const next = !effectsEnabledRef.current;
     effectsEnabledRef.current = next;
     saveBooleanSetting(ROTATION_EFFECTS_KEY, next, setEffectsEnabled);
+  };
+
+  const refreshEvaluationComparison = () => {
+    setEvaluations(readColorChainEvaluations(ROTATION_EVALUATION_KEY));
+    setFallingEvaluations(readColorChainEvaluations(FALLING_EVALUATION_KEY));
   };
 
   const openOverlay = (panel: Exclude<RotationOverlayPanel, null>) => {
@@ -1679,27 +1698,24 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
   useEffect(() => {
     if (!["clear", "timeout"].includes(phase) || evaluationSavedRef.current) return;
     evaluationSavedRef.current = true;
-    const evaluation: RotationEvaluation = {
+    const evaluation: ColorChainEvaluation = {
       cleared,
       completed: phase === "clear",
       invalidMoves,
       maxChain,
+      mode: "rotation",
       playedSeconds: Math.round((GAME_SECONDS - timeLeft) * 10) / 10,
+      recordedAt: new Date().toISOString(),
       score,
       shuffles: shuffleCount,
       specialActivations,
       successfulMoves
     };
-    const nextEvaluations = [...evaluations, evaluation].slice(-20);
+    const nextEvaluations = appendColorChainEvaluation(
+      ROTATION_EVALUATION_KEY,
+      evaluation
+    );
     setEvaluations(nextEvaluations);
-    try {
-      window.localStorage.setItem(
-        ROTATION_EVALUATION_KEY,
-        JSON.stringify(nextEvaluations)
-      );
-    } catch {
-      // Evaluation data is optional when storage is unavailable.
-    }
 
     if (phase === "clear") {
       const nextBest = {
@@ -2347,6 +2363,91 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
                             )
                           : t.evaluationEmpty}
                       </p>
+                      <h4>{t.comparisonTitle}</h4>
+                      <p>{t.comparisonDescription}</p>
+                      <div className="color-chain-rotation-comparison-table">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th scope="col" />
+                              <th scope="col">{t.rotationMode}</th>
+                              <th scope="col">{t.fallingMode}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[
+                              {
+                                label: t.comparisonPlays,
+                                rotation: evaluationSummary?.plays,
+                                falling: fallingEvaluationSummary?.plays
+                              },
+                              {
+                                label: t.comparisonClearRate,
+                                rotation: evaluationSummary
+                                  ? `${evaluationSummary.clearRate}%`
+                                  : undefined,
+                                falling: fallingEvaluationSummary
+                                  ? `${fallingEvaluationSummary.clearRate}%`
+                                  : undefined
+                              },
+                              {
+                                label: t.comparisonTime,
+                                rotation: evaluationSummary
+                                  ? `${evaluationSummary.averageTime}s`
+                                  : undefined,
+                                falling: fallingEvaluationSummary
+                                  ? `${fallingEvaluationSummary.averageTime}s`
+                                  : undefined
+                              },
+                              {
+                                label: t.comparisonChain,
+                                rotation: evaluationSummary?.averageChain,
+                                falling: fallingEvaluationSummary?.averageChain
+                              },
+                              {
+                                label: t.comparisonSpecials,
+                                rotation: evaluationSummary?.averageSpecials,
+                                falling: fallingEvaluationSummary?.averageSpecials
+                              },
+                              {
+                                label: t.comparisonInvalid,
+                                rotation: evaluationSummary?.invalidRate === null
+                                  ? t.comparisonNotApplicable
+                                  : evaluationSummary
+                                    ? `${evaluationSummary.invalidRate}%`
+                                    : undefined,
+                                falling: fallingEvaluationSummary
+                                  ? t.comparisonNotApplicable
+                                  : undefined
+                              },
+                              {
+                                label: t.comparisonShuffles,
+                                rotation: evaluationSummary?.averageShuffles,
+                                falling: fallingEvaluationSummary
+                                  ? t.comparisonNotApplicable
+                                  : undefined
+                              }
+                            ].map((row) => (
+                              <tr key={row.label}>
+                                <th scope="row">{row.label}</th>
+                                <td>{row.rotation ?? t.comparisonUnavailable}</td>
+                                <td>{row.falling ?? t.comparisonUnavailable}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <p className="color-chain-rotation-comparison-note">
+                        {t.comparisonNote}
+                      </p>
+                      <button
+                        className="color-chain-rotation-comparison-refresh"
+                        onClick={refreshEvaluationComparison}
+                        type="button"
+                      >
+                        <RotateCcw aria-hidden="true" />
+                        {t.comparisonRefresh}
+                      </button>
                     </section>
                   </div>
                 )}

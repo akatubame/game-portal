@@ -12568,6 +12568,87 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
   text-align: center;
 }
 
+.color-chain-rotation-evaluation {
+  background: rgba(255, 251, 230, 0.62);
+  border: 1px solid rgba(91, 52, 27, 0.2);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.color-chain-rotation-evaluation h3,
+.color-chain-rotation-evaluation h4,
+.color-chain-rotation-evaluation p {
+  margin: 0;
+}
+
+.color-chain-rotation-evaluation h4 {
+  color: #66412e;
+  font-size: 12px;
+  margin-top: 14px;
+}
+
+.color-chain-rotation-evaluation > p {
+  color: #71625b;
+  font-size: 10px;
+  line-height: 1.5;
+  margin-top: 5px;
+}
+
+.color-chain-rotation-comparison-table {
+  margin-top: 9px;
+  overflow-x: auto;
+}
+
+.color-chain-rotation-comparison-table table {
+  border-collapse: collapse;
+  font-size: 9px;
+  min-width: 100%;
+  text-align: center;
+  width: max-content;
+}
+
+.color-chain-rotation-comparison-table th,
+.color-chain-rotation-comparison-table td {
+  border: 1px solid rgba(91, 52, 27, 0.18);
+  padding: 5px 7px;
+  white-space: nowrap;
+}
+
+.color-chain-rotation-comparison-table thead th {
+  background: rgba(118, 72, 43, 0.13);
+  color: #5b3b2d;
+}
+
+.color-chain-rotation-comparison-table tbody th {
+  color: #66524a;
+  text-align: left;
+}
+
+.color-chain-rotation-evaluation .color-chain-rotation-comparison-note {
+  font-size: 9px;
+}
+
+.color-chain-rotation-comparison-refresh {
+  align-items: center;
+  background: #76533d;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 900;
+  gap: 5px;
+  margin-top: 9px;
+  min-height: 30px;
+  padding: 6px 11px;
+}
+
+.color-chain-rotation-comparison-refresh svg {
+  height: 13px;
+  width: 13px;
+}
+
 .color-chain-rotation-tutorial {
   align-items: center;
   display: flex;

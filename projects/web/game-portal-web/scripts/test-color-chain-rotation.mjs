@@ -42,6 +42,9 @@ const interaction = await import(
     { "./rotationLogic": rotationUrl }
   )
 );
+const evaluation = await import(
+  compileTypeScriptSource("../src/games/colorChain/evaluation.ts")
+);
 
 const {
   ROTATION_COLUMNS,
@@ -71,6 +74,7 @@ const {
   findRefilledCells,
   moveRotationPoint,
 } = interaction;
+const { summarizeColorChainEvaluations } = evaluation;
 const {
   BOMB_BLOCK,
   COLOR_BREAKER_BLOCK,
@@ -103,6 +107,44 @@ function makePatternBoard() {
 function assertBoardShape(board) {
   assert.equal(board.length, ROTATION_ROWS);
   board.forEach((row) => assert.equal(row.length, ROTATION_COLUMNS));
+}
+
+{
+  const summary = summarizeColorChainEvaluations([
+    {
+      cleared: 90,
+      completed: true,
+      invalidMoves: 1,
+      maxChain: 6,
+      playedSeconds: 80,
+      score: 12000,
+      shuffles: 0,
+      specialActivations: 4,
+      successfulMoves: 9,
+    },
+    {
+      cleared: 72,
+      completed: false,
+      invalidMoves: 3,
+      maxChain: 4,
+      playedSeconds: 120,
+      score: 8000,
+      shuffles: 2,
+      specialActivations: 2,
+      successfulMoves: 7,
+    },
+  ]);
+  assert.deepEqual(summary, {
+    averageChain: 5,
+    averageCleared: 81,
+    averageShuffles: 1,
+    averageSpecials: 3,
+    averageTime: 100,
+    clearRate: 50,
+    invalidRate: 20,
+    plays: 2,
+  });
+  assert.equal(summarizeColorChainEvaluations([]), null);
 }
 
 {

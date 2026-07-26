@@ -36,6 +36,11 @@ import {
   type GestureAxis
 } from "./gesture";
 import {
+  appendColorChainEvaluation,
+  FALLING_EVALUATION_KEY,
+  type ColorChainEvaluation
+} from "./evaluation";
+import {
   applyGravityStep,
   applySlipperyNudge,
   addLaserCharge,
@@ -160,6 +165,7 @@ const MOKO_ATTACK_FORECAST_AT = 70;
 const MOKO_ATTACK_CAST_DURATION = 950;
 const MOKO_ATTACK_RECOVERY_DURATION = 1_200;
 const MOKO_ATTACK_DELAY_PER_CLEARED_BLOCK = 1.5;
+const MOKO_PURIFY_CLEAR_TARGET = 50;
 
 const difficultySettings: Record<Difficulty, {
   colors: number;
@@ -713,6 +719,11 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   const opponentAttackChargeRef = useRef(opponentAttackCharge);
   const opponentInterferencePhaseRef = useRef<OpponentInterferencePhase>(opponentInterferencePhase);
   const slipperyCellRef = useRef<string | null>(slipperyCell);
+  const evaluationActiveStartedAtRef = useRef<number | null>(null);
+  const evaluationElapsedMsRef = useRef(0);
+  const evaluationSavedRef = useRef(false);
+  const evaluationSpecialActivationsRef = useRef(0);
+  const evaluationSuccessfulMovesRef = useRef(0);
 
   const settings = difficultySettings[difficulty];
   const ranking = useRanking({ gameId: `color-chain-${difficulty}`, metricLabel: "Score", mode: "higher" });
@@ -883,10 +894,39 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     setSlipperyCell(next);
   };
 
+  function getEvaluationPlayedSeconds() {
+    const activeMs = evaluationActiveStartedAtRef.current === null
+      ? 0
+      : performance.now() - evaluationActiveStartedAtRef.current;
+    return Math.round((evaluationElapsedMsRef.current + activeMs) / 100) / 10;
+  }
+
+  function saveMascotEvaluation(completed: boolean) {
+    if (!isMascotTest || evaluationSavedRef.current) return;
+    evaluationSavedRef.current = true;
+    const evaluation: ColorChainEvaluation = {
+      cleared: clearedRef.current,
+      completed,
+      invalidMoves: 0,
+      maxChain: maxChainRef.current,
+      mode: "falling",
+      playedSeconds: getEvaluationPlayedSeconds(),
+      recordedAt: new Date().toISOString(),
+      score: scoreRef.current,
+      shuffles: 0,
+      specialActivations: evaluationSpecialActivationsRef.current,
+      successfulMoves: evaluationSuccessfulMovesRef.current
+    };
+    appendColorChainEvaluation(FALLING_EVALUATION_KEY, evaluation);
+  }
+
   const showSpecialMove = (move: Omit<ActiveSpecialMove, "nonce"> | null) => {
     if (!move) {
       setActiveSpecialMove(null);
       return;
+    }
+    if (isMascotTest && !evaluationSavedRef.current) {
+      evaluationSpecialActivationsRef.current += 1;
     }
     specialMoveNonceRef.current += 1;
     setActiveSpecialMove({ ...move, nonce: specialMoveNonceRef.current });
@@ -954,6 +994,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   }
 
   function finishGame() {
+    saveMascotEvaluation(clearedRef.current >= MOKO_PURIFY_CLEAR_TARGET);
     pauseBgm(true);
     playAudioEffect("gameOver");
     updateStatus("gameover");
@@ -1180,6 +1221,9 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
 
   function lockPair(pair: FallingPair) {
     if (statusRef.current !== "playing") return;
+    if (isMascotTest && !evaluationSavedRef.current) {
+      evaluationSuccessfulMovesRef.current += 1;
+    }
     let lockedBoard = mergePair(boardRef.current, pair);
     const activeSlipperyCell = slipperyCellRef.current;
     if (isMascotTest && activeSlipperyCell) {
@@ -1324,6 +1368,11 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     opponentAttackChargeRef.current = 0;
     opponentInterferencePhaseRef.current = "charging";
     slipperyCellRef.current = null;
+    evaluationActiveStartedAtRef.current = isMascotTest ? performance.now() : null;
+    evaluationElapsedMsRef.current = 0;
+    evaluationSavedRef.current = false;
+    evaluationSpecialActivationsRef.current = 0;
+    evaluationSuccessfulMovesRef.current = 0;
     setBoard(nextBoard);
     setActivePair(firstPair);
     setNextPairs(queue);
@@ -1626,6 +1675,32 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   }
 
   useEffect(() => {
+    if (!isMascotTest) return;
+    const active = status === "playing" || status === "resolving";
+    if (active) {
+      if (evaluationActiveStartedAtRef.current === null) {
+        evaluationActiveStartedAtRef.current = performance.now();
+      }
+      return;
+    }
+    if (evaluationActiveStartedAtRef.current !== null) {
+      evaluationElapsedMsRef.current += (
+        performance.now() - evaluationActiveStartedAtRef.current
+      );
+      evaluationActiveStartedAtRef.current = null;
+    }
+  }, [isMascotTest, status]);
+
+  useEffect(() => {
+    if (
+      !isMascotTest
+      || cleared < MOKO_PURIFY_CLEAR_TARGET
+      || evaluationSavedRef.current
+    ) return;
+    saveMascotEvaluation(true);
+  }, [cleared, isMascotTest]);
+
+  useEffect(() => {
     if (status !== "playing" || laserTargeting) return;
     const timer = window.setInterval(automaticDrop, dropInterval);
     return () => window.clearInterval(timer);
@@ -1700,7 +1775,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
     if (
       !isMascotTest
       || status !== "playing"
-      || cleared >= 50
+      || cleared >= MOKO_PURIFY_CLEAR_TARGET
       || slipperyCell !== null
       || (
         opponentInterferencePhase !== "charging"
@@ -1725,7 +1800,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
       !isMascotTest
       || opponentInterferencePhase !== "casting"
       || status !== "playing"
-      || cleared >= 50
+      || cleared >= MOKO_PURIFY_CLEAR_TARGET
     ) return;
 
     setMessage(t.slipperyCasting);
@@ -1762,7 +1837,7 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
   }, [isMascotTest, opponentInterferencePhase]);
 
   useEffect(() => {
-    if (!isMascotTest || cleared < 50) return;
+    if (!isMascotTest || cleared < MOKO_PURIFY_CLEAR_TARGET) return;
     updateOpponentAttackCharge(0);
     updateOpponentInterferencePhase("charging");
     updateSlipperyCell(null);
@@ -1933,7 +2008,10 @@ export function ColorChain({ onBack, presentation = "public" }: ColorChainProps)
       ? `special-${activeSpecialMove.nonce}`
       : `chain-${currentChain}-${clearingCells.size}-${score}`
     : null;
-  const opponentDisturbance = Math.max(0, 100 - cleared * 2);
+  const opponentDisturbance = Math.max(
+    0,
+    100 - (cleared / MOKO_PURIFY_CLEAR_TARGET) * 100
+  );
 
   useLayoutEffect(() => {
     if (!isMascotTest) return;
