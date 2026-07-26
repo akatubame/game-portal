@@ -547,7 +547,8 @@ body.color-chain-rotation-mode .game-screen.is-color-chain-rotation-test .game-t
 }
 
 .color-chain-rotation-chain-wave-effect {
-  height: 26%;
+  /* 描画部分だけを切り出した素材を縦横比維持で表示し、鎖の輪を潰さない。 */
+  height: 47%;
   left: -3%;
   overflow: hidden;
   pointer-events: none;
@@ -561,10 +562,10 @@ body.color-chain-rotation-mode .game-screen.is-color-chain-rotation-test .game-t
   animation:
     color-chain-rotation-chain-wave-sprite 560ms steps(3, end) both,
     color-chain-rotation-chain-wave-fade 560ms ease-out both;
-  background-image: url("/effects/color-chain/chain-wave-sprite.png");
+  background-image: url("/effects/color-chain/chain-wave-sprite-compact.png");
   background-position: 0 50%;
   background-repeat: no-repeat;
-  background-size: 400% 100%;
+  background-size: 400% auto;
   filter:
     drop-shadow(0 0 5px rgba(91, 240, 255, 0.95))
     drop-shadow(0 0 9px rgba(255, 229, 110, 0.7));
