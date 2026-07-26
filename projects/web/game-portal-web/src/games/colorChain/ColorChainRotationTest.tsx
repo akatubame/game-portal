@@ -181,6 +181,7 @@ const PRISM_BREAK_DURATION = 430;
 const FALL_DURATION = 170;
 const REFILL_DURATION = 190;
 const GRAND_SPELL_DURATION = 760;
+const ULTIMATE_CHAIN_CUTIN_DURATION = 960;
 const TIME_VEIL_DURATION = 6;
 const TIME_VEIL_CHARGE_BLOCKS = 20;
 const CHAIN_WAVE_CHARGE_BLOCKS = 24;
@@ -229,6 +230,7 @@ const chromaAssets: Record<ChromaMood, string> = {
   danger: "/characters/chroma/chroma-danger",
   defeat: "/characters/chroma/chroma-defeat"
 };
+const chromaUltimateAsset = "/characters/chroma/chroma-ultimate";
 const mokoAssets: Record<MokoMood, string> = {
   idle: "/characters/moko/moko-idle",
   light: "/characters/moko/moko-hit-light",
@@ -1193,8 +1195,12 @@ export function ColorChainRotationTest({
     const cutinDuration = prefersReducedMotion
       ? 180
       : mobilePerformance
-        ? 620
-        : GRAND_SPELL_DURATION;
+        ? isUltimateChain
+          ? 760
+          : 620
+        : isUltimateChain
+          ? ULTIMATE_CHAIN_CUTIN_DURATION
+          : GRAND_SPELL_DURATION;
     playAudioEffect(isUltimateChain ? "ultimateMagicalChain" : "strong");
     await delay(cutinDuration);
     if (runIdRef.current !== currentRun) return false;
@@ -2749,9 +2755,24 @@ export function ColorChainRotationTest({
                 <i />
                 <i />
               </div>
+              {grandSpell.id === "ultimate-magical-chain" && (
+                <div
+                  aria-hidden="true"
+                  className="color-chain-rotation-grand-cutin-ultimate-burst"
+                >
+                  <i />
+                  <i />
+                  <i />
+                  <i />
+                </div>
+              )}
               <CharacterPicture
                 alt=""
-                asset={chromaAssets.chain}
+                asset={
+                  grandSpell.id === "ultimate-magical-chain"
+                    ? chromaUltimateAsset
+                    : chromaAssets.chain
+                }
                 className="color-chain-rotation-grand-cutin-chroma"
               />
               <div className="color-chain-rotation-grand-cutin-copy">

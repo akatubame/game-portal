@@ -12535,7 +12535,86 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 }
 
 .color-chain-rotation-grand-cutin.is-ultimate-magical-chain .color-chain-rotation-grand-cutin-chroma {
+  height: 124%;
+  margin-bottom: -16%;
+  transform-origin: 50% 76%;
+  width: 100%;
   animation-name: color-chain-rotation-ultimate-chroma;
+}
+
+.color-chain-rotation-grand-cutin.is-ultimate-magical-chain .color-chain-rotation-grand-cutin-chroma img {
+  animation: color-chain-rotation-ultimate-chroma-art 960ms cubic-bezier(0.16, 0.82, 0.22, 1) both;
+  filter:
+    drop-shadow(0 0 7px rgba(255, 255, 255, 0.98))
+    drop-shadow(0 0 22px var(--grand-spell-glow));
+  object-position: center bottom;
+  transform-origin: 50% 72%;
+}
+
+.color-chain-rotation-grand-cutin-ultimate-burst {
+  height: 112%;
+  left: -1%;
+  pointer-events: none;
+  position: absolute;
+  top: -6%;
+  width: 47%;
+  z-index: 1;
+}
+
+.color-chain-rotation-grand-cutin-ultimate-burst::before,
+.color-chain-rotation-grand-cutin-ultimate-burst::after {
+  animation: color-chain-rotation-ultimate-burst 960ms ease-out both;
+  background:
+    repeating-conic-gradient(
+      from -8deg,
+      rgba(255, 255, 255, 0.78) 0 1.4deg,
+      transparent 1.6deg 12deg
+    );
+  border-radius: 50%;
+  content: "";
+  inset: 8%;
+  mask-image: radial-gradient(circle, transparent 0 21%, #000 43%, transparent 73%);
+  position: absolute;
+}
+
+.color-chain-rotation-grand-cutin-ultimate-burst::after {
+  animation-delay: 70ms;
+  animation-direction: reverse;
+  inset: 20%;
+  opacity: 0.64;
+  rotate: 17deg;
+}
+
+.color-chain-rotation-grand-cutin-ultimate-burst i {
+  animation: color-chain-rotation-ultimate-spark 960ms ease-out both;
+  background: #fff;
+  box-shadow:
+    0 0 10px #fff,
+    0 0 24px var(--grand-spell-glow);
+  height: 6px;
+  left: 11%;
+  position: absolute;
+  rotate: 45deg;
+  top: 28%;
+  width: 6px;
+}
+
+.color-chain-rotation-grand-cutin-ultimate-burst i:nth-child(2) {
+  animation-delay: 60ms;
+  left: 81%;
+  top: 17%;
+}
+
+.color-chain-rotation-grand-cutin-ultimate-burst i:nth-child(3) {
+  animation-delay: 110ms;
+  left: 18%;
+  top: 77%;
+}
+
+.color-chain-rotation-grand-cutin-ultimate-burst i:nth-child(4) {
+  animation-delay: 150ms;
+  left: 88%;
+  top: 66%;
 }
 
 .color-chain-rotation-grand-cutin.is-ultimate-magical-chain .color-chain-rotation-grand-cutin-copy strong {
@@ -12976,6 +13055,15 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
   box-shadow: none;
 }
 
+.color-chain-rotation-stage.is-mobile-performance .color-chain-rotation-grand-cutin-ultimate-burst::before,
+.color-chain-rotation-stage.is-mobile-performance .color-chain-rotation-grand-cutin-ultimate-burst::after {
+  display: none;
+}
+
+.color-chain-rotation-stage.is-mobile-performance .color-chain-rotation-grand-cutin-ultimate-burst i {
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+}
+
 .color-chain-rotation-stage.is-mobile-performance.is-ultimate-cutin .color-chain-rotation-game-grid {
   animation-name: color-chain-rotation-ultimate-shake-mobile;
 }
@@ -13073,11 +13161,33 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 }
 
 @keyframes color-chain-rotation-ultimate-chroma {
-  0% { opacity: 0; transform: translate(-58px, 26px) scale(0.82) rotate(-5deg); }
-  25% { opacity: 1; transform: translate(0, -8px) scale(1.08) rotate(2deg); }
-  58% { opacity: 1; transform: translate(8px, -2px) scale(1.03) rotate(-1deg); }
-  82% { opacity: 1; transform: translate(4px, 0) scale(1.04); }
-  100% { opacity: 0; transform: translate(28px, -5px) scale(1.1); }
+  0% { opacity: 0; transform: translate(-70px, 38px) scale(0.72) rotate(-6deg); }
+  18% { opacity: 1; transform: translate(-4px, -10px) scale(1.08) rotate(1.5deg); }
+  42% { opacity: 1; transform: translate(3px, -5px) scale(1.03) rotate(-0.5deg); }
+  77% { opacity: 1; transform: translate(3px, -5px) scale(1.04) rotate(0); }
+  100% { opacity: 0; transform: translate(34px, -10px) scale(1.12) rotate(1deg); }
+}
+
+@keyframes color-chain-rotation-ultimate-chroma-art {
+  0%, 18% { transform: rotate(-1.2deg); }
+  38% { transform: rotate(0.7deg) scale(1.015); }
+  63% { transform: rotate(-0.25deg); }
+  82% { transform: scale(1.01); }
+  100% { transform: scale(1.04); }
+}
+
+@keyframes color-chain-rotation-ultimate-burst {
+  0% { opacity: 0; scale: 0.22; rotate: -24deg; }
+  24% { opacity: 0.92; scale: 1.08; rotate: 6deg; }
+  64% { opacity: 0.58; scale: 0.96; rotate: 16deg; }
+  100% { opacity: 0; scale: 1.28; rotate: 28deg; }
+}
+
+@keyframes color-chain-rotation-ultimate-spark {
+  0%, 12% { opacity: 0; scale: 0; }
+  33% { opacity: 1; scale: 2.7; }
+  54% { opacity: 0.8; scale: 1.2; }
+  100% { opacity: 0; scale: 0.2; translate: 18px -22px; }
 }
 
 @keyframes color-chain-rotation-grand-copy {
