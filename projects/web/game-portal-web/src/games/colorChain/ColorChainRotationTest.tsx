@@ -1150,6 +1150,7 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
           current?.row === point.row && current.column === point.column ? null : current
         ));
       }, 360);
+      commitPhase(timeLeftRef.current <= 0 ? "timeout" : "ready");
       return;
     }
 
@@ -1442,6 +1443,19 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
       return;
     }
     event.preventDefault();
+    if (
+      slimeLockedPointRef.current?.row === point.row
+      && slimeLockedPointRef.current.column === point.column
+    ) {
+      setInvalidPoint(point);
+      setStatusMessage(t.interferenceBlocked);
+      window.setTimeout(() => {
+        setInvalidPoint((current) => (
+          current?.row === point.row && current.column === point.column ? null : current
+        ));
+      }, 360);
+      return;
+    }
     event.currentTarget.setPointerCapture(event.pointerId);
     pointerRef.current = {
       id: event.pointerId,
@@ -1460,6 +1474,9 @@ export function ColorChainRotationTest({ onBack }: ColorChainRotationTestProps) 
     const pointer = pointerRef.current;
     if (!pointer || pointer.id !== event.pointerId || phaseRef.current !== "selecting") return;
     event.preventDefault();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
     pointerRef.current = null;
     const logicalScale = Math.max(0.1, pointer.scale);
     const direction = classifyRotationGesture({
