@@ -12282,6 +12282,7 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 }
 
 .color-chain-rotation-grand-cutin {
+  --grand-cutin-duration: 1080ms;
   --grand-spell-accent: #ffe66d;
   --grand-spell-glow: rgba(255, 99, 178, 0.72);
   align-items: center;
@@ -12296,7 +12297,7 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 }
 
 .color-chain-rotation-grand-cutin-backdrop {
-  animation: color-chain-rotation-grand-backdrop 760ms ease-out both;
+  animation: color-chain-rotation-grand-backdrop var(--grand-cutin-duration) ease-out both;
   background:
     linear-gradient(112deg, rgba(25, 12, 56, 0.98) 0 36%, rgba(25, 12, 56, 0.58) 52%, rgba(6, 7, 31, 0.94) 100%),
     repeating-linear-gradient(118deg, transparent 0 24px, rgba(255, 255, 255, 0.2) 26px 29px, transparent 31px 54px);
@@ -12338,7 +12339,7 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 }
 
 .color-chain-rotation-grand-cutin-chains i {
-  animation: color-chain-rotation-grand-chain 760ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: color-chain-rotation-grand-chain var(--grand-cutin-duration) cubic-bezier(0.2, 0.8, 0.2, 1) both;
   border: 12px dashed var(--grand-spell-accent);
   border-radius: 50%;
   box-shadow: 0 0 20px var(--grand-spell-glow);
@@ -12375,7 +12376,7 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 }
 
 .color-chain-rotation-grand-cutin-summon i {
-  animation: color-chain-rotation-grand-summon 760ms cubic-bezier(0.13, 0.78, 0.2, 1) both;
+  animation: color-chain-rotation-grand-summon var(--grand-cutin-duration) cubic-bezier(0.13, 0.78, 0.2, 1) both;
   border: 9px dashed var(--grand-spell-accent);
   border-radius: 50%;
   bottom: 12%;
@@ -12410,7 +12411,7 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 
 .color-chain-rotation-grand-cutin-chroma {
   align-self: end;
-  animation: color-chain-rotation-grand-chroma 760ms cubic-bezier(0.16, 0.82, 0.22, 1) both;
+  animation: color-chain-rotation-grand-chroma var(--grand-cutin-duration) cubic-bezier(0.16, 0.82, 0.22, 1) both;
   display: block;
   height: 112%;
   justify-self: center;
@@ -12430,7 +12431,7 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 
 .color-chain-rotation-grand-cutin-copy {
   align-content: center;
-  animation: color-chain-rotation-grand-copy 760ms cubic-bezier(0.14, 0.82, 0.18, 1) both;
+  animation: color-chain-rotation-grand-copy var(--grand-cutin-duration) cubic-bezier(0.14, 0.82, 0.18, 1) both;
   display: grid;
   justify-items: center;
   padding: 24px 42px 24px 8px;
@@ -12508,13 +12509,12 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 }
 
 .color-chain-rotation-grand-cutin.is-ultimate-magical-chain {
+  --grand-cutin-duration: 1320ms;
   --grand-spell-accent: #fff8a6;
   --grand-spell-glow: rgba(255, 70, 226, 0.92);
-  --ultimate-cutin-duration: 1320ms;
 }
 
 .color-chain-rotation-grand-cutin.is-ultimate-magical-chain .color-chain-rotation-grand-cutin-backdrop {
-  animation-duration: var(--ultimate-cutin-duration);
   background:
     radial-gradient(circle at 26% 58%, rgba(255, 255, 255, 0.86), transparent 14%),
     repeating-conic-gradient(
@@ -12527,24 +12527,24 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 }
 
 .color-chain-rotation-grand-cutin.is-ultimate-magical-chain .color-chain-rotation-grand-cutin-chains i {
-  animation-duration: var(--ultimate-cutin-duration);
   animation-name: color-chain-rotation-ultimate-chain;
   border-width: 15px;
   opacity: 0.9;
 }
 
 .color-chain-rotation-grand-cutin.is-ultimate-magical-chain .color-chain-rotation-grand-cutin-summon i {
-  animation-duration: var(--ultimate-cutin-duration);
   border-width: 12px;
 }
 
-.color-chain-rotation-grand-cutin.is-ultimate-magical-chain .color-chain-rotation-grand-cutin-chroma {
-  animation-duration: var(--ultimate-cutin-duration);
+.color-chain-rotation-grand-cutin-chroma.is-spell-motion {
   height: 124%;
   margin-bottom: -16%;
   overflow: visible;
   transform-origin: 50% 76%;
   width: 100%;
+}
+
+.color-chain-rotation-grand-cutin.is-ultimate-magical-chain .color-chain-rotation-grand-cutin-chroma {
   animation-name: color-chain-rotation-ultimate-chroma;
 }
 
@@ -12556,27 +12556,27 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
   transform-origin: 50% 72%;
 }
 
-.color-chain-rotation-grand-cutin-ultimate-frame {
+.color-chain-rotation-grand-cutin-motion-frame {
   display: block;
   inset: 0;
   opacity: 0;
   position: absolute;
 }
 
-.color-chain-rotation-grand-cutin-ultimate-frame img {
+.color-chain-rotation-grand-cutin-motion-frame img {
   display: block;
 }
 
-.color-chain-rotation-grand-cutin-ultimate-frame.is-prepare {
-  animation: color-chain-rotation-ultimate-frame-prepare var(--ultimate-cutin-duration) ease-out both;
+.color-chain-rotation-grand-cutin-motion-frame.is-prepare {
+  animation: color-chain-rotation-grand-frame-prepare var(--grand-cutin-duration) ease-out both;
 }
 
-.color-chain-rotation-grand-cutin-ultimate-frame.is-swing {
-  animation: color-chain-rotation-ultimate-frame-swing var(--ultimate-cutin-duration) ease-out both;
+.color-chain-rotation-grand-cutin-motion-frame.is-swing {
+  animation: color-chain-rotation-grand-frame-swing var(--grand-cutin-duration) ease-out both;
 }
 
-.color-chain-rotation-grand-cutin-ultimate-frame.is-release {
-  animation: color-chain-rotation-ultimate-frame-release var(--ultimate-cutin-duration) ease-out both;
+.color-chain-rotation-grand-cutin-motion-frame.is-release {
+  animation: color-chain-rotation-grand-frame-release var(--grand-cutin-duration) ease-out both;
 }
 
 .color-chain-rotation-grand-cutin-ultimate-burst {
@@ -12591,7 +12591,7 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 
 .color-chain-rotation-grand-cutin-ultimate-burst::before,
 .color-chain-rotation-grand-cutin-ultimate-burst::after {
-  animation: color-chain-rotation-ultimate-burst var(--ultimate-cutin-duration) ease-out both;
+  animation: color-chain-rotation-ultimate-burst var(--grand-cutin-duration) ease-out both;
   background:
     repeating-conic-gradient(
       from -8deg,
@@ -12614,7 +12614,7 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 }
 
 .color-chain-rotation-grand-cutin-ultimate-burst i {
-  animation: color-chain-rotation-ultimate-spark var(--ultimate-cutin-duration) ease-out both;
+  animation: color-chain-rotation-ultimate-spark var(--grand-cutin-duration) ease-out both;
   background: #fff;
   box-shadow:
     0 0 10px #fff,
@@ -12649,10 +12649,6 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
   background: linear-gradient(90deg, #ff8bbb, #fff184, #81f4dc, #8ed4ff, #dca4ff, #ff8bbb);
   background-clip: text;
   color: transparent;
-}
-
-.color-chain-rotation-grand-cutin.is-ultimate-magical-chain .color-chain-rotation-grand-cutin-copy {
-  animation-duration: var(--ultimate-cutin-duration);
 }
 
 .color-chain-rotation-stage.is-ultimate-cutin .color-chain-rotation-game-grid {
@@ -13097,7 +13093,11 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 }
 
 .color-chain-rotation-stage.is-mobile-performance .color-chain-rotation-grand-cutin.is-ultimate-magical-chain {
-  --ultimate-cutin-duration: 1080ms;
+  --grand-cutin-duration: 1080ms;
+}
+
+.color-chain-rotation-stage.is-mobile-performance .color-chain-rotation-grand-cutin:not(.is-ultimate-magical-chain) {
+  --grand-cutin-duration: 900ms;
 }
 
 .color-chain-rotation-stage.is-mobile-performance.is-ultimate-cutin .color-chain-rotation-game-grid {
@@ -13109,12 +13109,12 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .color-chain-rotation-grand-cutin-ultimate-frame.is-prepare,
-  .color-chain-rotation-grand-cutin-ultimate-frame.is-swing {
+  .color-chain-rotation-grand-cutin-motion-frame.is-prepare,
+  .color-chain-rotation-grand-cutin-motion-frame.is-swing {
     display: none;
   }
 
-  .color-chain-rotation-grand-cutin-ultimate-frame.is-release {
+  .color-chain-rotation-grand-cutin-motion-frame.is-release {
     animation: none;
     opacity: 1;
     transform: none;
@@ -13216,21 +13216,21 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
   100% { opacity: 0; transform: translate(30px, -8px) scale(1.1) rotate(1deg); }
 }
 
-@keyframes color-chain-rotation-ultimate-frame-prepare {
+@keyframes color-chain-rotation-grand-frame-prepare {
   0% { opacity: 0; transform: translate(-18px, 18px) scale(0.9); }
   8% { opacity: 1; transform: translate(-5px, 3px) scale(1); }
   23% { opacity: 1; transform: translate(0, 0) scale(1.025); }
   32%, 100% { opacity: 0; transform: translate(14px, -8px) scale(1.06); }
 }
 
-@keyframes color-chain-rotation-ultimate-frame-swing {
+@keyframes color-chain-rotation-grand-frame-swing {
   0%, 20% { opacity: 0; transform: translate(-20px, 12px) scale(0.92) rotate(-2deg); }
   29% { opacity: 1; transform: translate(2px, -5px) scale(1.04) rotate(0.8deg); }
   50% { opacity: 1; transform: translate(5px, -8px) scale(1.07) rotate(-0.4deg); }
   60%, 100% { opacity: 0; transform: translate(20px, -16px) scale(1.12) rotate(1deg); }
 }
 
-@keyframes color-chain-rotation-ultimate-frame-release {
+@keyframes color-chain-rotation-grand-frame-release {
   0%, 49% { opacity: 0; transform: translate(-12px, 18px) scale(0.88); }
   58% { opacity: 1; transform: translate(2px, -10px) scale(1.08); }
   84% { opacity: 1; transform: translate(4px, -8px) scale(1.04); }

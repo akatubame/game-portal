@@ -180,7 +180,7 @@ const CLEAR_DURATION = 250;
 const PRISM_BREAK_DURATION = 430;
 const FALL_DURATION = 170;
 const REFILL_DURATION = 190;
-const GRAND_SPELL_DURATION = 760;
+const GRAND_SPELL_DURATION = 1_080;
 const ULTIMATE_CHAIN_CUTIN_DURATION = 1_320;
 const TIME_VEIL_DURATION = 6;
 const TIME_VEIL_CHARGE_BLOCKS = 20;
@@ -230,11 +230,36 @@ const chromaAssets: Record<ChromaMood, string> = {
   danger: "/characters/chroma/chroma-danger",
   defeat: "/characters/chroma/chroma-defeat"
 };
-const chromaUltimateAssets = {
-  prepare: "/characters/chroma/chroma-ultimate-prepare",
-  swing: "/characters/chroma/chroma-ultimate-swing",
-  release: "/characters/chroma/chroma-ultimate-release"
-} as const;
+const chromaGrandSpellAssets: Record<
+  GrandSpellId,
+  { prepare: string; release: string; swing: string }
+> = {
+  "grand-chain-bomb": {
+    prepare: "/characters/chroma/chroma-grand-chain-bomb-prepare",
+    swing: "/characters/chroma/chroma-grand-chain-bomb-swing",
+    release: "/characters/chroma/chroma-grand-chain-bomb-release"
+  },
+  "trinity-pillar": {
+    prepare: "/characters/chroma/chroma-trinity-pillar-prepare",
+    swing: "/characters/chroma/chroma-trinity-pillar-swing",
+    release: "/characters/chroma/chroma-trinity-pillar-release"
+  },
+  "trinity-wave": {
+    prepare: "/characters/chroma/chroma-trinity-wave-prepare",
+    swing: "/characters/chroma/chroma-trinity-wave-swing",
+    release: "/characters/chroma/chroma-trinity-wave-release"
+  },
+  "prism-nova": {
+    prepare: "/characters/chroma/chroma-prism-nova-prepare",
+    swing: "/characters/chroma/chroma-prism-nova-swing",
+    release: "/characters/chroma/chroma-prism-nova-release"
+  },
+  "ultimate-magical-chain": {
+    prepare: "/characters/chroma/chroma-ultimate-prepare",
+    swing: "/characters/chroma/chroma-ultimate-swing",
+    release: "/characters/chroma/chroma-ultimate-release"
+  }
+};
 const mokoAssets: Record<MokoMood, string> = {
   idle: "/characters/moko/moko-idle",
   light: "/characters/moko/moko-hit-light",
@@ -1201,7 +1226,7 @@ export function ColorChainRotationTest({
       : mobilePerformance
         ? isUltimateChain
           ? 1_080
-          : 620
+          : 900
         : isUltimateChain
           ? ULTIMATE_CHAIN_CUTIN_DURATION
           : GRAND_SPELL_DURATION;
@@ -2770,34 +2795,26 @@ export function ColorChainRotationTest({
                   <i />
                 </div>
               )}
-              {grandSpell.id === "ultimate-magical-chain" ? (
-                <div
-                  aria-hidden="true"
-                  className="color-chain-rotation-grand-cutin-chroma is-ultimate-motion"
-                >
-                  <CharacterPicture
-                    alt=""
-                    asset={chromaUltimateAssets.prepare}
-                    className="color-chain-rotation-grand-cutin-ultimate-frame is-prepare"
-                  />
-                  <CharacterPicture
-                    alt=""
-                    asset={chromaUltimateAssets.swing}
-                    className="color-chain-rotation-grand-cutin-ultimate-frame is-swing"
-                  />
-                  <CharacterPicture
-                    alt=""
-                    asset={chromaUltimateAssets.release}
-                    className="color-chain-rotation-grand-cutin-ultimate-frame is-release"
-                  />
-                </div>
-              ) : (
+              <div
+                aria-hidden="true"
+                className="color-chain-rotation-grand-cutin-chroma is-spell-motion"
+              >
                 <CharacterPicture
                   alt=""
-                  asset={chromaAssets.chain}
-                  className="color-chain-rotation-grand-cutin-chroma"
+                  asset={chromaGrandSpellAssets[grandSpell.id].prepare}
+                  className="color-chain-rotation-grand-cutin-motion-frame is-prepare"
                 />
-              )}
+                <CharacterPicture
+                  alt=""
+                  asset={chromaGrandSpellAssets[grandSpell.id].swing}
+                  className="color-chain-rotation-grand-cutin-motion-frame is-swing"
+                />
+                <CharacterPicture
+                  alt=""
+                  asset={chromaGrandSpellAssets[grandSpell.id].release}
+                  className="color-chain-rotation-grand-cutin-motion-frame is-release"
+                />
+              </div>
               <div className="color-chain-rotation-grand-cutin-copy">
                 <span>{grandSpell.kicker}</span>
                 <strong>{grandSpell.name}</strong>
