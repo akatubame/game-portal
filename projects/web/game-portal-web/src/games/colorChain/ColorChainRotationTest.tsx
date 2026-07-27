@@ -101,6 +101,7 @@ type RotationOverlay = {
 };
 
 type PointerStart = {
+  counterclockwiseTap: boolean;
   id: number;
   point: RotationPoint;
   startTime: number;
@@ -438,7 +439,7 @@ const copy = {
     start: "試作ゲームを開始",
     retry: "もう一度遊ぶ",
     startDescription: `${GAME_SECONDS}秒以内に${CLEAR_TARGET}個消して封印ゲージを満タンにしてください。`,
-    ready: "交点をタップ、または右・左へスワイプして2×2を回転します。",
+    ready: "交点をタップ、または右・左へスワイプして2×2を回転します。PCではShift＋クリックで反時計回りです。",
     cancelled: "縦方向の操作はキャンセルされました。",
     invalid: "チェイン不成立。元の配置へ戻します。",
     chain: (chain: number, points: number) => `${chain} CHAIN!  +${points}`,
@@ -470,7 +471,7 @@ const copy = {
     settings: "設定",
     close: "閉じる",
     rulesTitle: "盤面回転の基本",
-    rules: "交点をタップすると2×2が時計回り、右スワイプでも時計回り、左スワイプでは反時計回りに回転します。同色を縦・横・斜めに4個以上揃えるとマジカルチェインが発生します。揃わない回転は元へ戻ります。",
+    rules: "交点をタップすると2×2が時計回り、右スワイプでも時計回り、左スワイプでは反時計回りに回転します。PCではShift＋クリックでも反時計回りに回転できます。同色を縦・横・斜めに4個以上揃えるとマジカルチェインが発生します。揃わない回転は元へ戻ります。",
     specialGuide: "特殊ブロック",
     specialGuideText: "チェインボムは3×3、チェインピラーは縦一列、チェインウェーブは横一列、プリズムブレイクは対象色を消去します。同種が隣接するとスーパー技へ変化します。",
     supportGuide: "補助技と妨害",
@@ -484,7 +485,7 @@ const copy = {
     settingsSaved: "設定はこの端末へ自動保存されます。",
     tutorialTitle: "はじめての盤面回転",
     tutorialSteps: [
-      "交点をタップすると、周囲の2×2が時計回りに回転します。",
+      "交点をタップすると時計回り、PCでShift＋クリックすると反時計回りに回転します。",
       "交点から右へスワイプしても時計回りに回転します。",
       "左へスワイプすると反時計回りに回転します。",
       "4個以上揃わない回転は自動で元へ戻ります。光るヒントも活用してください。"
@@ -522,7 +523,7 @@ const copy = {
     timeoutTitle: "時間切れ",
     timeoutDescription: "盤面を見直して、もう一度挑戦しましょう。",
     rotateNotice: "横向きにすると固定画面を大きく表示できます。",
-    keyboardHelp: "矢印キーで交点移動、Enterで時計回り、Shift+EnterまたはZで反時計回り",
+    keyboardHelp: "クリックで時計回り、Shift＋クリックで反時計回り／矢印キーで交点移動",
     soundOn: "サウンドをON",
     soundOff: "サウンドをOFF",
     chromaName: "彩鎖の魔女 クロマ",
@@ -569,7 +570,7 @@ const copy = {
     start: "Start Prototype",
     retry: "Play Again",
     startDescription: `Clear ${CLEAR_TARGET} blocks within ${GAME_SECONDS} seconds to fill the Seal Gauge.`,
-    ready: "Tap an intersection, or swipe right or left, to rotate its 2×2 group.",
+    ready: "Tap an intersection, or swipe right or left, to rotate its 2×2 group. On PC, Shift-click rotates counterclockwise.",
     cancelled: "Vertical input was cancelled.",
     invalid: "No chain formed. Restoring the previous layout.",
     chain: (chain: number, points: number) => `${chain} CHAIN!  +${points}`,
@@ -601,7 +602,7 @@ const copy = {
     settings: "Settings",
     close: "Close",
     rulesTitle: "Rotation Basics",
-    rules: "Tap an intersection to rotate its 2×2 group clockwise. Swipe right for clockwise or left for counterclockwise. Match four or more blocks vertically, horizontally, or diagonally to cast a Magical Chain. Rotations without a match return to their previous state.",
+    rules: "Tap an intersection to rotate its 2×2 group clockwise. Swipe right for clockwise or left for counterclockwise. On PC, Shift-click also rotates counterclockwise. Match four or more blocks vertically, horizontally, or diagonally to cast a Magical Chain. Rotations without a match return to their previous state.",
     specialGuide: "Special Blocks",
     specialGuideText: "Chain Bomb clears 3×3, Chain Pillar clears a column, Chain Wave clears a row, and Prism Break clears its target color. Adjacent matching specials combine into a super spell.",
     supportGuide: "Support & Interference",
@@ -615,7 +616,7 @@ const copy = {
     settingsSaved: "Settings are saved automatically on this device.",
     tutorialTitle: "Rotation Tutorial",
     tutorialSteps: [
-      "Tap an intersection to rotate the surrounding 2×2 group clockwise.",
+      "Tap for clockwise, or Shift-click on PC for counterclockwise.",
       "Swipe right from an intersection to rotate clockwise.",
       "Swipe left to rotate counterclockwise.",
       "A rotation without a match returns automatically. Use the glowing hint when needed."
@@ -653,7 +654,7 @@ const copy = {
     timeoutTitle: "Time Up",
     timeoutDescription: "Study the board and try again.",
     rotateNotice: "Rotate your device to landscape for a larger fixed game screen.",
-    keyboardHelp: "Arrow keys: move point / Enter: clockwise / Shift+Enter or Z: counterclockwise",
+    keyboardHelp: "Click: clockwise / Shift-click: counterclockwise / Arrow keys: move point",
     soundOn: "Turn sound on",
     soundOff: "Turn sound off",
     chromaName: "Chroma, Witch of Color Chains",
@@ -1793,6 +1794,7 @@ export function ColorChainRotationTest({
     }
     event.currentTarget.setPointerCapture(event.pointerId);
     pointerRef.current = {
+      counterclockwiseTap: event.shiftKey,
       id: event.pointerId,
       point,
       startTime: performance.now(),
@@ -1817,7 +1819,10 @@ export function ColorChainRotationTest({
     const direction = classifyRotationGesture({
       deltaX: (event.clientX - pointer.startX) / logicalScale,
       deltaY: (event.clientY - pointer.startY) / logicalScale,
-      durationMs: performance.now() - pointer.startTime
+      durationMs: performance.now() - pointer.startTime,
+      tapDirection: pointer.counterclockwiseTap || event.shiftKey
+        ? "counterclockwise"
+        : "clockwise"
     });
 
     if (!direction) {

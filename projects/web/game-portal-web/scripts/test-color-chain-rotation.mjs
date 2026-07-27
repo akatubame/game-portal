@@ -154,6 +154,16 @@ function assertBoardShape(board) {
     "a short tap rotates clockwise"
   );
   assert.equal(
+    classifyRotationGesture({
+      deltaX: 4,
+      deltaY: 3,
+      durationMs: 180,
+      tapDirection: "counterclockwise",
+    }),
+    "counterclockwise",
+    "a modified short tap rotates counterclockwise"
+  );
+  assert.equal(
     classifyRotationGesture({ deltaX: 30, deltaY: 4, durationMs: 400 }),
     "clockwise",
     "a right swipe rotates clockwise"

@@ -16,16 +16,18 @@ export type RotationGestureInput = {
   deltaX: number;
   deltaY: number;
   durationMs: number;
+  tapDirection?: RotationDirection;
 };
 
 export function classifyRotationGesture({
   deltaX,
   deltaY,
-  durationMs
+  durationMs,
+  tapDirection = "clockwise"
 }: RotationGestureInput): RotationDirection | null {
   const distance = Math.hypot(deltaX, deltaY);
   if (durationMs <= ROTATION_TAP_DURATION && distance <= ROTATION_TAP_DISTANCE) {
-    return "clockwise";
+    return tapDirection;
   }
 
   if (
