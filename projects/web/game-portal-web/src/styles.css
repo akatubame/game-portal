@@ -12047,6 +12047,13 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
 }
 
 .color-chain-rotation-side-panel.is-status {
+  border: 7px solid #3a2116;
+  border-radius: 20px;
+  box-shadow:
+    0 0 0 4px #a26838,
+    0 0 0 7px #4a2a1b,
+    0 15px 28px rgba(23, 10, 18, 0.42),
+    inset 0 0 22px rgba(98, 215, 255, 0.12);
   padding: 12px;
 }
 
