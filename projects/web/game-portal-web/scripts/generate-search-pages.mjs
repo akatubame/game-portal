@@ -56,7 +56,7 @@ function readExportedConstant(filePath, exportName) {
 
 const games = readExportedConstant(resolve(portalRoot, "src", "games", "gamesRegistry.ts"), "games");
 const translations = readExportedConstant(resolve(portalRoot, "src", "games", "gameTranslations.ts"), "gameTranslations");
-const availableGames = games.filter((game) => game.status !== "coming-soon");
+const availableGames = games.filter((game) => game.status !== "coming-soon" && game.status !== "hidden");
 const portalGames = availableGames.filter((game) => game.kind === "internal" || game.id === "yonmai-mahjong");
 
 function portalPath(game) {

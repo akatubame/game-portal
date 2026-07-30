@@ -48,8 +48,8 @@ const gameViews: Record<string, GameView> = {
   colorChainRotationTest: lazy(() => import("./games/colorChain/ColorChainRotationTest").then((module) => ({ default: module.ColorChainRotationTest })))
 };
 
-const recentGameIds = ["colorChain", "solitaire", "wordGuess", "nonogram"];
-const popularGameIds = ["random-shogi", "yonmai-mahjong", "colorChain", "2048", "minesweeper", "nonogram", "snake", "reversi"];
+const recentGameIds = ["solitaire", "wordGuess", "nonogram"];
+const popularGameIds = ["random-shogi", "yonmai-mahjong", "2048", "minesweeper", "nonogram", "snake", "reversi"];
 const maxPopularGames = 4;
 const allGenresKey = "__all__";
 const favoriteStorageKey = "game-shelf-favorites";
@@ -130,6 +130,10 @@ function getGameById(id: string) {
   return games.find((game) => game.id === id);
 }
 
+function isVisibleGame(game: Game | undefined): game is Game {
+  return game !== undefined && game.status !== "coming-soon" && game.status !== "hidden";
+}
+
 function getGameHref(game: Game) {
   if (game.kind === "internal") {
     return `/play/${encodeURIComponent(game.id)}/`;
@@ -168,7 +172,9 @@ export function App() {
   const [recentlyPlayedIds, setRecentlyPlayedIds] = useState<string[]>(() => readStoredIds(recentlyPlayedStorageKey));
   const [copyNotice, setCopyNotice] = useState("");
   const didSendInitialPageView = useRef(false);
-  const SelectedGame = selectedGameId ? gameViews[selectedGameId] : undefined;
+  const selectedGame = selectedGameId ? getGameById(selectedGameId) : undefined;
+  const isSelectedGameHidden = selectedGame?.status === "hidden";
+  const SelectedGame = selectedGameId && !isSelectedGameHidden ? gameViews[selectedGameId] : undefined;
   const selectedTestGameRoute = getTestGameRoute(selectedGameId);
   const selectedEmbeddedGame = selectedGameId && !SelectedGame
     ? games.find((game) => game.id === selectedGameId && game.kind === "embedded")
@@ -176,21 +182,21 @@ export function App() {
   const t = uiText[language];
 
   const availableGames = useMemo(
-    () => games.filter((game) => game.status !== "coming-soon"),
+    () => games.filter(isVisibleGame),
     []
   );
 
   const recentGames = useMemo(
     () => recentGameIds
       .map((id) => games.find((game) => game.id === id))
-      .filter((game): game is Game => Boolean(game)),
+      .filter(isVisibleGame),
     []
   );
 
   const popularGames = useMemo(
     () => popularGameIds
       .map((id) => games.find((game) => game.id === id))
-      .filter((game): game is Game => game !== undefined && game.status !== "coming-soon")
+      .filter(isVisibleGame)
       .slice(0, maxPopularGames),
     []
   );
@@ -198,14 +204,14 @@ export function App() {
   const favoriteGames = useMemo(
     () => favoriteIds
       .map(getGameById)
-      .filter((game): game is Game => game !== undefined && game.status !== "coming-soon"),
+      .filter(isVisibleGame),
     [favoriteIds]
   );
 
   const recentlyPlayedGames = useMemo(
     () => recentlyPlayedIds
       .map(getGameById)
-      .filter((game): game is Game => game !== undefined && game.status !== "coming-soon"),
+      .filter(isVisibleGame),
     [recentlyPlayedIds]
   );
 
@@ -221,6 +227,10 @@ export function App() {
     const normalizedQuery = query.trim().toLowerCase();
 
     return games.filter((game) => {
+      if (!isVisibleGame(game)) {
+        return false;
+      }
+
       const translatedGame = getGameText(game, language);
       const matchesGenre = selectedGenre === allGenresKey || game.genre === selectedGenre;
       const matchesQuery = !normalizedQuery || [
@@ -240,7 +250,7 @@ export function App() {
   }, [language, query, selectedGenre]);
 
   const playableFilteredGames = useMemo(
-    () => filteredGames.filter((game) => game.status !== "coming-soon"),
+    () => filteredGames.filter(isVisibleGame),
     [filteredGames]
   );
 
@@ -250,7 +260,7 @@ export function App() {
   };
 
   const rememberPlayedGame = (gameId: string) => {
-    if (!getGameById(gameId)) {
+    if (!isVisibleGame(getGameById(gameId))) {
       return;
     }
 
@@ -271,7 +281,7 @@ export function App() {
   };
 
   const openGame = (game: Game) => {
-    if (game.status === "coming-soon") {
+    if (!isVisibleGame(game)) {
       return;
     }
 
@@ -326,6 +336,13 @@ export function App() {
       window.setTimeout(() => setCopyNotice(""), 2600);
     }
   };
+
+  useEffect(() => {
+    if (isSelectedGameHidden) {
+      window.history.replaceState({}, "", "/");
+      setSelectedGameId(null);
+    }
+  }, [isSelectedGameHidden]);
 
   useEffect(() => {
     const handleNavigation = () => {

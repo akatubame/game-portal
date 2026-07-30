@@ -8,7 +8,7 @@ export type Game = {
   accent: string;
   kind: "external" | "embedded" | "internal";
   href: string;
-  status?: "available" | "coming-soon";
+  status?: "available" | "coming-soon" | "hidden";
 };
 
 export const games: Game[] = [
@@ -454,6 +454,8 @@ export const games: Game[] = [
     screenshot: "/screenshots/color-chain.svg",
     accent: "#ff8ac7",
     kind: "internal",
-    status: "available"
+    // 横画面版の再構築中のため、公開ポータルからは一時的に外す。
+    // ゲーム実装自体は保持し、後で再公開できるようにする。
+    status: "hidden"
   }
 ];
