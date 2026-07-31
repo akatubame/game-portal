@@ -7,6 +7,18 @@ export type PwaSnapshot = {
 
 let snapshot: PwaSnapshot = { needRefresh: false, offlineReady: false };
 const listeners = new Set<() => void>();
+let reloadingForUpdate = false;
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloadingForUpdate) {
+      return;
+    }
+
+    reloadingForUpdate = true;
+    window.location.reload();
+  });
+}
 
 function updateSnapshot(next: Partial<PwaSnapshot>) {
   snapshot = { ...snapshot, ...next };
