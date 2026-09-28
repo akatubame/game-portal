@@ -20,7 +20,7 @@ const copy = {
     iosHint: "Safariの共有ボタンから「ホーム画面に追加」を選んでください。",
     offline: "オフラインモード",
     offlineReady: "オフラインでも遊べる準備ができました。",
-    update: "新しいバージョンがあります。",
+    update: "新しいバージョンがあります。対局の区切りで更新してください。",
     updateButton: "更新して再読み込み",
     close: "閉じる"
   },
@@ -29,7 +29,7 @@ const copy = {
     iosHint: "In Safari, open Share and choose Add to Home Screen.",
     offline: "Offline mode",
     offlineReady: "Game Shelf is ready to play offline.",
-    update: "A new version is available.",
+    update: "A new version is available. Update between games when you are ready.",
     updateButton: "Update and reload",
     close: "Close"
   }

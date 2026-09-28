@@ -3,6 +3,18 @@ import { initialState, startGame } from "./engine/game";
 import { isResumableGame, isSavedGameState } from "./savedGame";
 
 describe("保存対局", () => {
+  it("壊れた席番号・点数・操作情報・結果を拒否する", () => {
+    const game = initialState();
+    expect(isSavedGameState({ ...game, currentPlayerIdx: 4 })).toBe(false);
+    expect(isSavedGameState({ ...game, dealerIdx: -1 })).toBe(false);
+    expect(isSavedGameState({ ...game, pendingAction: { type: "discard" } })).toBe(false);
+    expect(isSavedGameState({ ...game, roundResult: {} })).toBe(false);
+    expect(isSavedGameState({ ...game, players: game.players.map((p) => ({ ...p, points: NaN })) })).toBe(false);
+  });
+  it("最終局の表示を維持した終局済み対局も再開不可", () => {
+    const game = startGame("normal", () => 0.42);
+    expect(isResumableGame({ ...game, phase: "title", roundNumber: 3, completed: true })).toBe(false);
+  });
   it("進行中の対局だけを再開可能と判定する", () => {
     const game = startGame("normal", () => 0.42);
     expect(isResumableGame(game)).toBe(true);

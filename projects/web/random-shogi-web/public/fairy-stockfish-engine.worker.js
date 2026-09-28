@@ -1,7 +1,7 @@
 /* global Stockfish, importScripts */
 
 const ENGINE_ROOT = new URL('fairy-stockfish/', self.location.href).href
-const THINKING_TIME_MS = 2300
+const THINKING_TIME_MS = 2000
 let enginePromise
 let taskQueue = Promise.resolve()
 
@@ -57,11 +57,12 @@ async function handleMessage(event) {
     }
     engine.postMessage('stop')
     engine.postMessage(`position sfen ${event.data.sfen}`)
-    const result = await waitFor(engine, `go movetime ${THINKING_TIME_MS}`, 'bestmove ')
+    const thinkingTime = event.data.thinkingTimeMs === 600 ? 600 : THINKING_TIME_MS
+    const result = await waitFor(engine, `go movetime ${thinkingTime}`, 'bestmove ')
     const bestmove = result.split(/\s+/)[1]
-    self.postMessage({ bestmove })
+    self.postMessage({ bestmove, requestId: event.data.requestId })
   } catch (error) {
     enginePromise = undefined
-    self.postMessage({ error: error instanceof Error ? error.message : String(error) })
+    self.postMessage({ error: error instanceof Error ? error.message : String(error), requestId: event.data.requestId })
   }
 }

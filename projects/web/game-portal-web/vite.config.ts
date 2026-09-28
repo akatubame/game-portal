@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 import { existsSync, statSync, createReadStream } from "node:fs";
-import { dirname, extname, join, resolve } from "node:path";
+import { dirname, extname, join, resolve, relative, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const portalRoot = dirname(fileURLToPath(import.meta.url));
@@ -21,6 +21,7 @@ const embeddedDevRoutes = [
 ];
 
 const mimeTypes: Record<string, string> = {
+  ".wasm": "application/wasm",
   ".css": "text/css; charset=utf-8",
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -55,13 +56,15 @@ function embeddedGamesDevServer() {
           return;
         }
 
-        const relativePath = requestUrl === route.route.slice(0, -1)
-          ? "index.html"
-          : decodeURIComponent(requestUrl.slice(route.route.length)) || "index.html";
+        let relativePath: string;
+        try {
+          relativePath = requestUrl === route.route.slice(0, -1) ? "index.html" : decodeURIComponent(requestUrl.slice(route.route.length)) || "index.html";
+        } catch { res.statusCode = 400; res.end("Bad request"); return; }
         const safeRelativePath = relativePath.replace(/^[/\\]+/, "");
         let filePath = resolve(join(route.distDir, safeRelativePath));
 
-        if (!filePath.startsWith(route.distDir)) {
+        const relativeFile = relative(route.distDir, filePath);
+        if (relativeFile === '..' || relativeFile.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) || isAbsolute(relativeFile)) {
           res.statusCode = 403;
           res.end("Forbidden");
           return;
@@ -84,12 +87,25 @@ function embeddedGamesDevServer() {
   };
 }
 
+function embeddedShogiHeaders() {
+  const configure = (server) => { server.middlewares.use((req, res, next) => {
+    if (req.url?.split('?')[0].startsWith('/games/random-shogi/')) {
+      res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+      res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+      res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+    }
+    next();
+  }); };
+  return { name: 'embedded-shogi-headers', configureServer: configure, configurePreviewServer: configure };
+}
+
 export default defineConfig({
   plugins: [
+    embeddedShogiHeaders(),
     embeddedGamesDevServer(),
     react(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       includeAssets: ["favicon.svg", "pwa-192.png", "pwa-512.png", "pwa-maskable-512.png"],
       manifest: {
         name: "Game Shelf - Browser Game Collection",
@@ -115,7 +131,7 @@ export default defineConfig({
       },
       workbox: {
         clientsClaim: true,
-        skipWaiting: true,
+        skipWaiting: false,
         cleanupOutdatedCaches: true,
         globPatterns: ["**/*.{html,js,css,json,png,svg,webp,wasm,woff,woff2}"],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,

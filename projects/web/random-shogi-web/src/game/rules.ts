@@ -15,7 +15,7 @@ export function legalTargets(position: Position, from: Square): Square[] {
 }
 
 export function legalDrops(position: Position, side: Side, kind: PieceKind): Square[] {
-  if (position.turn !== side || (position.hands[side][kind] ?? 0) <= 0) return []
+  if (kind === 'K' || position.turn !== side || (position.hands[side][kind] ?? 0) <= 0) return []
   const result: Square[] = []
   for (let r = 0; r < 9; r += 1) {
     for (let c = 0; c < 9; c += 1) {
@@ -23,6 +23,14 @@ export function legalDrops(position: Position, side: Side, kind: PieceKind): Squ
       if (deadDrop(side, kind, r)) continue
       if (kind === 'P' && position.board.some((row) => row[c]?.owner === side && row[c]?.kind === 'P' && !row[c]?.promoted)) continue
       const next = applyDropUnchecked(position, { to: [r, c], kind })
+      // 歩の直接王手は合駒で防げないため、盤上の駒の応手だけを調べる。
+      // allLegalMovesを再帰的に呼ばず、探索中の打ち歩詰め判定を有限に保つ。
+      if (kind === 'P') {
+        const king = next.board[r + (side === 'sente' ? -1 : 1)]?.[c]
+        if (king?.kind === 'K' && king.owner === opposite(side) &&
+            !next.board.some((row, rr) => row.some((piece, cc) =>
+              piece?.owner === next.turn && legalTargets(next, [rr, cc]).length > 0))) continue
+      }
       if (!isKingInCheck({ ...next, turn: side }, side)) result.push([r, c])
     }
   }
@@ -31,10 +39,12 @@ export function legalDrops(position: Position, side: Side, kind: PieceKind): Squ
 
 export function applyMove(position: Position, move: Move): Position {
   if (move.from) {
+    const piece = position.board[move.from[0]]?.[move.from[1]]
+    if (!piece || piece.kind !== move.kind || (move.promote && !canPromote(piece, move.from[0], move.to[0]))) throw new Error('不正な駒または成り指定です')
     if (!legalTargets(position, move.from).some((to) => key(to) === key(move.to))) throw new Error('合法手ではありません')
     return applyMoveUnchecked(position, move)
   }
-  if (!legalDrops(position, position.turn, move.kind).some((to) => key(to) === key(move.to))) throw new Error('打てない場所です')
+  if (move.promote || !legalDrops(position, position.turn, move.kind).some((to) => key(to) === key(move.to))) throw new Error('打てない場所です')
   return applyDropUnchecked(position, move)
 }
 

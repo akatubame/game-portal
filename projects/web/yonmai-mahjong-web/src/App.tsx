@@ -11,7 +11,8 @@ import { autoDiscardTriggerKey } from "./autoDiscard";
 import { isRiichiSelectionActive } from "./riichiSelection";
 import { isResumableGame } from "./savedGame";
 import { canAcceptTileInput } from "./tileInputGuard";
-import { DomTranslationLayer } from "./domTranslations";
+import { t, tx, useLanguage, getLanguage } from "./i18n";
+import { logText, yakuLabel } from './engine/recordLabels';
 
 const difficultyLabel: Record<Difficulty, string> = { beginner: "易", easy: "普通", normal: "難" };
 
@@ -25,7 +26,7 @@ function TileView({ tile, onClick, selected = false, muted = false, small = fals
       className={`tile ${small ? "tile-small" : ""} ${selected ? "tile-selected" : ""} ${muted ? "tile-muted" : ""} ${sideways ? "tile-sideways" : ""}`}
       onClick={onClick}
       disabled={!onClick}
-      aria-label={tileText(tile)}
+      aria-label={t(tileText(tile))}
       data-tile={tileId(tile)}
     >
       <img src={tileImagePath(tile)} alt="" draggable={false} />
@@ -35,7 +36,7 @@ function TileView({ tile, onClick, selected = false, muted = false, small = fals
 }
 
 const WindBadge = ({ player }: { player: PlayerState }) => (
-  <span className="wind-badge">{WIND_LABEL[player.seatWind]}</span>
+  <span className="wind-badge" aria-label={t(WIND_LABEL[player.seatWind])}>{getLanguage() === 'en' ? { east: 'E', south: 'S', west: 'W', north: 'N' }[player.seatWind] : WIND_LABEL[player.seatWind]}</span>
 );
 
 function TitleScreen() {
@@ -61,54 +62,46 @@ function TitleScreen() {
     <>
       <main className="title-screen">
         <section className="title-main">
-          <h1>四枚麻雀</h1>
-          <p className="roman-title">YONMAI MAHJONG</p>
+          <h1>{tx("四枚麻雀")}</h1>
+          <p className="roman-title">{tx("YONMAI MAHJONG")}</p>
           <div className="difficulty">
-            <span>COMの強さ</span>
+            <span>{tx("COMの強さ")}</span>
             <div className="segmented">
-              {(Object.keys(difficultyLabel) as Difficulty[]).map((item) => (
+              {tx((Object.keys(difficultyLabel) as Difficulty[]).map((item) => (
                 <button key={item} className={difficulty === item ? "active" : ""} onClick={() => setDifficulty(item)}>
-                  {difficultyLabel[item]}
+                  {tx(difficultyLabel[item])}
                 </button>
-              ))}
+              )))}
             </div>
           </div>
-          <button className="primary-action" onClick={handleStart}>対局開始</button>
-          {hasSave && (
+          <button className="primary-action" onClick={handleStart}>{tx("対局開始")}</button>
+          {tx(hasSave && (
             <div className="resume-row">
-              <button className="secondary-action" onClick={resumeGame}>
-                対局再開
-              </button>
-              <button className="icon-action danger" title="保存を削除" onClick={clearSave}>
+              <button className="secondary-action" onClick={resumeGame}>{tx(" 対局再開 ")}</button>
+              <button className="icon-action danger" title={t("保存を削除")} onClick={clearSave}>
                 <RotateCcw size={20} />
               </button>
             </div>
-          )}
+          ))}
           <button className="title-rules-action" onClick={() => setView("rules")}>
-            <CircleHelp size={18} />
-            ルール
-          </button>
+            <CircleHelp size={18} />{tx(" ルール ")}</button>
         </section>
-        <nav className="bottom-nav" aria-label="メニュー">
-          <button onClick={() => setView("records")}><BarChart3 /><span>過去の成績</span></button>
-          <button onClick={() => setView("yaku")}><BookOpen /><span>役一覧</span></button>
-          <button onClick={() => setView("settings")}><Settings /><span>設定</span></button>
+        <nav className="bottom-nav" aria-label={t("メニュー")}>
+          <button onClick={() => setView("records")}><BarChart3 /><span>{tx("過去の成績")}</span></button>
+          <button onClick={() => setView("yaku")}><BookOpen /><span>{tx("役一覧")}</span></button>
+          <button onClick={() => setView("settings")}><Settings /><span>{tx("設定")}</span></button>
         </nav>
       </main>
 
-      {showSavedGameDialog && (
-        <Modal title="保存された対局があります">
-          <p>途中の対局が保存されています。</p>
+      {tx(showSavedGameDialog && (
+        <Modal title={t("保存された対局があります")}>
+          <p>{tx("途中の対局が保存されています。")}</p>
           <div className="modal-actions">
-            <button className="secondary-action" onClick={() => setShowSavedGameDialog(false)}>
-              キャンセル
-            </button>
-            <button className="primary-action compact" onClick={handleNewGame}>
-              最初から始める
-            </button>
+            <button className="secondary-action" onClick={() => setShowSavedGameDialog(false)}>{tx(" キャンセル ")}</button>
+            <button className="primary-action compact" onClick={handleNewGame}>{tx(" 最初から始める ")}</button>
           </div>
         </Modal>
-      )}
+      ))}
     </>
   );
 }
@@ -117,9 +110,9 @@ function PlayerInfo({ player, vertical = false }: { player: PlayerState; vertica
   return (
     <div className={`player-info ${vertical ? "vertical" : ""}`}>
       <WindBadge player={player} />
-      <span className="player-name">{player.name}</span>
-      <strong>{player.points.toLocaleString()}</strong>
-      {player.isRiichi && <span className="riichi-badge">立直</span>}
+      <span className="player-name">{tx(player.name)}</span>
+      <strong>{tx(player.points.toLocaleString())}</strong>
+      {tx(player.isRiichi && <span className="riichi-badge">{tx("立直")}</span>)}
     </div>
   );
 }
@@ -127,9 +120,9 @@ function PlayerInfo({ player, vertical = false }: { player: PlayerState; vertica
 function Discards({ player, direction }: { player: PlayerState; direction: "top" | "left" | "right" | "bottom" }) {
   return (
     <div className={`discards discards-${direction}`}>
-      {player.discards.map((tile, index) => (
+      {tx(player.discards.map((tile, index) => (
         <TileView key={`${index}-${tileId(tile)}`} tile={tile} small sideways={index === player.riichiDiscardIndex} />
-      ))}
+      )))}
     </div>
   );
 }
@@ -151,10 +144,14 @@ function GameBoard() {
     (game.phase === "playing" || (game.phase === "waiting" && !game.pendingAction));
 
   const handleTileInput = (action: () => void) => {
+    if (useAppStore.getState().game !== game) return;
     const currentAt = performance.now();
     if (!canAcceptTileInput(lastTileInputAt.current, currentAt)) return;
     lastTileInputAt.current = currentAt;
     action();
+  };
+  const act = (action: () => void) => () => {
+    if (useAppStore.getState().game === game) action();
   };
 
   useEffect(() => {
@@ -169,10 +166,10 @@ function GameBoard() {
 
   useEffect(() => {
     if (autoDiscardKey) {
-      const timer = window.setTimeout(autoDiscard, 650);
+      const timer = window.setTimeout(() => autoDiscard(game), 650);
       return () => window.clearTimeout(timer);
     }
-  }, [autoDiscardKey, autoDiscard]);
+  }, [autoDiscardKey, autoDiscard, game]);
 
   return (
     <main
@@ -184,10 +181,10 @@ function GameBoard() {
       data-turn-count={game.turnCount}
     >
       <header className="game-header">
-        <button className="icon-action" onClick={() => setExitOpen(true)} title="タイトルへ"><ArrowLeft /></button>
-        <div><strong>東{game.roundNumber + 1}局</strong>{game.honbaCount > 0 && <span>{game.honbaCount}本場</span>}</div>
-        <span>残り {game.wall.liveTiles.length}枚</span>
-        <div className="dora"><span>ドラ</span>{game.wall.doraIndicators.map((tile, i) => <TileView key={i} tile={nextDora(tile)} small />)}</div>
+        <button className="icon-action" onClick={() => setExitOpen(true)} title={t("タイトルへ")}><ArrowLeft /></button>
+        <div><strong>{tx(`東${game.roundNumber + 1}局`)}</strong>{game.honbaCount > 0 && <span>{tx(`${game.honbaCount}本場`)}</span>}</div>
+        <span>{tx(`残り ${game.wall.liveTiles.length}枚`)}</span>
+        <div className="dora"><span>{tx("ドラ")}</span>{tx(game.wall.doraIndicators.map((tile, i) => <TileView key={i} tile={nextDora(tile)} small />))}</div>
       </header>
 
       <section className="table">
@@ -198,19 +195,19 @@ function GameBoard() {
         <Discards player={game.players[1]} direction="left" />
         <Discards player={game.players[3]} direction="right" />
         <Discards player={game.players[0]} direction="bottom" />
-        <div className="round-medallion"><b>東</b><span>{game.roundNumber + 1}局</span></div>
+        <div className="round-medallion"><b>{tx(`東${game.roundNumber + 1}局`)}</b></div>
       </section>
 
       <section className="human-area">
         <PlayerInfo player={player} />
         <div className="hand-row">
-          {player.ankan.map((tile, index) => (
+          {tx(player.ankan.map((tile, index) => (
             <div className="ankan-set" key={`${tileId(tile)}-${index}`}>
               <span className="tile-back" /><TileView tile={tile} small /><TileView tile={tile} small /><span className="tile-back" />
             </div>
-          ))}
+          )))}
           <div className="hand-tiles">
-            {player.hand.map((tile, index) => {
+            {tx(player.hand.map((tile, index) => {
               const drawn = game.drawnTile && index === player.hand.length - 1;
               const allowed = !riichiSelectionActive || riichiTiles.some((candidate) => tileEqual(candidate, tile));
               return (
@@ -231,36 +228,36 @@ function GameBoard() {
                   />
                 </div>
               );
-            })}
+            }))}
           </div>
         </div>
         <div className="actions">
-          {game.pendingAction?.canTsumo && <button className="action win" onClick={tsumo}>ツモ</button>}
-          {game.pendingAction?.type === "ronCheck" && <>
-            <button className="action ron" onClick={ron}>ロン</button>
-            <button className="action neutral" onClick={skipRon}>見逃す</button>
-          </>}
-          {game.pendingAction?.canRiichi && (
+          {tx(game.pendingAction?.canTsumo && <button className="action win" onClick={act(tsumo)}>{tx("ツモ")}</button>)}
+          {tx(game.pendingAction?.type === "ronCheck" && <>
+            <button className="action ron" onClick={act(ron)}>{tx("ロン")}</button>
+            <button className="action neutral" onClick={act(skipRon)}>{tx("見逃す")}</button>
+          </>)}
+          {tx(game.pendingAction?.canRiichi && (
             <button className={`action riichi ${riichiSelectionActive ? "active" : ""}`} onClick={() => setRiichiMode(!riichiSelectionActive)}>
-              {riichiSelectionActive ? "取消" : "立直"}
+              {tx(riichiSelectionActive ? "取消" : "立直")}
             </button>
-          )}
-          {game.pendingAction?.canAnkan && game.pendingAction.ankanTiles.map((tile) => (
-            <button key={tileId(tile)} className="action kan" onClick={() => ankan(tile)}>暗槓</button>
           ))}
+          {tx(game.pendingAction?.canAnkan && game.pendingAction.ankanTiles.map((tile) => (
+            <button key={tileId(tile)} className="action kan" onClick={act(() => ankan(tile))}>{tx("暗槓")}</button>
+          )))}
         </div>
-        <div className="game-log">{game.gameLog.slice(-2).map((line, i) => <span key={i}>{line}</span>)}</div>
+        <div className="game-log">{(game.gameLogEvents ? game.gameLogEvents.map((event) => logText(event, game)) : game.gameLog).slice(-2).map((line, i) => <span key={i}>{tx(line)}</span>)}</div>
       </section>
 
-      {exitOpen && <Modal title="対局を保存">
-        <p>現在の対局を保存してタイトル画面に戻ります。</p>
+      {tx(exitOpen && <Modal title={t("対局を保存")}>
+        <p>{tx("現在の対局を保存してタイトル画面に戻ります。")}</p>
         <div className="modal-actions">
-          <button className="secondary-action" onClick={() => setExitOpen(false)}>キャンセル</button>
-          <button className="primary-action compact" onClick={() => { setExitOpen(false); backToTitle(); }}>保存して戻る</button>
+          <button className="secondary-action" onClick={() => setExitOpen(false)}>{tx("キャンセル")}</button>
+          <button className="primary-action compact" onClick={() => { setExitOpen(false); backToTitle(); }}>{tx("保存して戻る")}</button>
         </div>
-      </Modal>}
-      {game.phase === "roundResult" && game.roundResult && <ResultModal onNext={nextRound} />}
-      {game.phase === "gameResult" && <GameResult onHome={backToTitle} />}
+      </Modal>)}
+      {tx(game.phase === "roundResult" && game.roundResult && <ResultModal onNext={act(nextRound)} />)}
+      {tx(game.phase === "gameResult" && <GameResult onHome={backToTitle} />)}
     </main>
   );
 }
@@ -269,26 +266,26 @@ function ResultModal({ onNext }: { onNext: () => void }) {
   const result = useAppStore((s) => s.game.roundResult)!;
   const game = useAppStore((s) => s.game);
   return <Modal title={result.isDraw ? "流局" : `${game.players[result.winnerId!].name} ${result.isTsumo ? "ツモ" : "ロン"}！`}>
-    {!result.isDraw && <>
-      <div className="result-hand">{result.winTiles.map((tile, i) => <TileView tile={tile} small key={i} />)}</div>
-      <div className="yaku-result">{result.yaku.map((item) => <div key={item.id}><span>{item.name}</span><b>{item.han}翻</b></div>)}</div>
-      <strong className="result-score">{result.rankName} {result.basePoints.toLocaleString()}点</strong>
-    </>}
-    <div className="point-changes">{result.pointChanges.map((change, i) => change !== 0 && <span className={change > 0 ? "plus" : "minus"} key={i}>{game.players[i].name} {change > 0 ? "+" : ""}{change}</span>)}</div>
-    <button className="primary-action compact" onClick={onNext}>{game.roundNumber >= 3 ? "結果へ" : "次の局へ"}</button>
+    {tx(!result.isDraw && <>
+      <div className="result-hand">{tx(result.winTiles.map((tile, i) => <TileView tile={tile} small key={i} />))}</div>
+      <div className="yaku-result">{tx(result.yaku.map((item) => <div key={item.id}><span>{tx(item.name)}</span><b>{tx(`${item.han}翻`)}</b></div>))}</div>
+      <strong className="result-score">{tx(result.rankName)} {tx(result.basePoints.toLocaleString())}{tx("点")}</strong>
+    </>)}
+    <div className="point-changes">{tx(result.pointChanges.map((change, i) => change !== 0 && <span className={change > 0 ? "plus" : "minus"} key={i}>{tx(game.players[i].name)} {tx(change > 0 ? "+" : "")}{tx(change)}</span>))}</div>
+    <button className="primary-action compact" onClick={onNext}>{tx(game.roundNumber >= 3 ? "結果へ" : "次の局へ")}</button>
   </Modal>;
 }
 
 function GameResult({ onHome }: { onHome: () => void }) {
   const game = useAppStore((s) => s.game);
-  return <Modal title="対局結果">
-    <div className="ranking">{ranking(game).map((player, index) => <div key={player.id}><span>{index + 1}位 {player.name}</span><b>{player.points.toLocaleString()}点</b></div>)}</div>
-    <button className="primary-action compact" onClick={onHome}><Home size={18} />タイトルへ</button>
+  return <Modal title={t("対局結果")}>
+    <div className="ranking">{tx(ranking(game).map((player, index) => <div key={player.id}><span>{tx(`${index + 1}位 ${player.name}`)}</span><b>{tx(`${player.points.toLocaleString()}点`)}</b></div>))}</div>
+    <button className="primary-action compact" onClick={onHome}><Home size={18} />{tx("タイトルへ")}</button>
   </Modal>;
 }
 
 function Modal({ title, children }: { title: string; children: React.ReactNode }) {
-  return <div className="modal-backdrop"><section className="modal"><h2>{title}</h2>{children}</section></div>;
+  return <div className="modal-backdrop"><section className="modal"><h2>{tx(title)}</h2>{tx(children)}</section></div>;
 }
 
 interface YakuCatalogItem {
@@ -386,20 +383,20 @@ const yakuCatalog: YakuCatalogItem[] = [
 
 function YakuHandExample({ hand, winTile, ankan }: Pick<YakuCatalogItem, "hand" | "winTile" | "ankan">) {
   return (
-    <div className="yaku-example" aria-label="アガリ牌の例">
-      {ankan && (
-        <div className="yaku-ankan" aria-label="暗槓">
+    <div className="yaku-example" aria-label={t("アガリ牌の例")}>
+      {tx(ankan && (
+        <div className="yaku-ankan" aria-label={t("暗槓")}>
           <span className="tile-back" />
           <TileView tile={ankan} small />
           <TileView tile={ankan} small />
           <span className="tile-back" />
         </div>
-      )}
+      ))}
       <div className="yaku-hand">
-        {hand.map((tile, index) => <TileView key={`${tileId(tile)}-${index}`} tile={tile} small />)}
+        {tx(hand.map((tile, index) => <TileView key={`${tileId(tile)}-${index}`} tile={tile} small />))}
       </div>
       <div className="yaku-win-tile">
-        <span>アガリ</span>
+        <span>{tx("アガリ")}</span>
         <TileView tile={winTile} small />
       </div>
     </div>
@@ -408,18 +405,18 @@ function YakuHandExample({ hand, winTile, ankan }: Pick<YakuCatalogItem, "hand" 
 
 function SubPage({ title, children }: { title: string; children: React.ReactNode }) {
   const setView = useAppStore((s) => s.setView);
-  return <main className="sub-page"><header><button className="icon-action" onClick={() => setView("game")}><ArrowLeft /></button><h1>{title}</h1></header>{children}</main>;
+  return <main className="sub-page"><header><button className="icon-action" onClick={() => setView("game")}><ArrowLeft /></button><h1>{tx(title)}</h1></header>{tx(children)}</main>;
 }
 
 function YakuScreen() {
   const achieved = useAppStore((s) => s.achievedYaku);
-  return <SubPage title="役一覧"><div className="catalog">{yakuCatalog.map((yaku) =>
+  return <SubPage title={t("役一覧")}><div className="catalog">{tx(yakuCatalog.map((yaku) =>
     <article key={yaku.id}>
-      <div><h2>{yaku.name}</h2><b>{yaku.han}</b></div>
-      <p>{yaku.condition}</p>
+      <div><h2>{tx(yaku.name)}</h2><b>{tx(yaku.han)}</b></div>
+      <p>{tx(yaku.condition)}</p>
       <YakuHandExample hand={yaku.hand} winTile={yaku.winTile} ankan={yaku.ankan} />
-      {achieved.includes(yaku.id) && <Check className="achieved" />}
-    </article>)}</div></SubPage>;
+      {tx(achieved.includes(yaku.id) && <Check className="achieved" />)}
+    </article>))}</div></SubPage>;
 }
 
 function RecordsScreen() {
@@ -427,8 +424,8 @@ function RecordsScreen() {
   const [difficulty, setDifficulty] = useState<Difficulty>("beginner");
   const s = statistics[difficulty];
   const averageRank = s.games ? s.rankCounts.reduce((sum, count, index) => sum + count * (index + 1), 0) / s.games : 0;
-  return <SubPage title="過去の成績">
-    <div className="segmented records-tabs">{(Object.keys(difficultyLabel) as Difficulty[]).map((item) => <button className={difficulty === item ? "active" : ""} onClick={() => setDifficulty(item)} key={item}>{difficultyLabel[item]}</button>)}</div>
+  return <SubPage title={t("過去の成績")}>
+    <div className="segmented records-tabs">{tx((Object.keys(difficultyLabel) as Difficulty[]).map((item) => <button className={difficulty === item ? "active" : ""} onClick={() => setDifficulty(item)} key={item}>{tx(difficultyLabel[item])}</button>))}</div>
     <div className="stats-grid">
       <Stat label="対局数" value={`${s.games} 回`} icon={<Trophy />} />
       <Stat label="ベストスコア" value={`${s.bestScore.toLocaleString()} 点`} icon={<Sparkles />} />
@@ -437,63 +434,70 @@ function RecordsScreen() {
       <Stat label="放銃率" value={s.hands ? `${(s.dealIns / s.hands * 100).toFixed(1)} %` : "-"} icon={<X />} />
       <Stat label="立直率" value={s.hands ? `${(s.riichi / s.hands * 100).toFixed(1)} %` : "-"} icon={<Sparkles />} />
       <article className="stat highest-win">
-        <span><Trophy />最高打点</span>
-        {s.highestWinScore > 0 ? <>
-          <strong>{s.highestWinScore.toLocaleString()} 点</strong>
-          {s.highestWinYaku.length > 0 && (
-            <p className="highest-win-yaku">役: {s.highestWinYaku.join(" | ")}</p>
-          )}
-          {s.highestWinHandTiles.length > 0 && (
+        <span><Trophy />{tx("最高打点")}</span>
+        {tx(s.highestWinScore > 0 ? <>
+          <strong>{tx(s.highestWinScore.toLocaleString())}{tx(" 点")}</strong>
+          {tx(s.highestWinYaku.length > 0 && (
+            <p className="highest-win-yaku">{tx(`役: ${s.highestWinYaku.map(yakuLabel).join(' | ')}`)}</p>
+          ))}
+          {tx(s.highestWinHandTiles.length > 0 && (
             <div className="highest-win-shape">
-              <span>アガリ形</span>
-              <div>{s.highestWinHandTiles.map((tile, index) =>
-                <TileView tile={tile} small key={`${tileId(tile)}-${index}`} />)}
+              <span>{tx("アガリ形")}</span>
+              <div>{tx(s.highestWinHandTiles.map((tile, index) =>
+                <TileView tile={tile} small key={`${tileId(tile)}-${index}`} />))}
               </div>
             </div>
-          )}
-        </> : <strong>-</strong>}
+          ))}
+        </> : <strong>{tx("-")}</strong>)}
       </article>
     </div>
   </SubPage>;
 }
 
 function Stat({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
-  return <article className="stat"><span>{icon}{label}</span><strong>{value}</strong></article>;
+  return <article className="stat"><span>{tx(icon)}{tx(label)}</span><strong>{tx(value)}</strong></article>;
 }
 
 function SettingsScreen() {
   const setView = useAppStore((s) => s.setView);
   const clearSave = useAppStore((s) => s.clearSave);
-  return <SubPage title="設定"><div className="settings-list">
-    <button onClick={() => setView("records")}><BarChart3 /><span>過去の成績</span><ChevronRight /></button>
-    <button onClick={() => setView("rules")}><CircleHelp /><span>ルール</span><ChevronRight /></button>
-    <button onClick={clearSave}><RotateCcw /><span>保存した対局を削除</span><ChevronRight /></button>
-  </div><p className="version">四枚麻雀 Web Version 1.0.0</p></SubPage>;
+  return <SubPage title={t("設定")}><div className="settings-list">
+    <button onClick={() => setView("records")}><BarChart3 /><span>{tx("過去の成績")}</span><ChevronRight /></button>
+    <button onClick={() => setView("rules")}><CircleHelp /><span>{tx("ルール")}</span><ChevronRight /></button>
+    <button onClick={clearSave}><RotateCcw /><span>{tx("保存した対局を削除")}</span><ChevronRight /></button>
+  </div><p className="version">{tx("四枚麻雀 Web Version 1.0.0")}</p></SubPage>;
 }
 
 function RulesScreen() {
-  return <SubPage title="ルール"><article className="rules">
-    <h2>四枚で完成する小さな麻雀</h2>
-    <p>手牌4枚にツモ牌1枚を加え、面子1組と雀頭1組を完成させると和了です。</p>
+  return <SubPage title={t("ルール")}><article className="rules">
+    <h2>{tx("四枚で完成する小さな麻雀")}</h2>
+    <p>{tx("手牌4枚にツモ牌1枚を加え、面子1組と雀頭1組を完成させると和了です。")}</p>
     <dl>
-      <div><dt>対局</dt><dd>東風戦・持ち点60,000点</dd></div>
-      <div><dt>採用</dt><dd>立直、暗槓、ドラ、裏ドラ、フリテン</dd></div>
-      <div><dt>不採用</dt><dd>チー、ポン、明槓</dd></div>
-      <div><dt>操作</dt><dd>牌を選んで打牌。立直時は「立直」を押してから対象牌を選択。</dd></div>
+      <div><dt>{tx("対局")}</dt><dd>{tx("東風戦・持ち点60,000点")}</dd></div>
+      <div><dt>{tx("採用")}</dt><dd>{tx("立直、暗槓、ドラ、裏ドラ、フリテン")}</dd></div>
+      <div><dt>{tx("不採用")}</dt><dd>{tx("チー、ポン、明槓")}</dd></div>
+      <div><dt>{tx("操作")}</dt><dd>{tx("牌を選んで打牌。立直時は「立直」を押してから対象牌を選択。")}</dd></div>
     </dl>
   </article></SubPage>;
 }
 
 export function App() {
-  const { view, game } = useAppStore();
+  const language = useLanguage()
+  useEffect(() => {
+    document.title = t("四枚麻雀");
+    const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    if (description) description.content = t('四枚で完成する小さな麻雀');
+  }, [language]);
+  const { view, game, saveFailed } = useAppStore();
   return (
     <>
-      <DomTranslationLayer />
-      {view === "yaku" ? <YakuScreen />
+
+      {tx(saveFailed && <p role="alert" className="save-warning">{tx("保存できませんでした。この画面では続行できますが、閉じると今回の進行や記録が失われる可能性があります。")}</p>)}
+      {tx(view === "yaku" ? <YakuScreen />
         : view === "records" ? <RecordsScreen />
         : view === "settings" ? <SettingsScreen />
         : view === "rules" ? <RulesScreen />
-        : game.phase === "title" ? <TitleScreen /> : <GameBoard />}
+        : game.phase === "title" ? <TitleScreen /> : <GameBoard />)}
     </>
   );
 }

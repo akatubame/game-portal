@@ -1,8 +1,9 @@
-import { useEffect } from "react";
-
-type Language = "ja" | "en";
+import { useEffect, useSyncExternalStore, type ReactNode } from 'react'
+// 描画時に翻訳する。React管理下のDOMは外部から書き換えない。
 
 const translations: Record<string, string> = {
+  "点": " pts", "役:": "Yaku:",
+  "保存できませんでした。この画面では続行できますが、閉じると今回の進行や記録が失われる可能性があります。": "Could not save. You can keep playing here, but closing this page may lose your latest progress and records.",
   "四枚麻雀": "Four-Tile Mahjong",
   "YONMAI MAHJONG": "YONMAI MAHJONG",
   "COMの強さ": "CPU strength",
@@ -126,6 +127,10 @@ const translations: Record<string, string> = {
 };
 
 const regexTranslations: Array<[RegExp, (match: RegExpMatchArray) => string]> = [
+  [/^([\d,.]+)\s*回$/, (match) => `${match[1]} games`],
+  [/^([\d,.]+)\s*位$/, (match) => `Rank ${match[1]}`],
+  [/^([\d,.]+)\s*点$/, (match) => `${match[1]} pts`],
+  [/^([1-9])([萬筒索])$/, (match) => `${match[1]} ${{ 萬: 'characters', 筒: 'dots', 索: 'bamboo' }[match[2] as '萬' | '筒' | '索']}`],
   [/^東(\d+)局$/, (match) => `East ${match[1]}`],
   [/^東(\d+)局\s+(\d+)本場$/, (match) => `East ${match[1]}, bonus ${match[2]}`],
   [/^残り\s+(\d+)枚$/, (match) => `${match[1]} tiles left`],
@@ -136,8 +141,8 @@ const regexTranslations: Array<[RegExp, (match: RegExpMatchArray) => string]> = 
   [/^役:\s*(.+)$/, (match) => `Yaku: ${translateText(match[1])}`],
   [/^(.+) が立直！$/, (match) => `${translateText(match[1])} declared riichi!`],
   [/^(.+) が暗槓！$/, (match) => `${translateText(match[1])} made a closed kan!`],
-  [/^(.+) がツモ！$/, (match) => `${translateText(match[1])} wins by tsumo!`],
-  [/^(.+) がロン！$/, (match) => `${translateText(match[1])} wins by ron!`],
+  [/^(.+) がツモ！$/, (match) => `${translateText(match[1])} ${match[1] === 'あなた' ? 'win' : 'wins'} by tsumo!`],
+  [/^(.+) がロン！$/, (match) => `${translateText(match[1])} ${match[1] === 'あなた' ? 'win' : 'wins'} by ron!`],
   [/^(.+) ツモ！$/, (match) => `${translateText(match[1])} tsumo!`],
   [/^(.+) ロン！$/, (match) => `${translateText(match[1])} ron!`],
   [/^ドラ\s+(\d+)$/, (match) => `Dora ${match[1]}`],
@@ -146,73 +151,34 @@ const regexTranslations: Array<[RegExp, (match: RegExpMatchArray) => string]> = 
   [/^場風\s+(.+)$/, (match) => `Round wind ${translateText(match[1])}`]
 ];
 
-const originalText = new WeakMap<Text, string>();
-const originalAttributes = new WeakMap<Element, Map<string, string>>();
 
-export function DomTranslationLayer() {
-  useEffect(() => {
-    const language = getLanguage();
-    document.documentElement.lang = language;
-    document.title = language === "en" ? "Four-Tile Mahjong" : "四枚麻雀";
-    const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    if (description) {
-      description.content = language === "en"
-        ? "A compact mahjong game built around quick four-tile hands."
-        : "少ない手牌でテンポよく役作りを楽しめる四枚麻雀。";
-    }
-    const translate = () => {
-      if (language === "ja") return;
-      translateDocument();
-    };
-
-    translate();
-    const observer = new MutationObserver(() => window.requestAnimationFrame(translate));
-    observer.observe(document.body, { attributes: true, childList: true, subtree: true, characterData: true });
-
-    return () => observer.disconnect();
-  }, []);
-
-  return null;
+export function getLanguage(): 'ja' | 'en' {
+  try {
+    const saved = localStorage.getItem('game-shelf-language')
+    if (saved === 'ja' || saved === 'en') return saved
+  } catch { /* ストレージが使えない場合も表示する。 */ }
+  return typeof navigator !== 'undefined' && navigator.language.toLowerCase().startsWith('ja') ? 'ja' : 'en'
 }
-
-function getLanguage(): Language {
-  const saved = localStorage.getItem("game-shelf-language");
-  if (saved === "ja" || saved === "en") return saved;
-  return navigator.language.toLowerCase().startsWith("ja") ? "ja" : "en";
-}
-
-function translateDocument() {
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  const nodes: Text[] = [];
-  while (walker.nextNode()) nodes.push(walker.currentNode as Text);
-
-  for (const node of nodes) {
-    const source = originalText.get(node) ?? node.nodeValue ?? "";
-    const trimmed = source.trim();
-    const translated = translateText(trimmed);
-    if (translated === trimmed) continue;
-    if (!originalText.has(node)) originalText.set(node, source);
-    const nextValue = source.replace(trimmed, translated);
-    if (node.nodeValue !== nextValue) node.nodeValue = nextValue;
+export function useLanguage() {
+  const subscribe = (notify: () => void) => {
+    window.addEventListener('storage', notify)
+    window.addEventListener('languagechange', notify)
+    return () => { window.removeEventListener('storage', notify); window.removeEventListener('languagechange', notify) }
   }
-
-  for (const element of Array.from(document.querySelectorAll("[title], [aria-label]"))) {
-    for (const attribute of ["title", "aria-label"]) {
-      const current = element.getAttribute(attribute);
-      if (!current) continue;
-      const original = originalAttributes.get(element)?.get(attribute) ?? current;
-      const translated = translateText(original.trim());
-      if (translated === original.trim()) continue;
-      if (!originalAttributes.has(element)) originalAttributes.set(element, new Map());
-      const attributes = originalAttributes.get(element);
-      if (attributes && !attributes.has(attribute)) attributes.set(attribute, original);
-      const nextValue = original.replace(original.trim(), translated);
-      if (element.getAttribute(attribute) !== nextValue) element.setAttribute(attribute, nextValue);
-    }
-  }
+  const language = useSyncExternalStore(subscribe, getLanguage, () => 'ja' as const)
+  useEffect(() => { document.documentElement.lang = language }, [language])
+  return language
+}
+export function t(value: string): string {
+  return getLanguage() === 'ja' ? value : value.replace(value.trim(), translateText(value.trim()))
+}
+export function tx(value: ReactNode): ReactNode {
+  if (typeof value === 'string') return t(value)
+  if (Array.isArray(value)) return value.map(tx)
+  return value
 }
 
-function translateText(value: string): string {
+export function translateText(value: string): string {
   const exact = translations[value];
   if (exact) return exact;
 

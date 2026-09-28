@@ -63,8 +63,10 @@ export const buildWall = (random: () => number = Math.random): Wall => {
 export const drawLive = (wall: Wall): [Tile | null, Wall] =>
   wall.liveTiles.length ? [wall.liveTiles[0], { ...wall, liveTiles: wall.liveTiles.slice(1) }] : [null, wall];
 
+export const canDrawDead = (wall: Wall): boolean => wall.deadWall.length >= 3 && wall.liveTiles.length > 0;
+
 export const drawDead = (wall: Wall): [Tile | null, Wall] => {
-  if (!wall.deadWall.length) return [null, wall];
+  if (!canDrawDead(wall)) return [null, wall];
   const rest = wall.deadWall.slice(1);
   const dora = rest[0];
   const ura = rest[1];
@@ -72,6 +74,7 @@ export const drawDead = (wall: Wall): [Tile | null, Wall] => {
     wall.deadWall[0],
     {
       ...wall,
+      liveTiles: wall.liveTiles.slice(0, -1),
       deadWall: rest.slice(2),
       doraIndicators: dora ? [...wall.doraIndicators, dora] : wall.doraIndicators,
       uraDoraIndicators: ura ? [...wall.uraDoraIndicators, ura] : wall.uraDoraIndicators

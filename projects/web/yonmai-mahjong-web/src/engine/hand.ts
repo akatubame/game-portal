@@ -1,5 +1,5 @@
 import type { Tile, WinHand } from "./types";
-import { allTileTypes, removeTile, sortTiles, tileEqual, tileId } from "./tiles";
+import { allTileTypes, removeTile, sortTiles, tileEqual, tileId, isTerminalOrHonor } from "./tiles";
 
 const isTriplet = (tiles: Tile[]) => tiles.length === 3 && tileEqual(tiles[0], tiles[1]) && tileEqual(tiles[1], tiles[2]);
 const isSequence = (tiles: Tile[]) => {
@@ -11,12 +11,20 @@ const isSequence = (tiles: Tile[]) => {
 };
 
 export const findWinningHands = (tiles: Tile[], ankan: Tile[] = []): WinHand[] => {
-  if (tiles.length === 2 && ankan.length > 0) {
+  if (ankan.length > 1) return [];
+  const counts = new Map<string, number>();
+  for (const tile of [...tiles, ...ankan.flatMap((tile) => [tile, tile, tile, tile])]) {
+    const id = tileId(tile);
+    const count = (counts.get(id) ?? 0) + 1;
+    if (count > 4) return [];
+    counts.set(id, count);
+  }
+  if (tiles.length === 2 && ankan.length === 1) {
     return tileEqual(tiles[0], tiles[1])
       ? [{ pair: [...tiles], mentsu: { type: "koutsu", tiles: [ankan[0], ankan[0], ankan[0]] } }]
       : [];
   }
-  if (tiles.length !== 5) return [];
+  if (tiles.length !== 5 || ankan.length) return [];
   const sorted = sortTiles(tiles);
   const results: WinHand[] = [];
   const seen = new Set<string>();
@@ -77,7 +85,7 @@ export const bestDiscard = (hand: Tile[], ankan: Tile[] = []): Tile => {
   let bestValue = Number.MAX_SAFE_INTEGER;
   hand.forEach((tile) => {
     const value = shanten(removeTile(hand, tile), ankan);
-    if (value < bestValue) {
+    if (value < bestValue || (value === bestValue && isTerminalOrHonor(tile) && !isTerminalOrHonor(best))) {
       best = tile;
       bestValue = value;
     }

@@ -1,21 +1,8 @@
-import rawSeeds from './positions.json'
+import rawSeeds from './androidPositions.json'
 import { evaluate } from './evaluator'
-import { allLegalMoves, applyMove } from './rules'
-import { flipPosition, mirrorPositionHorizontally, parseSfen } from './sfen'
-import { senkeiCatalog, type SenkeiEntry } from './senkei'
-import type { Difficulty, Move, Position, PositionSeed, Side } from './types'
-
-const baseSeeds = rawSeeds as PositionSeed[]
-
-function readStoredList(key: string): string[] {
-  try {
-    const value = JSON.parse(localStorage.getItem(key) || '[]')
-    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
-  } catch {
-    localStorage.removeItem(key)
-    return []
-  }
-}
+import { allLegalMoves, applyKnownLegalMove, isKingInCheck, mustPromote } from './rules'
+import { flipPosition, parseSfen, positionToSfen } from './sfen'
+import { opposite, type Difficulty, type PieceKind, type Position, type PositionSeed, type Side } from './types'
 
 export interface NewGame {
   seed: PositionSeed
@@ -24,87 +11,139 @@ export interface NewGame {
   difficulty: Difficulty
 }
 
-export async function createRandomGame(difficulty: Difficulty, onProgress?: (value: number, label: string) => void): Promise<NewGame> {
-  const seen = new Set<string>(readStoredList('random-shogi-seen'))
-  const recentFamilies = readStoredList('random-shogi-recent-families')
-  const recentNames = readStoredList('random-shogi-recent-senkei')
+type Entry = { seed: PositionSeed; position: Position; exact: string; structure: string }
+const seeds: PositionSeed[] = rawSeeds.map((seed) => ({ ...seed, category: seed.family }))
+const pick = <T,>(items: T[], random = Math.random): T => items[Math.floor(random() * items.length)]
+const pause = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
 
-  for (let attempt = 0; attempt < 48; attempt += 1) {
-    onProgress?.(Math.min(95, 8 + attempt * 2), `戦型と派生局面を生成中 ${attempt + 1}/48`)
-    await yieldToBrowser()
-    const senkei = chooseSenkei(recentFamilies, recentNames, attempt)
-    const baseIndex = Math.abs(hashText(`${senkei.family}:${senkei.name}`) + attempt * 7) % baseSeeds.length
-    const base = baseSeeds[baseIndex]
-    const flipped = Math.random() < 0.5
-    const mirrored = Math.random() < 0.5
-    let position = parseSfen(base.sfen)
-    if (mirrored) position = mirrorPositionHorizontally(position)
-    if (flipped) position = flipPosition(position)
-    position = derivePosition(position, 2 + Math.floor(Math.random() * 11))
-    const playerSide = position.turn
-    const fingerprint = JSON.stringify(position)
-    if (seen.has(fingerprint) && attempt < 40) continue
-    const value = evaluate(position, playerSide)
-    if (value <= 0) continue
-    const seed = {
-      ...base,
-      id: `${base.id}-${hashText(fingerprint)}-${Date.now()}`,
-      category: senkei.family,
-      title: `${senkei.name}・${base.title}`,
-      note: `${senkei.family}の「${senkei.name}」を参考に、合法手で進行させた派生局面です。${base.note}`,
+export function exactFingerprint(position: Position): string {
+  const withoutMove = (p: Position) => positionToSfen(p).split(' ').slice(0, 3).join(' ')
+  return [withoutMove(position), withoutMove(flipPosition(position))].sort()[0]
+}
+export function structureFingerprint(position: Position): string {
+  const oneWay = (p: Position) => {
+    const parts: string[] = [p.turn]
+    for (const side of ['sente', 'gote'] as const) {
+      const kings: number[] = [], rooks: number[] = []
+      p.board.forEach((row, r) => row.forEach((piece, c) => {
+        if (piece?.owner !== side) return
+        if (piece.kind === 'K') kings.push(Math.floor(c / 3))
+        if (piece.kind === 'R') rooks.push(Math.floor(r / 3) * 3 + Math.floor(c / 3))
+      }))
+      parts.push(kings.join(''), rooks.sort().join(''),
+        (['R', 'B', 'G', 'S', 'N', 'L', 'P'] as PieceKind[]).map((kind) => Math.min(3, p.hands[side][kind] ?? 0)).join(''))
     }
-    seen.add(fingerprint)
-    localStorage.setItem('random-shogi-seen', JSON.stringify(Array.from(seen).slice(-4000)))
-    rememberSenkei(senkei, recentFamilies, recentNames)
-    onProgress?.(100, '対局を準備しています')
-    return { seed, position, playerSide, difficulty }
+    parts.push(String(Math.min(6, p.board.flat().filter((piece) => piece?.promoted).length)), String(Math.min(9, Math.floor(p.moveNumber / 15))))
+    return parts.join(':')
   }
-  const seed = baseSeeds.find((item) => item.evaluationForSente > 0) ?? baseSeeds[0]
-  const position = parseSfen(seed.sfen)
-  return { seed, position, playerSide: position.turn, difficulty }
+  return [oneWay(position), oneWay(flipPosition(position))].sort()[0]
 }
 
-function chooseSenkei(recentFamilies: string[], recentNames: string[], attempt: number): SenkeiEntry {
-  const strict = senkeiCatalog.filter((entry) => !recentFamilies.includes(entry.family) && !recentNames.includes(entry.name))
-  const relaxed = senkeiCatalog.filter((entry) => !recentNames.includes(entry.name))
-  const pool = strict.length && attempt < 30 ? strict : relaxed.length ? relaxed : senkeiCatalog
-  return pool[Math.floor(Math.random() * pool.length)]
-}
-
-function rememberSenkei(entry: SenkeiEntry, families: string[], names: string[]) {
-  localStorage.setItem('random-shogi-recent-families', JSON.stringify([entry.family, ...families.filter((item) => item !== entry.family)].slice(0, 4)))
-  localStorage.setItem('random-shogi-recent-senkei', JSON.stringify([entry.name, ...names.filter((item) => item !== entry.name)].slice(0, 24)))
-}
-
-function derivePosition(start: Position, plies: number): Position {
-  let position = start
-  for (let ply = 0; ply < plies; ply += 1) {
-    const moves = allLegalMoves(position)
-    if (!moves.length) break
-    const move = chooseDiverseMove(position, moves)
-    position = applyMove(position, move)
+export function isLegalHirate(position: Position): boolean {
+  if (position.board.length !== 9 || position.board.some((row) => row.length !== 9)) return false
+  const expected: Record<PieceKind, number> = { K: 2, R: 2, B: 2, G: 4, S: 4, N: 4, L: 4, P: 18 }
+  const counts: Record<string, number> = {}
+  for (const side of ['sente', 'gote'] as const) {
+    if (position.board.flat().filter((p) => p?.owner === side && p.kind === 'K').length !== 1) return false
+    for (let c = 0; c < 9; c++) {
+      if (position.board.filter((row) => row[c]?.owner === side && row[c]?.kind === 'P' && !row[c]?.promoted).length > 1) return false
+    }
+    for (const [kind, count] of Object.entries(position.hands[side])) {
+      if (kind === 'K' || !Number.isInteger(count) || count < 0) return false
+      counts[kind] = (counts[kind] ?? 0) + count
+    }
   }
-  return position
+  for (let r = 0; r < 9; r++) for (const piece of position.board[r]) {
+    if (!piece) continue
+    if (!['sente', 'gote'].includes(piece.owner) || !(piece.kind in expected) ||
+        (piece.promoted && ['K', 'G'].includes(piece.kind)) || mustPromote(piece, r)) return false
+    counts[piece.kind] = (counts[piece.kind] ?? 0) + 1
+  }
+  return Object.entries(expected).every(([kind, count]) => counts[kind] === count) &&
+    Object.keys(counts).every((kind) => kind in expected) && !isKingInCheck(position, opposite(position.turn))
 }
 
-function chooseDiverseMove(position: Position, moves: Move[]): Move {
-  const scored = moves.map((move) => {
-    const next = applyMove(position, move)
-    const capture = move.captured ? 500 : 0
-    const promotion = move.promote ? 260 : 0
-    return { move, score: evaluate(next, position.turn) + capture + promotion + Math.random() * 900 }
-  })
-  scored.sort((a, b) => b.score - a.score)
-  const poolSize = Math.min(scored.length, 5 + Math.floor(Math.random() * 8))
-  return scored[Math.floor(Math.random() * poolSize)].move
+let entriesPromise: Promise<Entry[]> | undefined
+export function validatedEntries(): Promise<Entry[]> {
+  return entriesPromise ??= (async () => {
+    const entries: Entry[] = [], exact = new Set<string>()
+    for (let i = 0; i < seeds.length; i++) {
+      if (i % 8 === 0) await pause()
+      const seed = seeds[i]
+      try {
+        const position = parseSfen(seed.sfen)
+        if (position.moveNumber < 80 || (position.turn === 'sente' ? seed.evaluationForSente : -seed.evaluationForSente) <= 0 ||
+            !isLegalHirate(position) || evaluate(position, position.turn) <= 0 || !allLegalMoves(position).length) continue
+        const fingerprint = exactFingerprint(position)
+        if (exact.has(fingerprint)) continue
+        exact.add(fingerprint)
+        entries.push({ seed, position, exact: fingerprint, structure: structureFingerprint(position) })
+      } catch { /* 不正な局面は抽選対象に含めない。 */ }
+    }
+    if (!entries.length) throw new Error('有効な局面がありません')
+    return entries
+  })()
 }
 
-function hashText(text: string): number {
-  let hash = 0
-  for (let index = 0; index < text.length; index += 1) hash = (hash * 31 + text.charCodeAt(index)) | 0
-  return hash
+function readList(key: string): string[] {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(key) ?? '[]')
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+  } catch { return [] }
+}
+function writeList(key: string, items: string[]) {
+  try { localStorage.setItem(key, JSON.stringify(items)) } catch { /* 保存できない環境でも新規対局は可能にする。 */ }
 }
 
-function yieldToBrowser() {
-  return new Promise<void>((resolve) => setTimeout(resolve, 0))
+export function chooseEntry(entries: Entry[], families: string[], games: string[], structures: string[], random = Math.random): Entry {
+  const modern = entries.filter((entry) => entry.seed.family !== '既存局面')
+  const pool = modern.length ? modern : entries
+  const allFamilies = [...new Set(pool.map((entry) => entry.seed.family!))]
+  const fresh = allFamilies.filter((family) => !families.slice(0, 2).includes(family))
+  const notLast = allFamilies.filter((family) => family !== families[0])
+  const family = pick(fresh.length ? fresh : notLast.length ? notLast : allFamilies, random)
+  const familyEntries = pool.filter((entry) => entry.seed.family === family)
+  const allGames = [...new Set(familyEntries.map((entry) => entry.seed.sourceGame!))]
+  const freshGames = allGames.filter((game) => !games.includes(game))
+  const oldest = Math.max(...allGames.map((game) => games.indexOf(game)))
+  const game = pick(freshGames.length ? freshGames : allGames.filter((game) => games.indexOf(game) === oldest), random)
+  const gameEntries = familyEntries.filter((entry) => entry.seed.sourceGame === game)
+  const freshStructures = gameEntries.filter((entry) => !structures.includes(entry.structure))
+  return pick(freshStructures.length ? freshStructures : gameEntries, random)
+}
+
+export async function createRandomGame(difficulty: Difficulty, onProgress?: (value: number, label: string) => void): Promise<NewGame> {
+  onProgress?.(10, '局面データを検証しています')
+  const entries = await validatedEntries()
+  const seen = new Set(readList('random-shogi-seen-v2'))
+  const families = readList('random-shogi-families-v2')
+  const games = readList('random-shogi-source-games-v2')
+  const structures = readList('random-shogi-structures-v2')
+  const unseen = entries.filter((entry) => !seen.has(entry.exact))
+  let entry = chooseEntry(unseen.length ? unseen : entries, families, games, structures)
+  let position = parseSfen(entry.seed.sfen)
+  // 全既存局面を出題済みの場合だけ、短い合法手の派生を試す。
+  if (!unseen.length) {
+    for (let attempt = 0; attempt < 12; attempt++) {
+      await pause()
+      entry = chooseEntry(entries, families, games, structures)
+      position = parseSfen(entry.seed.sfen)
+      for (let ply = 0; ply < 2; ply++) {
+        const moves = allLegalMoves(position)
+        if (!moves.length) break
+        position = applyKnownLegalMove(position, pick(moves))
+      }
+      if (!seen.has(exactFingerprint(position)) && evaluate(position, position.turn) > 0 &&
+          isLegalHirate(position) && allLegalMoves(position).length) break
+      position = parseSfen(entry.seed.sfen)
+    }
+  }
+  seen.add(exactFingerprint(position))
+  writeList('random-shogi-seen-v2', [...seen].slice(-10000))
+  const remember = (key: string, value: string, list: string[], count: number) => writeList(key, [value, ...list.filter((item) => item !== value)].slice(0, count))
+  remember('random-shogi-families-v2', entry.seed.family!, families, 4)
+  remember('random-shogi-source-games-v2', entry.seed.sourceGame!, games, 24)
+  remember('random-shogi-structures-v2', structureFingerprint(position), structures, 24)
+  onProgress?.(100, '対局を準備しています')
+  return { seed: { ...entry.seed }, position, playerSide: position.turn, difficulty }
 }

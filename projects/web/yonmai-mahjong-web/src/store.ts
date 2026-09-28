@@ -2,9 +2,10 @@ import { create } from "zustand";
 import type { Difficulty, GameState, PlayerStatistics, Statistics, Tile } from "./engine/types";
 import {
   autoDiscard, initialState, nextRound, playerAnkan, playerDiscard, playerRiichi, recoverPlayableState,
-  playerRon, playerTsumo, ranking, skipRon, startGame
+  playerRon, playerTsumo, ranking, skipRon, startGame, newGameId
 } from "./engine/game";
-import { isResumableGame, isSavedGameState } from "./savedGame";
+import { isResumableGame, isSavedGameState, isTileArray } from "./savedGame";
+import { migrateYakuLabel, recordYaku } from './engine/recordLabels';
 
 type View = "game" | "yaku" | "records" | "settings" | "rules";
 
@@ -15,17 +16,28 @@ const emptyStats = (): PlayerStatistics => ({
 });
 const defaultStats = (): Statistics => ({ beginner: emptyStats(), easy: emptyStats(), normal: emptyStats() });
 
-const normalizeStats = (statistics: Partial<Statistics>): Statistics => {
+const normalizeStats = (statistics: Partial<Statistics> | null): Statistics => {
   const fallback = defaultStats();
   return (["beginner", "easy", "normal"] as Difficulty[]).reduce((result, difficulty) => {
-    const saved = statistics[difficulty];
+    const saved = statistics?.[difficulty];
     result[difficulty] = saved ? {
       ...fallback[difficulty],
       ...saved,
       rankCounts: Array.isArray(saved.rankCounts) ? saved.rankCounts : fallback[difficulty].rankCounts,
       highestWinYaku: Array.isArray(saved.highestWinYaku) ? saved.highestWinYaku : [],
-      highestWinHandTiles: Array.isArray(saved.highestWinHandTiles) ? saved.highestWinHandTiles : []
+      highestWinHandTiles: isTileArray(saved.highestWinHandTiles) ? saved.highestWinHandTiles : []
     } : fallback[difficulty];
+    const normalized = result[difficulty];
+    for (const key of Object.keys(fallback[difficulty]) as (keyof PlayerStatistics)[]) {
+      if (typeof fallback[difficulty][key] === "number" && !Number.isFinite(normalized[key])) {
+        Object.assign(normalized, { [key]: fallback[difficulty][key] });
+      }
+    }
+    normalized.rankCounts = Array.from({ length: 4 }, (_, i) => {
+      const count = normalized.rankCounts[i];
+      return Number.isInteger(count) && count >= 0 ? count : 0;
+    });
+    normalized.highestWinYaku = normalized.highestWinYaku.filter((value) => typeof value === "string").map(migrateYakuLabel);
     return result;
   }, {} as Statistics);
 };
@@ -39,13 +51,17 @@ const load = <T,>(key: string, fallback: T): T => {
   }
 };
 
-const loadedState = typeof localStorage === "undefined" ? null : load<unknown>("yonmai.game", null);
-const savedState = isSavedGameState(loadedState) ? recoverPlayableState(loadedState) : null;
+// 対局と戦績を一つのキーに保存し、途中失敗による二重計上を防ぐ。旧キーは移行元として残す。
+const loadedSnapshot = load<{ version: number; game: unknown; statistics: Statistics; achievedYaku: string[]; recordedKeys: string[] } | null>("yonmai.snapshot.v2", null);
+const snapshot = loadedSnapshot?.version === 2 ? loadedSnapshot : null;
+const loadedState = snapshot ? snapshot.game : load<unknown>("yonmai.game", null);
+const savedState = isSavedGameState(loadedState) ? recoverPlayableState({ ...loadedState, gameId: loadedState.gameId ?? newGameId() }) : null;
 const savedStats = typeof localStorage === "undefined"
   ? defaultStats()
-  : normalizeStats(load<Partial<Statistics>>("yonmai.stats", {}));
-const savedYaku = typeof localStorage === "undefined" ? [] : load<string[]>("yonmai.yaku", []);
-const recorded = typeof localStorage === "undefined" ? [] : load<string[]>("yonmai.recorded", []);
+  : normalizeStats(snapshot ? snapshot.statistics : load<Partial<Statistics>>("yonmai.stats", {}));
+const strings = (value: unknown): string[] => Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+const savedYaku = strings(snapshot ? snapshot.achievedYaku : load<unknown>("yonmai.yaku", []));
+const recorded = strings(snapshot ? snapshot.recordedKeys : load<unknown>("yonmai.recorded", []));
 
 interface AppStore {
   game: GameState;
@@ -53,6 +69,7 @@ interface AppStore {
   statistics: Statistics;
   achievedYaku: string[];
   recordedKeys: string[];
+  saveFailed: boolean;
   setView: (view: View) => void;
   newGame: (difficulty: Difficulty) => void;
   resumeGame: () => void;
@@ -62,18 +79,23 @@ interface AppStore {
   tsumo: () => void;
   ron: () => void;
   skipRon: () => void;
-  autoDiscard: () => void;
+  autoDiscard: (expectedGame?: GameState) => void;
   recoverGame: () => void;
   nextRound: () => void;
   backToTitle: () => void;
   clearSave: () => void;
 }
 
-const roundKey = (state: GameState) => {
+const legacyRoundKey = (state: GameState) => {
   const result = state.roundResult;
   return result ? `r:${state.roundNumber}:${state.dealerIdx}:${state.honbaCount}:${result.winnerId}:${result.loserId}:${result.pointChanges.join(",")}` : "";
 };
-const gameKey = (state: GameState) => `g:${state.difficulty}:${state.players.map((p) => p.points).join(",")}`;
+const roundKey = (state: GameState) => `${state.gameId}:${state.roundSequence ?? 0}:${legacyRoundKey(state)}`;
+const gameKey = (state: GameState) => `${state.gameId}:g:${state.difficulty}`;
+// 旧保存の結果を移行時に再計上しない。以後は対局IDで別の対局を区別する。
+if (savedState && isSavedGameState(loadedState) && !loadedState.gameId && recorded.includes(legacyRoundKey(savedState))) {
+  recorded.push(roundKey(savedState));
+}
 
 const updateRecords = (state: GameState, statistics: Statistics, achieved: string[], keys: string[]) => {
   let nextStats = statistics;
@@ -97,7 +119,7 @@ const updateRecords = (state: GameState, statistics: Statistics, achieved: strin
         riichi: old.riichi + (human.isRiichi ? 1 : 0),
         totalWinPoints: old.totalWinPoints + winPoints,
         highestWinScore: isHighestWin ? winPoints : old.highestWinScore,
-        highestWinYaku: isHighestWin ? result.yaku.map((item) => item.name) : old.highestWinYaku,
+        highestWinYaku: isHighestWin ? result.yaku.map(recordYaku) : old.highestWinYaku,
         highestWinHandTiles: isHighestWin ? result.winTiles : old.highestWinHandTiles
       };
       nextStats = { ...statistics, [state.difficulty]: current };
@@ -127,18 +149,18 @@ const updateRecords = (state: GameState, statistics: Statistics, achieved: strin
 };
 
 const persist = (game: GameState, statistics: Statistics, achievedYaku: string[], recordedKeys: string[]) => {
-  localStorage.setItem("yonmai.game", JSON.stringify(game));
-  localStorage.setItem("yonmai.stats", JSON.stringify(statistics));
-  localStorage.setItem("yonmai.yaku", JSON.stringify(achievedYaku));
-  localStorage.setItem("yonmai.recorded", JSON.stringify(recordedKeys));
+  try {
+    localStorage.setItem("yonmai.snapshot.v2", JSON.stringify({ version: 2, game, statistics, achievedYaku, recordedKeys }));
+    return true;
+  } catch { return false; }
 };
 
 export const useAppStore = create<AppStore>((set, get) => {
   const apply = (game: GameState) => set((store) => {
     const playableGame = recoverPlayableState(game);
     const records = updateRecords(playableGame, store.statistics, store.achievedYaku, store.recordedKeys);
-    persist(playableGame, records.statistics, records.achievedYaku, records.recordedKeys);
-    return { game: playableGame, ...records };
+    const saved = persist(playableGame, records.statistics, records.achievedYaku, records.recordedKeys);
+    return { game: playableGame, ...records, saveFailed: !saved };
   });
   return {
     game: savedState ?? initialState(),
@@ -146,18 +168,19 @@ export const useAppStore = create<AppStore>((set, get) => {
     statistics: savedStats,
     achievedYaku: savedYaku,
     recordedKeys: recorded,
+    saveFailed: false,
     setView: (view) => set({ view }),
     newGame: (difficulty) => apply(startGame(difficulty)),
     resumeGame: () => {
       const game = get().game;
       if (!isResumableGame(game)) {
-        localStorage.removeItem("yonmai.game");
-        set({ game: initialState(game.difficulty), view: "game" });
+        apply(initialState(game.difficulty));
+        set({ view: "game" });
         return;
       }
       apply({
         ...game,
-        phase: game.pendingAction ? "waiting" : "playing"
+        phase: game.roundResult ? "roundResult" : game.pendingAction ? "waiting" : "playing"
       });
       set({ view: "game" });
     },
@@ -167,14 +190,17 @@ export const useAppStore = create<AppStore>((set, get) => {
     tsumo: () => apply(playerTsumo(get().game)),
     ron: () => apply(playerRon(get().game)),
     skipRon: () => apply(skipRon(get().game)),
-    autoDiscard: () => apply(autoDiscard(get().game)),
+    autoDiscard: (expectedGame) => {
+      const game = get().game;
+      if (!expectedGame || expectedGame === game) apply(autoDiscard(game));
+    },
     recoverGame: () => apply(get().game),
     nextRound: () => apply(nextRound(get().game)),
     backToTitle: () => apply({ ...get().game, phase: "title" }),
     clearSave: () => {
       const game = initialState(get().game.difficulty);
-      localStorage.removeItem("yonmai.game");
-      set({ game, view: "game" });
+      apply(game);
+      set({ view: "game" });
     }
   };
 });

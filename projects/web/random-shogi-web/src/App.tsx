@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Home, RotateCcw, Settings, StepForward, Swords } from 'lucide-react'
 import { evaluate } from './game/evaluator'
 import { createRandomGame, type NewGame } from './game/positions'
-import { allLegalMoves, applyMove, canPromote, hasAnyLegalMove, isKingInCheck, legalDrops, legalTargets, mustPromote } from './game/rules'
-import { clonePosition, moveToFairyNotation, positionToSfen } from './game/sfen'
+import { applyMove, canPromote, hasAnyLegalMove, isKingInCheck, legalDrops, legalTargets, mustPromote } from './game/rules'
+import { clonePosition } from './game/sfen'
+import { requestCom } from './game/comRequest'
+import { filterHistory, HISTORY_KEY, loadHistory, loadSession, newSessionId, readSetting, recordHistory, retryGame, saveSession, writeSetting, type Session } from './game/session'
 import { opposite, type Difficulty, type Move, type Piece, type PieceKind, type Position, type Side, type Snapshot, type Square } from './game/types'
-import { DomTranslationLayer } from './domTranslations'
+import { t, tx, useLanguage } from './i18n'
 
 const VERSION = '1.6'
 const labels: Record<PieceKind, string> = { K: '玉', R: '飛', B: '角', G: '金', S: '銀', N: '桂', L: '香', P: '歩' }
@@ -21,9 +23,27 @@ function squareKey(square: Square) {
 }
 
 function App() {
+  const language = useLanguage()
+  useEffect(() => {
+    document.title = t("ランダム将棋")
+    const description = document.querySelector<HTMLMetaElement>('meta[name="description"]')
+    if (description) description.content = t('中終盤の多様な局面から、すぐに対局を始められます。')
+  }, [language])
   const [view, setView] = useState<View>('home')
-  const [difficulty, setDifficulty] = useState<Difficulty>(() => (localStorage.getItem('random-shogi-difficulty') as Difficulty) || 'normal')
-  const [showEvaluation, setShowEvaluation] = useState(() => localStorage.getItem('random-shogi-evaluation') !== 'false')
+  const [difficulty, setDifficulty] = useState<Difficulty>(() => {
+    const saved = readSetting('random-shogi-difficulty', 'normal')
+    return ['easy', 'normal', 'hard'].includes(saved) ? saved as Difficulty : 'normal'
+  })
+  const [showEvaluation, setShowEvaluation] = useState(() => readSetting('random-shogi-evaluation', 'true') !== 'false')
+  const [comDelay, setComDelay] = useState(() => Math.max(0, Math.min(2000, Number(readSetting('random-shogi-com-delay', '550')) || 0)))
+  const [savedSession, setSavedSession] = useState(loadSession)
+  const [sessionId, setSessionId] = useState('')
+  const [history, setHistory] = useState(loadHistory)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyDifficulty, setHistoryDifficulty] = useState('all')
+  const [historyOutcome, setHistoryOutcome] = useState('all')
+  const [saveFailed, setSaveFailed] = useState(false)
+  const [viewingHistory, setViewingHistory] = useState(false)
   const [game, setGame] = useState<NewGame | null>(null)
   const [position, setPosition] = useState<Position | null>(null)
   const [selected, setSelected] = useState<Square | null>(null)
@@ -41,6 +61,9 @@ function App() {
   const [resultDialogOpen, setResultDialogOpen] = useState(false)
   const workerRef = useRef<Worker | null>(null)
   const hardWorkerRef = useRef<Worker | null>(null)
+  const cancelComRef = useRef<(() => void) | null>(null)
+  const generationRef = useRef(0)
+  const inputLockedRef = useRef(false)
 
   const displayedSnapshot = replayIndex === null ? null : snapshots[replayIndex]
   const currentPosition = displayedSnapshot?.position ?? position
@@ -49,44 +72,110 @@ function App() {
   const isReplay = replayIndex !== null
 
   useEffect(() => {
-    localStorage.setItem('random-shogi-difficulty', difficulty)
+    writeSetting('random-shogi-difficulty', difficulty)
   }, [difficulty])
   useEffect(() => {
-    localStorage.setItem('random-shogi-evaluation', String(showEvaluation))
+    writeSetting('random-shogi-evaluation', String(showEvaluation))
   }, [showEvaluation])
+  useEffect(() => { writeSetting('random-shogi-com-delay', String(comDelay)) }, [comDelay])
+  useEffect(() => { inputLockedRef.current = false }, [position, result, view])
+  useEffect(() => {
+    if (!game || !position || !sessionId || viewingHistory || !snapshots.length) return
+    const session: Session = { version: 1, id: sessionId, updatedAt: Date.now(), game, position, snapshots, undoStack, lastMove, message, result }
+    setSavedSession(session)
+    let saved = saveSession(session)
+    if (result) {
+      const recorded = recordHistory(session)
+      setHistory(recorded.history)
+      saved = saved && recorded.saved
+    }
+    setSaveFailed(!saved)
+  }, [game, position, sessionId, viewingHistory, snapshots, undoStack, lastMove, message, result])
   useEffect(() => () => {
+    generationRef.current++
+    cancelComRef.current?.()
     workerRef.current?.terminate()
     if (hardWorkerRef.current !== workerRef.current) hardWorkerRef.current?.terminate()
     workerRef.current = null
     hardWorkerRef.current = null
   }, [])
   useEffect(() => {
-    if (difficulty !== 'hard' || hardWorkerRef.current) return
-    const worker = new Worker(stockfishWorkerUrl)
-    hardWorkerRef.current = worker
-    worker.postMessage({ warmup: true })
+    if (difficulty === 'easy' || hardWorkerRef.current) return
+    try {
+      const worker = new Worker(stockfishWorkerUrl)
+      hardWorkerRef.current = worker
+      worker.onerror = () => { if (hardWorkerRef.current === worker) hardWorkerRef.current = null; worker.terminate() }
+      worker.postMessage({ warmup: true })
+    } catch { /* 利用できない環境では対局時に内蔵COMへ切り替える。 */ }
   }, [difficulty])
 
-  const startGame = useCallback(async () => {
-    setLoading({ progress: 4, label: '局面データを読み込んでいます' })
-    const next = await createRandomGame(difficulty, (progress, label) => setLoading({ progress, label }))
+  const installGame = useCallback((next: NewGame) => {
+    cancelComRef.current?.()
+    setSessionId(newSessionId())
+    setViewingHistory(false)
     setGame(next)
-    setPosition(next.position)
+    setPosition(clonePosition(next.position))
     setView('game')
+    setThinking(false)
     setSelected(null)
     setSelectedHand(null)
     setTargets([])
     setLastMove([])
     setResult(null)
-    setMessage('あなたの手番です。駒を選択してください。')
-    const first = { position: clonePosition(next.position), lastMove: [], message: '開始局面' }
-    setSnapshots([first])
+    setResultDialogOpen(false)
+    setMessage(next.position.turn === next.playerSide ? 'あなたの手番です。駒を選択してください。' : 'COMの手番')
+    setSnapshots([{ position: clonePosition(next.position), lastMove: [], message: '開始局面' }])
     setUndoStack([])
     setReplayIndex(null)
     setLoading(null)
-  }, [difficulty])
+    setHistoryOpen(false)
+  }, [])
+
+  const restoreSession = (session: Session, replay = false) => {
+    generationRef.current++
+    cancelComRef.current?.()
+    setGame(session.game)
+    setSessionId(session.id)
+    setPosition(clonePosition(session.position))
+    setSnapshots(session.snapshots)
+    setUndoStack(session.undoStack)
+    setLastMove(session.lastMove)
+    setMessage(session.message)
+    setResult(session.result)
+    setReplayIndex(replay ? session.snapshots.length - 1 : null)
+    setViewingHistory(replay)
+    setResultDialogOpen(false)
+    setSelected(null)
+    setSelectedHand(null)
+    setTargets([])
+    setThinking(false)
+    setHistoryOpen(false)
+    setView('game')
+  }
+
+  const startGame = useCallback(async () => {
+    const generation = ++generationRef.current
+    cancelComRef.current?.()
+    setThinking(false)
+    setLoading({ progress: 4, label: '局面データを読み込んでいます' })
+    let next: NewGame
+    try {
+      next = await createRandomGame(difficulty, (progress, label) => {
+        if (generation === generationRef.current) setLoading({ progress, label })
+      })
+    } catch {
+      if (generation === generationRef.current) {
+        setLoading(null)
+        window.alert(t('局面を生成できませんでした。もう一度お試しください。'))
+      }
+      return
+    }
+    if (generation !== generationRef.current) return
+    installGame(next)
+  }, [difficulty, installGame])
 
   const finish = useCallback((text: string) => {
+    cancelComRef.current?.()
     setResult(text)
     setResultDialogOpen(true)
     setThinking(false)
@@ -96,7 +185,8 @@ function App() {
 
   const commitMove = useCallback(
     (move: Move, actor: 'player' | 'com') => {
-      if (!position || !game) return
+      if (!position || !game || inputLockedRef.current) return
+      inputLockedRef.current = true
       const before: Snapshot = { position: clonePosition(position), lastMove: [...lastMove], message }
       const next = applyMove(position, move)
       const movedSquares = move.from ? [move.from, move.to] : [move.to]
@@ -117,67 +207,41 @@ function App() {
   )
 
   useEffect(() => {
-    if (!position || !game || result || isReplay || position.turn === game.playerSide || thinking) return
+    if (view !== 'game' || !position || !game || result || isReplay || position.turn === game.playerSide) return
     setThinking(true)
-    if (game.difficulty !== 'hard') workerRef.current?.terminate()
-    let fallbackStarted = false
-
-    const finishThinking = (move: Move | null) => {
-      setThinking(false)
-      if (!move) {
-        finish('COMが投了しました。あなたの勝ちです。')
-        return
-      }
-      commitMove(move, 'com')
-    }
-
-    const runFallback = () => {
-      if (fallbackStarted) return
-      fallbackStarted = true
-      workerRef.current?.terminate()
-      const fallback = new Worker(new URL('./workers/com.worker.ts', import.meta.url), { type: 'module' })
-      workerRef.current = fallback
-      fallback.onmessage = (event: MessageEvent<Move | null>) => {
-        finishThinking(event.data)
-        fallback.terminate()
-      }
-      fallback.postMessage({ position, difficulty: game.difficulty })
-    }
-
-    if (game.difficulty === 'hard') {
-      const worker = hardWorkerRef.current ?? new Worker(stockfishWorkerUrl)
-      hardWorkerRef.current = worker
-      workerRef.current = worker
-      worker.onmessage = (event: MessageEvent<{ bestmove?: string; error?: string; ready?: boolean }>) => {
-        if (event.data.ready) return
-        if (event.data.error || !event.data.bestmove) {
-          hardWorkerRef.current = null
-          runFallback()
-          return
-        }
-        const notation = event.data.bestmove.toLowerCase()
-        const move = allLegalMoves(position).find(
-          (candidate) => moveToFairyNotation(candidate, position.turn).toLowerCase() === notation,
-        )
-        if (!move) {
-          runFallback()
-          return
-        }
-        finishThinking(move)
-      }
-      worker.onerror = () => {
-        hardWorkerRef.current = null
-        runFallback()
-      }
-      worker.postMessage({ sfen: positionToSfen(position) })
-    } else {
-      runFallback()
-    }
-
+    const started = performance.now()
+    let delayTimer: ReturnType<typeof setTimeout> | undefined
+    const cancel = requestCom({
+      position,
+      difficulty: game.difficulty,
+      primary: () => {
+        const worker = hardWorkerRef.current ?? new Worker(stockfishWorkerUrl)
+        hardWorkerRef.current = worker
+        return worker
+      },
+      fallback: () => {
+        const worker = new Worker(new URL('./workers/com.worker.ts', import.meta.url), { type: 'module' })
+        workerRef.current = worker
+        return worker
+      },
+      discardPrimary: (worker) => {
+        if (hardWorkerRef.current === worker) hardWorkerRef.current = null
+      },
+      complete: (move) => {
+        delayTimer = setTimeout(() => {
+          setThinking(false)
+          if (move) commitMove(move, 'com')
+          else finish(isKingInCheck(position, position.turn) ? '詰み。あなたの勝ちです。' : '指せる手がありません。')
+        }, Math.max(0, comDelay - (performance.now() - started)))
+      },
+    })
+    const cancelAll = () => { cancel(); clearTimeout(delayTimer) }
+    cancelComRef.current = cancelAll
     return () => {
-      if (game.difficulty !== 'hard') workerRef.current?.terminate()
+      cancelAll()
+      if (cancelComRef.current === cancelAll) cancelComRef.current = null
     }
-  }, [position, game, result, isReplay, commitMove, finish])
+  }, [view, position, game, result, isReplay, commitMove, finish, comDelay])
 
   const selectSquare = (square: Square) => {
     if (!position || !game || result || isReplay || thinking || position.turn !== game.playerSide) return
@@ -189,7 +253,7 @@ function App() {
     if (selected && targets.some((target) => squareKey(target) === squareKey(square))) {
       const moving = position.board[selected[0]][selected[1]]!
       let promote = mustPromote(moving, square[0])
-      if (!promote && canPromote(moving, selected[0], square[0])) promote = window.confirm(`${labels[moving.kind]}を成りますか？`)
+      if (!promote && canPromote(moving, selected[0], square[0])) promote = window.confirm(t(`${labels[moving.kind]}を成りますか？`))
       commitMove({ from: selected, to: square, kind: moving.kind, promote, captured: piece }, 'player')
       return
     }
@@ -218,9 +282,13 @@ function App() {
   }
 
   const undo = () => {
+    if (inputLockedRef.current) return
     const previous = undoStack.at(-1)
     if (!previous) return
+    inputLockedRef.current = true
+    cancelComRef.current?.()
     workerRef.current?.terminate()
+    hardWorkerRef.current?.terminate()
     workerRef.current = null
     hardWorkerRef.current = null
     setThinking(false)
@@ -228,13 +296,22 @@ function App() {
     setLastMove(previous.lastMove)
     setMessage('待ったしました。')
     setUndoStack((items) => items.slice(0, -1))
-    setSnapshots((items) => items.slice(0, Math.max(1, items.length - 2)))
+    setSnapshots((items) => items.slice(0, Math.max(1, items.findIndex((item) => item.position.moveNumber === previous.position.moveNumber) + 1)))
+    setSelected(null)
+    setSelectedHand(null)
+    setTargets([])
+    setResultDialogOpen(false)
     setResult(null)
   }
 
   const resumeReplay = () => {
     if (replayIndex === null) return
+    cancelComRef.current?.()
+    setThinking(false)
     const snapshot = snapshots[replayIndex]
+    if (!hasAnyLegalMove(snapshot.position, snapshot.position.turn)) return
+    setSessionId(newSessionId())
+    setViewingHistory(false)
     setPosition(clonePosition(snapshot.position))
     setLastMove(snapshot.lastMove)
     setMessage('棋譜再生中の局面から対局を再開しました。')
@@ -247,44 +324,64 @@ function App() {
   if (view === 'home') {
     return (
       <main className="app-shell home-screen">
-        <DomTranslationLayer />
+
         <header className="brand-row">
           <div>
-            <p className="eyebrow">BROWSER SHOGI</p>
-            <h1>ランダム将棋</h1>
+            <p className="eyebrow">{tx("BROWSER SHOGI")}</p>
+            <h1>{tx("ランダム将棋")}</h1>
           </div>
-          <span className="version">ver {VERSION}</span>
+          <span className="version">{tx("ver ")}{tx(VERSION)}</span>
         </header>
-        <p className="home-copy">中終盤の多様な局面から、すぐに対局を始められます。</p>
-        <section className="home-controls" aria-label="対局設定">
-          <h2>難易度</h2>
+        <p className="home-copy">{tx("中終盤の多様な局面から、すぐに対局を始められます。")}</p>
+        <section className="home-controls" aria-label={t("対局設定")}>
+          <h2>{tx("難易度")}</h2>
           <div className="segmented">
-            {(['easy', 'normal', 'hard'] as Difficulty[]).map((level) => (
+            {tx((['easy', 'normal', 'hard'] as Difficulty[]).map((level) => (
               <button key={level} className={difficulty === level ? 'active' : ''} onClick={() => setDifficulty(level)}>
-                {difficultyLabels[level]}
+                {tx(difficultyLabels[level])}
               </button>
-            ))}
+            )))}
           </div>
           <button className="primary start-button" onClick={startGame}>
-            <Swords size={21} /> プレイ開始
-          </button>
+            <Swords size={21} />{tx(" プレイ開始 ")}</button>
+          {tx(savedSession && !savedSession.result && <button className="secondary" onClick={() => restoreSession(savedSession)}>{tx("対局再開")}</button>)}
+          <button className="secondary" onClick={() => setHistoryOpen(true)}>{tx("対局履歴")}</button>
           <button className="secondary" onClick={() => setSettingsOpen(true)}>
-            <Settings size={19} /> 設定
-          </button>
+            <Settings size={19} />{tx(" 設定 ")}</button>
         </section>
-        {settingsOpen && (
+        {tx(settingsOpen && (
           <div className="modal-backdrop" onClick={() => setSettingsOpen(false)}>
             <div className="dialog" onClick={(event) => event.stopPropagation()}>
-              <h2>設定</h2>
+              <h2>{tx("設定")}</h2>
+              <label className="switch-row"><span>{tx("COMの最小待ち時間")}</span><select value={comDelay} onChange={(event) => setComDelay(Number(event.target.value))}>
+                {tx([0, 300, 550, 1000, 2000].map((delay) => <option key={delay} value={delay}>{tx(delay)}{tx(" ms")}</option>))}
+              </select></label>
               <label className="switch-row">
-                <span>評価値を表示</span>
+                <span>{tx("評価値を表示")}</span>
                 <input type="checkbox" checked={showEvaluation} onChange={(event) => setShowEvaluation(event.target.checked)} />
               </label>
-              <button className="primary" onClick={() => setSettingsOpen(false)}>完了</button>
+              <button className="primary" onClick={() => setSettingsOpen(false)}>{tx("完了")}</button>
             </div>
           </div>
-        )}
-        {loading && <LoadingOverlay {...loading} />}
+        ))}
+        {tx(loading && <LoadingOverlay {...loading} />)}
+        {tx(saveFailed && <p role="alert">{tx("保存できませんでした。画面を閉じると進行が失われる可能性があります。")}</p>)}
+        {tx(historyOpen && <div className="modal-backdrop"><section className="dialog history-dialog" role="dialog" aria-modal="true" aria-label={t("対局履歴")}>
+          <h2>{tx("対局履歴")}</h2>
+          <div className="history-filters">
+            <select aria-label={t("難易度")} value={historyDifficulty} onChange={(event) => setHistoryDifficulty(event.target.value)}>
+              <option value="all">{tx("すべて")}</option>{tx((['easy', 'normal', 'hard'] as Difficulty[]).map((level) => <option key={level} value={level}>{tx(difficultyLabels[level])}</option>))}
+            </select>
+            <select aria-label={t("結果")} value={historyOutcome} onChange={(event) => setHistoryOutcome(event.target.value)}><option value="all">{tx("すべて")}</option><option value="win">{tx("勝ち")}</option><option value="loss">{tx("負け")}</option><option value="other">{tx("その他")}</option></select>
+          </div>
+          {tx(filterHistory(history, historyDifficulty, historyOutcome).map((item) => <article key={item.id} className="history-item">
+            <strong>{tx(item.game.seed.title)}</strong><p>{tx(new Date(item.updatedAt).toLocaleString())}{tx(" · ")}{tx(difficultyLabels[item.game.difficulty])}{tx(" · ")}{tx(item.result)}</p>
+            <div className="end-actions"><button onClick={() => restoreSession(item, true)}>{tx("棋譜再生")}</button><button onClick={() => installGame(retryGame(item.game))}>{tx("同じ局面に再挑戦")}</button><button onClick={() => installGame(retryGame(item.game, true))}>{tx("先後を入れ替えて再挑戦")}</button></div>
+          </article>))}
+          {tx(!filterHistory(history, historyDifficulty, historyOutcome).length && <p>{tx("該当する履歴はありません。")}</p>)}
+          <button onClick={() => { if (window.confirm(t('対局履歴をすべて削除しますか？'))) { const saved = writeSetting(HISTORY_KEY, '[]'); if (saved) setHistory([]); setSaveFailed(!saved) } }}>{tx("履歴をすべて削除")}</button>
+          <button className="primary" onClick={() => setHistoryOpen(false)}>{tx("閉じる")}</button>
+        </section></div>)}
       </main>
     )
   }
@@ -296,14 +393,15 @@ function App() {
 
   return (
     <main className="game-screen">
-      <DomTranslationLayer />
+
+      {tx(saveFailed && <p role="alert">{tx("保存できませんでした。画面を閉じると進行が失われる可能性があります。")}</p>)}
       <header className="game-header">
         <div>
-          <p className="eyebrow">{game.seed.category} / {game.seed.phase}</p>
-          <h1>{game.seed.title}</h1>
+          <p className="eyebrow">{tx(game.seed.category)}{tx(" / ")}{tx(game.seed.phase)}</p>
+          <h1>{tx(game.seed.title)}</h1>
         </div>
         <span className={`turn-indicator ${thinking ? 'thinking' : ''}`}>
-          {isReplay ? `棋譜 ${replayIndex! + 1}/${snapshots.length}` : thinking ? 'COM思考中' : currentPosition.turn === game.playerSide ? 'あなたの手番' : 'COMの手番'}
+          {tx(isReplay ? `棋譜 ${replayIndex! + 1}/${snapshots.length}` : thinking ? 'COM思考中' : currentPosition.turn === game.playerSide ? 'あなたの手番' : 'COMの手番')}
         </span>
       </header>
 
@@ -322,48 +420,51 @@ function App() {
         </section>
 
         <aside className="side-panel">
-          {result && <div className="result-banner"><strong>対局終了</strong><span>{result}</span></div>}
+          {tx(result && <div className="result-banner"><strong>{tx("対局終了")}</strong><span>{tx(result)}</span></div>)}
           <div className="position-info">
-            {showEvaluation && <p className="evaluation">評価値 <strong>{evaluation >= 0 ? '+' : ''}{evaluation}</strong></p>}
-            <p>{currentMessage}</p>
-            <p className="note">{game.seed.note}</p>
+            {tx(showEvaluation && <p className="evaluation">{tx("評価値 ")}<strong>{tx(evaluation >= 0 ? '+' : '')}{tx(evaluation)}</strong></p>)}
+            <p>{tx(currentMessage)}</p>
+            <p className="note">{tx(game.seed.note)}</p>
           </div>
 
-          {isReplay ? (
+          {tx(isReplay ? (
             <div className="replay-controls">
-              <button title="一手目" onClick={() => setReplayIndex(0)}><ChevronsLeft /></button>
-              <button title="戻る" onClick={() => setReplayIndex(Math.max(0, replayIndex! - 1))}><ChevronLeft /></button>
-              <button title="進む" onClick={() => setReplayIndex(Math.min(snapshots.length - 1, replayIndex! + 1))}><ChevronRight /></button>
-              <button title="最終手" onClick={() => setReplayIndex(snapshots.length - 1)}><ChevronsRight /></button>
-              <button className="wide" onClick={resumeReplay}><StepForward size={18} />ここから再開</button>
-              <button className="wide" onClick={() => setReplayIndex(null)}>棋譜再生を終了</button>
+              <button title={t("一手目")} onClick={() => setReplayIndex(0)}><ChevronsLeft /></button>
+              <button title={t("戻る")} onClick={() => setReplayIndex(Math.max(0, replayIndex! - 1))}><ChevronLeft /></button>
+              <button title={t("進む")} onClick={() => setReplayIndex(Math.min(snapshots.length - 1, replayIndex! + 1))}><ChevronRight /></button>
+              <button title={t("最終手")} onClick={() => setReplayIndex(snapshots.length - 1)}><ChevronsRight /></button>
+              <button className="wide" onClick={resumeReplay}><StepForward size={18} />{tx("ここから再開")}</button>
+              <button className="wide" onClick={() => { if (viewingHistory) { setView('home'); setHistoryOpen(true) } else setReplayIndex(null) }}>{tx("棋譜再生を終了")}</button>
             </div>
           ) : result ? (
             <div className="end-actions">
-              <button className="primary" onClick={startGame}>新局面</button>
-              <button className="secondary" onClick={() => setReplayIndex(snapshots.length - 1)}>棋譜再生</button>
+              <button className="primary" onClick={startGame}>{tx("新局面")}</button>
+              <button className="secondary" onClick={() => setReplayIndex(snapshots.length - 1)}>{tx("棋譜再生")}</button>
+              <button className="secondary" onClick={() => installGame(retryGame(game))}>{tx("同じ局面に再挑戦")}</button>
+              <button className="secondary" onClick={() => installGame(retryGame(game, true))}>{tx("先後を入れ替えて再挑戦")}</button>
+              <button className="secondary" onClick={() => setView('home')}>{tx("ホーム")}</button>
             </div>
-          ) : null}
+          ) : null)}
         </aside>
       </div>
 
-      {!isReplay && !result && (
+      {tx(!isReplay && !result && (
         <nav className="bottom-actions">
-          <button onClick={() => finish('投了。あなたの負けです。')}><Swords size={18} />投了</button>
-          <button onClick={undo} disabled={!undoStack.length}><RotateCcw size={18} />待った</button>
-          <button onClick={() => { workerRef.current?.terminate(); workerRef.current = null; hardWorkerRef.current = null; setView('home') }}><Home size={18} />ホーム</button>
+          <button onClick={() => finish('投了。あなたの負けです。')}><Swords size={18} />{tx("投了")}</button>
+          <button onClick={undo} disabled={!undoStack.length}><RotateCcw size={18} />{tx("待った")}</button>
+          <button onClick={() => { cancelComRef.current?.(); setThinking(false); setView('home') }}><Home size={18} />{tx("ホーム")}</button>
         </nav>
-      )}
-      {result && resultDialogOpen && (
+      ))}
+      {tx(result && resultDialogOpen && (
         <div className="result-dialog-backdrop">
           <div className="result-dialog">
-            <strong>対局終了</strong>
-            <p>{result}</p>
-            <button className="primary" onClick={() => setResultDialogOpen(false)}>確認</button>
+            <strong>{tx("対局終了")}</strong>
+            <p>{tx(result)}</p>
+            <button className="primary" onClick={() => setResultDialogOpen(false)}>{tx("確認")}</button>
           </div>
         </div>
-      )}
-      {loading && <LoadingOverlay {...loading} />}
+      ))}
+      {tx(loading && <LoadingOverlay {...loading} />)}
     </main>
   )
 }
@@ -395,8 +496,8 @@ function Board({
     return output
   }, [position, playerSide])
   return (
-    <div className="board" role="grid" aria-label="将棋盤">
-      {squares.map(({ square, piece }) => {
+    <div className="board" role="grid" aria-label={t("将棋盤")}>
+      {tx(squares.map(({ square, piece }) => {
         const selectedHere = selected && squareKey(selected) === squareKey(square)
         const target = targets.some((item) => squareKey(item) === squareKey(square))
         const moved = lastMove.some((item) => squareKey(item) === squareKey(square))
@@ -406,16 +507,16 @@ function Board({
             className={`square ${selectedHere ? 'selected' : ''} ${target ? 'target' : ''} ${moved ? 'last-move' : ''}`}
             onClick={() => onSquare(square)}
           >
-            {piece && <PieceGlyph piece={piece} playerSide={playerSide} />}
+            {tx(piece && <PieceGlyph piece={piece} playerSide={playerSide} />)}
           </button>
         )
-      })}
+      }))}
     </div>
   )
 }
 
 function PieceGlyph({ piece, playerSide }: { piece: Piece; playerSide: Side }) {
-  return <span className={`piece ${piece.owner !== playerSide ? 'opponent' : ''}`}>{piece.promoted ? promotedLabels[piece.kind] : labels[piece.kind]}</span>
+  return <span className={`piece ${piece.owner !== playerSide ? 'opponent' : ''}`}>{tx(piece.promoted ? promotedLabels[piece.kind] : labels[piece.kind])}</span>
 }
 
 function HandRow({
@@ -434,14 +535,14 @@ function HandRow({
   const entries = handOrder.filter((kind) => (position.hands[side][kind] ?? 0) > 0)
   return (
     <div className="hand-row">
-      <span className="hand-label">{side === 'sente' ? '先手' : '後手'}</span>
+      <span className="hand-label">{tx(side === 'sente' ? '先手' : '後手')}</span>
       <div className="hand-pieces">
-        {entries.length ? entries.map((kind) => (
+        {tx(entries.length ? entries.map((kind) => (
           <button key={kind} className={`hand-piece ${selected === kind ? 'selected' : ''}`} onClick={() => onSelect(kind)}>
             <PieceGlyph piece={{ owner: side, kind, promoted: false }} playerSide={playerSide} />
-            {(position.hands[side][kind] ?? 0) > 1 && <small>{position.hands[side][kind]}</small>}
+            {tx((position.hands[side][kind] ?? 0) > 1 && <small>{tx(position.hands[side][kind])}</small>)}
           </button>
-        )) : <span className="empty-hand">なし</span>}
+        )) : <span className="empty-hand">{tx("なし")}</span>)}
       </div>
     </div>
   )
@@ -451,10 +552,10 @@ function LoadingOverlay({ progress, label }: { progress: number; label: string }
   return (
     <div className="loading-overlay">
       <div className="loading-panel">
-        <strong>新局面を生成中</strong>
-        <p>{label}</p>
+        <strong>{tx("新局面を生成中")}</strong>
+        <p>{tx(label)}</p>
         <progress max="100" value={progress} />
-        <span>{progress}%</span>
+        <span>{tx(progress)}{tx("%")}</span>
       </div>
     </div>
   )

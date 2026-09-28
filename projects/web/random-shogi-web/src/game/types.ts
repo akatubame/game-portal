@@ -17,6 +17,8 @@ export interface Position {
 }
 
 export interface PositionSeed {
+  family?: string
+  sourceGame?: string
   id: string
   title: string
   sfen: string

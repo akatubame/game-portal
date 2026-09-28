@@ -75,7 +75,7 @@ import {
 
 type ColorChainRotationTestProps = {
   onBack: () => void;
-  presentation?: "official" | "test";
+  presentation?: "official" | "test" | "android";
 };
 
 type RotationPhase =
@@ -788,9 +788,11 @@ export function ColorChainRotationTest({
 }: ColorChainRotationTestProps) {
   const { language, setLanguage } = useI18n();
   const t = copy[language];
-  const isOfficial = presentation === "official";
+  const isOfficial = presentation !== "test";
   const pageEyebrow = isOfficial ? t.officialEyebrow : t.eyebrow;
-  const pageTitle = isOfficial ? t.officialTitle : t.title;
+  const pageTitle = presentation === "android"
+    ? (language === "ja" ? "クロマのマジカルチェイン" : "Chroma's Magical Chain")
+    : isOfficial ? t.officialTitle : t.title;
   const pageSubtitle = isOfficial ? t.officialSubtitle : t.subtitle;
   const startLabel = isOfficial ? t.officialStart : t.start;
   const { scale, portrait, coarsePointer } = useFixedStage();
@@ -921,7 +923,8 @@ export function ColorChainRotationTest({
         : mokoMood === "light"
           ? t.mokoLight
           : t.mokoIdle;
-  const inputEnabled = phase === "ready" || phase === "selecting";
+  const hostPausedRef = useRef(false);
+  const inputEnabled = !documentHidden && (phase === "ready" || phase === "selecting");
   const boardInputEnabled = inputEnabled && !chainWaveTargeting;
   const isResolving = [
     "rotating",
@@ -1019,7 +1022,7 @@ export function ColorChainRotationTest({
   };
 
   const playBgm = (restart = false) => {
-    if (!audioEnabledRef.current) return;
+    if (!audioEnabledRef.current || hostPausedRef.current || document.hidden) return;
     const audio = ensureAudio();
     if (restart) audio.bgm.currentTime = 0;
     void audio.bgm.play().catch(() => {
@@ -1035,7 +1038,7 @@ export function ColorChainRotationTest({
   };
 
   const playAudioEffect = (kind: RotationAudioEffect) => {
-    if (!audioEnabledRef.current) return;
+    if (!audioEnabledRef.current || hostPausedRef.current || document.hidden) return;
     const audio = ensureAudio();
     const effect = audio[kind];
     effect.pause();
@@ -1931,19 +1934,30 @@ export function ColorChainRotationTest({
   }, [phase]);
 
   useEffect(() => {
+    let hostPaused = false;
     const handleVisibility = () => {
-      const hidden = document.hidden;
+      const hidden = document.hidden || hostPaused;
       setDocumentHidden(hidden);
       if (hidden) {
         pointerRef.current = null;
         pauseBgm();
+        if (audioRef.current) Object.values(audioRef.current).forEach((track) => track.pause());
         if (phaseRef.current === "selecting") commitPhase("ready");
       } else if (!["idle", "clear", "timeout"].includes(phaseRef.current)) {
         playBgm();
       }
     };
+    const handleHostPause = (event: Event) => {
+      hostPaused = Boolean((event as CustomEvent<boolean>).detail);
+      hostPausedRef.current = hostPaused;
+      handleVisibility();
+    };
     document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("puzzle-host-pause", handleHostPause);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("puzzle-host-pause", handleHostPause);
+    };
   }, []);
 
   useEffect(() => {
@@ -2147,7 +2161,7 @@ export function ColorChainRotationTest({
               </button>
               <button onClick={onBack} type="button">
                 <ArrowLeft aria-hidden="true" />
-                {t.back}
+                {presentation === "android" ? (language === "ja" ? "終了" : "Exit") : t.back}
               </button>
             </div>
           </header>

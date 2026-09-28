@@ -75,6 +75,9 @@ export interface RoundResult {
 
 export interface GameState {
   version: 1;
+  gameId?: string;
+  roundSequence?: number;
+  completed?: boolean;
   phase: GamePhase;
   players: PlayerState[];
   wall: Wall;
@@ -89,6 +92,7 @@ export interface GameState {
   lastDiscardPlayer: number;
   roundResult: RoundResult | null;
   gameLog: string[];
+  gameLogEvents?: import('./recordLabels').GameLogEvent[];
   riichiSticks: number;
   honbaCount: number;
   pendingAction: PendingAction | null;
