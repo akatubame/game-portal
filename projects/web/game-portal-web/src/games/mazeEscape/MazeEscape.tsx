@@ -1,3 +1,5 @@
+import { useStopwatch } from "../useStopwatch";
+import { safeStorage } from "../../safeStorage";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
@@ -83,7 +85,7 @@ function generateMaze(size: number) {
 }
 
 function readBest(): Record<string, MazeBest> {
-  const stored = window.localStorage.getItem(BEST_KEY);
+  const stored = safeStorage.getItem(BEST_KEY);
   return stored ? (JSON.parse(stored) as Record<string, MazeBest>) : {};
 }
 
@@ -101,7 +103,7 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
   const [playerIndex, setPlayerIndex] = useState(0);
   const [status, setStatus] = useState<MazeStatus>("idle");
   const [moves, setMoves] = useState(0);
-  const [seconds, setSeconds] = useState(0);
+  const { seconds, resetTimer, stopTimer } = useStopwatch();
   const [message, setMessage] = useState("ランダム迷路を進んで、右下のゴールを目指しましょう。");
   const [bestBySize, setBestBySize] = useState<Record<string, MazeBest>>(() => readBest());
 
@@ -115,17 +117,6 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
     return visited;
   }, [maze]);
 
-  useEffect(() => {
-    if (status !== "playing") {
-      return;
-    }
-
-    const timerId = window.setInterval(() => {
-      setSeconds((current) => current + 1);
-    }, 1000);
-
-    return () => window.clearInterval(timerId);
-  }, [status]);
 
   const startGame = (nextDifficulty = difficulty) => {
     const nextSize = difficultySettings[nextDifficulty].size;
@@ -134,7 +125,7 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
     setPlayerIndex(0);
     setStatus("playing");
     setMoves(0);
-    setSeconds(0);
+    resetTimer(true);
     setMessage("矢印キー、または画面ボタンで移動できます。");
   };
 
@@ -151,7 +142,7 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
     if (!current || nextMoves < current.moves || (nextMoves === current.moves && nextSeconds < current.seconds)) {
       const nextBest = { ...bestBySize, [key]: result };
       setBestBySize(nextBest);
-      window.localStorage.setItem(BEST_KEY, JSON.stringify(nextBest));
+      safeStorage.setItem(BEST_KEY, JSON.stringify(nextBest));
       setMessage(`脱出成功！${nextMoves}手 / ${formatTime(nextSeconds)} でベスト更新です。`);
     } else {
       setMessage(`脱出成功！${nextMoves}手 / ${formatTime(nextSeconds)} でした。`);
@@ -176,7 +167,7 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
     const delta = directionDelta[direction];
     const nextIndex = toIndex(row + delta.row, column + delta.column, size);
     const nextMoves = moves + 1;
-    const nextSeconds = seconds;
+    const nextSeconds = nextIndex === goalIndex ? stopTimer() : seconds;
 
     setPlayerIndex(nextIndex);
     setMoves(nextMoves);
@@ -205,7 +196,7 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
   });
 
   const resetBest = () => {
-    window.localStorage.removeItem(BEST_KEY);
+    safeStorage.removeItem(BEST_KEY);
     setBestBySize({});
   };
 

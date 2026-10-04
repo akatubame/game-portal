@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { Hand, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
@@ -65,7 +66,7 @@ const difficultyEnglishDescriptions: Record<NimDifficulty, string> = {
 };
 
 function readRecord(): NimRecord {
-  const stored = window.localStorage.getItem(RECORD_KEY);
+  const stored = safeStorage.getItem(RECORD_KEY);
   return stored ? (JSON.parse(stored) as NimRecord) : { wins: 0, losses: 0, streak: 0, bestStreak: 0 };
 }
 
@@ -171,7 +172,7 @@ export function Nim({ onBack }: NimProps) {
   const finishGame = (nextStatus: "won" | "lost") => {
     const nextRecord = updateRecord(record, nextStatus);
     setRecord(nextRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus(nextStatus);
     setTurn("player");
     setMessage(nextStatus === "won" ? "勝利！最後の石を取り切りました。" : "COMが最後の石を取りました。次は山の残り方を少し意識してみましょう。");
@@ -200,6 +201,11 @@ export function Nim({ onBack }: NimProps) {
   }, [difficulty, piles, status, turn]);
 
   const startGame = (nextSetup = setup) => {
+    if (nextSetup !== setup) {
+      const nextRecord = { ...record, streak: 0 };
+      setRecord(nextRecord);
+      safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
+    }
     setSetup(nextSetup);
     setPiles([...setupPiles[nextSetup]]);
     setStatus("playing");
@@ -227,7 +233,7 @@ export function Nim({ onBack }: NimProps) {
   const resetRecord = () => {
     const emptyRecord = { wins: 0, losses: 0, streak: 0, bestStreak: 0 };
     setRecord(emptyRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
   };
 
   return (
@@ -321,7 +327,14 @@ export function Nim({ onBack }: NimProps) {
                 disabled={status === "playing"}
                 key={level}
                 type="button"
-                onClick={() => setDifficulty(level)}
+                onClick={() => {
+                  if (level === difficulty) return;
+                  const nextRecord = { ...record, streak: 0 };
+                  setRecord(nextRecord);
+                  safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
+                  setDifficulty(level);
+                  startGame();
+                }}
               >
                 <span>{isEnglish ? difficultyEnglishLabels[level] : difficultyLabels[level]}</span>
                 <small>{isEnglish ? difficultyEnglishDescriptions[level] : difficultyDescriptions[level]}</small>

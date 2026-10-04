@@ -1,5 +1,7 @@
+import { useStopwatch } from "../useStopwatch";
+import { safeStorage } from "../../safeStorage";
 import { Bomb, Flag, RotateCcw } from "lucide-react";
-import { useEffect, useMemo, useState, type CSSProperties, type MouseEvent } from "react";
+import { useMemo, useState, type CSSProperties, type MouseEvent } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import {
@@ -31,7 +33,7 @@ function formatTime(seconds: number) {
 
 function readBestTimes(): Partial<Record<DifficultyId, number>> {
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(MINESWEEPER_BEST_KEY) ?? "{}");
+    const parsed = JSON.parse(safeStorage.getItem(MINESWEEPER_BEST_KEY) ?? "{}");
     return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
     return {};
@@ -46,7 +48,7 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
   const [board, setBoard] = useState<MineBoard>(() => createEmptyBoard(difficulty));
   const [status, setStatus] = useState<GameStatus>("ready");
   const [flagMode, setFlagMode] = useState(false);
-  const [seconds, setSeconds] = useState(0);
+  const { seconds, startTimer, resetTimer, stopTimer } = useStopwatch();
   const [bestTimes, setBestTimes] = useState<Partial<Record<DifficultyId, number>>>(() => readBestTimes());
 
   const flagCount = useMemo(() => countFlags(board), [board]);
@@ -57,38 +59,20 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
   const ranking = useRanking({ gameId: `minesweeper-${difficulty.id}`, metricLabel: "Time", mode: "lower" });
 
   const recordBestTime = (clearSeconds: number) => {
-    setBestTimes((current) => {
-      const currentBest = current[difficulty.id];
-      if (currentBest !== undefined && currentBest <= clearSeconds) {
-        return current;
-      }
-
-      const next = { ...current, [difficulty.id]: clearSeconds };
-      window.localStorage.setItem(MINESWEEPER_BEST_KEY, JSON.stringify(next));
-      return next;
-    });
+    const currentBest = bestTimes[difficulty.id];
+    if (currentBest !== undefined && currentBest <= clearSeconds) return;
+    const next = { ...bestTimes, [difficulty.id]: clearSeconds };
+    safeStorage.setItem(MINESWEEPER_BEST_KEY, JSON.stringify(next));
+    setBestTimes(next);
   };
 
-  useEffect(() => {
-    if (status !== "playing") {
-      return;
-    }
-
-    const timerId = window.setInterval(() => {
-      setSeconds((current) => current + 1);
-    }, 1000);
-
-    return () => {
-      window.clearInterval(timerId);
-    };
-  }, [status]);
 
   const resetGame = (nextDifficultyId = difficultyId) => {
     const nextDifficulty = getDifficulty(nextDifficultyId);
     setDifficultyId(nextDifficultyId);
     setBoard(createEmptyBoard(nextDifficulty));
     setStatus("ready");
-    setSeconds(0);
+    resetTimer();
     setFlagMode(false);
   };
 
@@ -102,34 +86,36 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
       return;
     }
 
-    setBoard((currentBoard) => {
-      let nextBoard = currentBoard;
+    if (board[row][column].flagged || board[row][column].revealed) return;
+    let nextBoard = board;
 
-      if (status === "ready") {
-        nextBoard = plantMines(currentBoard, difficulty, row, column);
-        setStatus("playing");
-      }
+    if (status === "ready") {
+      nextBoard = plantMines(board, difficulty, row, column);
+      startTimer();
+      setStatus("playing");
+    }
 
-      const target = nextBoard[row][column];
+    const target = nextBoard[row][column];
 
-      if (target.flagged) {
-        return nextBoard;
-      }
+    if (target.flagged) {
+      return;
+    }
 
-      if (target.hasMine) {
-        setStatus("lost");
-        return revealAllMines(nextBoard);
-      }
+    if (target.hasMine) {
+      stopTimer();
+      setStatus("lost");
+      setBoard(revealAllMines(nextBoard));
+      return;
+    }
 
-      const revealedBoard = revealCell(nextBoard, row, column);
+    const revealedBoard = revealCell(nextBoard, row, column);
 
-      if (hasWon(revealedBoard)) {
-        setStatus("won");
-        recordBestTime(Math.max(1, seconds));
-      }
+    if (hasWon(revealedBoard)) {
+      setStatus("won");
+      recordBestTime(stopTimer(1));
+    }
 
-      return revealedBoard;
-    });
+    setBoard(revealedBoard);
   };
 
   const flagCell = (event: MouseEvent<HTMLButtonElement>, row: number, column: number) => {
@@ -137,10 +123,6 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
 
     if (status === "lost" || status === "won") {
       return;
-    }
-
-    if (status === "ready") {
-      setStatus("playing");
     }
 
     setBoard((currentBoard) => toggleFlag(currentBoard, row, column));

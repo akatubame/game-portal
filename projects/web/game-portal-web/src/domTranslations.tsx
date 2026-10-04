@@ -922,19 +922,21 @@ const originalAttributes = new WeakMap<Element, Map<string, string>>();
 
 export function DomTranslationLayer({ language }: { language: Language }) {
   useEffect(() => {
+    // 日本語への復元は切替時だけ行い、ゲームによる新しい文章を上書きしない。
+    if (language === "ja") {
+      restoreDocument();
+      return;
+    }
+    let frame: number | undefined;
     const translate = () => {
-      if (language === "ja") {
-        restoreDocument();
-        return;
-      }
-
+      frame = undefined;
       translateDocument();
     };
 
     translate();
 
     const observer = new MutationObserver(() => {
-      window.requestAnimationFrame(translate);
+      if (frame === undefined) frame = window.requestAnimationFrame(translate);
     });
 
     observer.observe(document.body, {
@@ -946,6 +948,7 @@ export function DomTranslationLayer({ language }: { language: Language }) {
 
     return () => {
       observer.disconnect();
+      if (frame !== undefined) window.cancelAnimationFrame(frame);
     };
   }, [language]);
 
@@ -962,7 +965,7 @@ function translateDocument() {
 
   for (const node of nodes) {
     const parent = node.parentElement;
-    if (!parent || ["SCRIPT", "STYLE", "TEXTAREA"].includes(parent.tagName) || parent.closest(".typing-japanese")) {
+    if (!parent || ["SCRIPT", "STYLE", "TEXTAREA"].includes(parent.tagName) || parent.closest(".typing-japanese, [data-native-i18n]")) {
       continue;
     }
 
@@ -998,13 +1001,19 @@ function translateDocument() {
   }
 
   for (const element of Array.from(document.querySelectorAll("[placeholder], [aria-label], [title]"))) {
+    if (element.closest("[data-native-i18n]")) continue;
     for (const attribute of ["placeholder", "aria-label", "title"]) {
       const current = element.getAttribute(attribute);
       if (!current) {
         continue;
       }
 
-      const original = originalAttributes.get(element)?.get(attribute) ?? current;
+      let original = originalAttributes.get(element)?.get(attribute) ?? current;
+      const previousTranslation = original.replace(original.trim(), translateDynamicAttribute(original.trim()));
+      if (current !== original && current !== previousTranslation) {
+        original = current;
+        originalAttributes.get(element)?.set(attribute, current);
+      }
       const translated = translateDynamicAttribute(original.trim());
 
       if (translated === original.trim()) {
@@ -1032,7 +1041,7 @@ function translateDynamicAttribute(value: string) {
   return attributeTranslations[value] ?? translateDynamicText(value);
 }
 
-function translateDynamicText(value: string): string {
+export function translateDynamicText(value: string): string {
   const exact = phraseTranslations[value];
   if (exact) {
     return exact;
@@ -1132,24 +1141,28 @@ function restoreDocument() {
   }
 
   for (const node of nodes) {
+    if (node.parentElement?.closest("[data-native-i18n]")) continue;
     const source = originalText.get(node);
     if (source !== undefined) {
-      if (node.nodeValue !== source) {
+      if (node.nodeValue === source.replace(source.trim(), translateDynamicText(source.trim()))) {
         node.nodeValue = source;
       }
+      originalText.delete(node);
     }
   }
 
   for (const element of Array.from(document.querySelectorAll("[placeholder], [aria-label], [title]"))) {
+    if (element.closest("[data-native-i18n]")) continue;
     const attributes = originalAttributes.get(element);
     if (!attributes) {
       continue;
     }
 
     for (const [attribute, value] of attributes) {
-      if (element.getAttribute(attribute) !== value) {
+      if (element.getAttribute(attribute) === value.replace(value.trim(), translateDynamicAttribute(value.trim()))) {
         element.setAttribute(attribute, value);
       }
     }
+    originalAttributes.delete(element);
   }
 }

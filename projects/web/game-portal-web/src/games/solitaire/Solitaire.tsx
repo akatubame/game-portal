@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { RotateCcw, Sparkles, Trophy } from "lucide-react";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useI18n } from "../../i18n";
@@ -58,7 +59,7 @@ function emptyRecord(): SolitaireRecord {
 
 function readRecord(): SolitaireRecord {
   try {
-    const stored = window.localStorage.getItem(RECORD_KEY);
+    const stored = safeStorage.getItem(RECORD_KEY);
     return stored ? (JSON.parse(stored) as SolitaireRecord) : emptyRecord();
   } catch {
     return emptyRecord();
@@ -270,7 +271,7 @@ export function Solitaire({ onBack }: SolitaireProps) {
       display: formatTime(clearMs),
       meta: isEnglish ? `${nextMoves} moves` : `${nextMoves}手`
     });
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
   };
 
   const startNewGame = () => {
@@ -287,7 +288,7 @@ export function Solitaire({ onBack }: SolitaireProps) {
     const nextRecord = emptyRecord();
     setRecord(nextRecord);
     setPendingScore(null);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
   };
 
   const commitMove = (nextState: GameState) => {

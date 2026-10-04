@@ -1,3 +1,5 @@
+import { useCountdown } from "../useCountdown";
+import { safeStorage } from "../../safeStorage";
 import { Check, RotateCcw, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
@@ -30,7 +32,7 @@ const colorLabelsEn: Record<string, string> = {
 };
 
 function readBest(): ColorJudgeBest | null {
-  const stored = window.localStorage.getItem(BEST_KEY);
+  const stored = safeStorage.getItem(BEST_KEY);
   return stored ? (JSON.parse(stored) as ColorJudgeBest) : null;
 }
 
@@ -54,7 +56,7 @@ export function ColorJudge({ onBack }: ColorJudgeProps) {
   const { language } = useI18n();
   const isEnglish = language === "en";
   const [status, setStatus] = useState<ColorJudgeStatus>("idle");
-  const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS);
+  const { timeLeft, resetCountdown, hasExpired } = useCountdown(status === "playing", ROUND_SECONDS);
   const [question, setQuestion] = useState<ColorQuestion>(() => createQuestion());
   const [correct, setCorrect] = useState(0);
   const [mistakes, setMistakes] = useState(0);
@@ -79,19 +81,6 @@ export function ColorJudge({ onBack }: ColorJudgeProps) {
             : message
     : message;
 
-  useEffect(() => {
-    if (status !== "playing") {
-      return;
-    }
-
-    const timerId = window.setInterval(() => {
-      setTimeLeft((current) => Math.max(0, current - 1));
-    }, 1000);
-
-    return () => {
-      window.clearInterval(timerId);
-    };
-  }, [status]);
 
   useEffect(() => {
     if (status !== "playing" || timeLeft > 0 || resultSavedRef.current) {
@@ -109,7 +98,7 @@ export function ColorJudge({ onBack }: ColorJudgeProps) {
 
     if (!best || result.score > best.score) {
       setBest(result);
-      window.localStorage.setItem(BEST_KEY, JSON.stringify(result));
+      safeStorage.setItem(BEST_KEY, JSON.stringify(result));
       setMessage("終了！ベストスコアを更新しました。");
     } else {
       setMessage("終了！もう一度挑戦してベスト更新を狙いましょう。");
@@ -121,7 +110,7 @@ export function ColorJudge({ onBack }: ColorJudgeProps) {
   const startRound = () => {
     resultSavedRef.current = false;
     setStatus("playing");
-    setTimeLeft(ROUND_SECONDS);
+    resetCountdown();
     setQuestion(createQuestion());
     setCorrect(0);
     setMistakes(0);
@@ -131,7 +120,7 @@ export function ColorJudge({ onBack }: ColorJudgeProps) {
   };
 
   const answer = (answerIsMatch: boolean) => {
-    if (status !== "playing") {
+    if (hasExpired() || status !== "playing") {
       return;
     }
 
@@ -151,7 +140,7 @@ export function ColorJudge({ onBack }: ColorJudgeProps) {
   };
 
   const resetBest = () => {
-    window.localStorage.removeItem(BEST_KEY);
+    safeStorage.removeItem(BEST_KEY);
     setBest(null);
   };
 

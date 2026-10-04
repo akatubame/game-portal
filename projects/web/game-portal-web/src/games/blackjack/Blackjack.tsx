@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { Club, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
@@ -13,7 +14,7 @@ const SUITS: BlackjackSuit[] = ["♠", "♥", "♦", "♣"];
 const RANKS: BlackjackCard["rank"][] = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
 
 function readRecord(): BlackjackRecord {
-  const stored = window.localStorage.getItem(RECORD_KEY);
+  const stored = safeStorage.getItem(RECORD_KEY);
   return stored ? (JSON.parse(stored) as BlackjackRecord) : { wins: 0, losses: 0, pushes: 0, chips: 1000 };
 }
 
@@ -132,7 +133,7 @@ export function Blackjack({ onBack }: BlackjackProps) {
     const nextRecord = updateRecord(record, nextOutcome);
     setOutcome(nextOutcome);
     setRecord(nextRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus("finished");
     setMessage(outcomeMessage(nextOutcome, nextPlayerHand, nextDealerHand));
   };
@@ -203,7 +204,7 @@ export function Blackjack({ onBack }: BlackjackProps) {
   const resetRecord = () => {
     const emptyRecord = { wins: 0, losses: 0, pushes: 0, chips: 1000 };
     setRecord(emptyRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
   };
 
   const renderCard = (card: BlackjackCard, index: number, hidden = false) => (

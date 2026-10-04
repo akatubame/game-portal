@@ -13363,3 +13363,18 @@ body.color-chain-active-play .color-chain-shell.is-mascot-test.is-active-play {
   margin-top: 8px;
   padding: 7px 9px;
 }
+.storage-notice {
+  margin: 12px auto;
+  padding: 12px 16px;
+  max-width: 1100px;
+  border: 1px solid #f3c76a;
+  border-radius: 10px;
+  background: #fff3cf;
+  color: #583d08;
+  font-size: 14px;
+}
+.nonogram-cell:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: -3px;
+  z-index: 1;
+}

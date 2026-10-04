@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { Brain, Play, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
@@ -24,7 +25,7 @@ const PADS: SimonPad[] = [
 ];
 
 function readBest(): SimonBest | null {
-  const stored = window.localStorage.getItem(BEST_KEY);
+  const stored = safeStorage.getItem(BEST_KEY);
   return stored ? (JSON.parse(stored) as SimonBest) : null;
 }
 
@@ -65,7 +66,7 @@ export function SimonSays({ onBack }: SimonSaysProps) {
 
   const level = sequence.length;
   const ranking = useRanking({ gameId: "simon-says-score", metricLabel: "Score", mode: "higher" });
-  const score = useMemo(() => Math.max(0, level - (status === "idle" ? 0 : 1)) * 10 + inputIndex, [inputIndex, level, status]);
+  const score = useMemo(() => status === "cleared" || status === "failed" ? lastScore : Math.max(0, level - (status === "idle" ? 0 : 1)) * 10 + inputIndex, [inputIndex, level, status, lastScore]);
   const message = getMessage(status, level, inputIndex);
   const visibleMessage = isEnglish
     ? status === "watching"
@@ -99,7 +100,7 @@ export function SimonSays({ onBack }: SimonSaysProps) {
       recordedAt: new Date().toISOString()
     };
     setBest(nextBest);
-    window.localStorage.setItem(BEST_KEY, JSON.stringify(nextBest));
+    safeStorage.setItem(BEST_KEY, JSON.stringify(nextBest));
   };
 
   const showSequence = (nextSequence: SimonColor[]) => {
@@ -178,7 +179,7 @@ export function SimonSays({ onBack }: SimonSaysProps) {
   };
 
   const resetBest = () => {
-    window.localStorage.removeItem(BEST_KEY);
+    safeStorage.removeItem(BEST_KEY);
     setBest(null);
   };
 

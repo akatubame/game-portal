@@ -1,3 +1,5 @@
+import { useCountdown } from "../useCountdown";
+import { safeStorage } from "../../safeStorage";
 import { Keyboard, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
@@ -14,7 +16,7 @@ const BEST_KEY = "game-shelf-typing-best";
 const RECENT_PHRASE_LIMIT = 8;
 
 function readBestResult(): TypingResult | null {
-  const stored = window.localStorage.getItem(BEST_KEY);
+  const stored = safeStorage.getItem(BEST_KEY);
   return stored ? (JSON.parse(stored) as TypingResult) : null;
 }
 
@@ -39,7 +41,7 @@ export function TypingGame({ onBack }: TypingGameProps) {
   const [status, setStatus] = useState<TypingStatus>("idle");
   const [phrase, setPhrase] = useState<TypingPhrase>(() => getNextPhrase());
   const [input, setInput] = useState("");
-  const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS);
+  const { timeLeft, resetCountdown, hasExpired } = useCountdown(status === "playing", ROUND_SECONDS);
   const [correctChars, setCorrectChars] = useState(0);
   const [totalTyped, setTotalTyped] = useState(0);
   const [completedPhrases, setCompletedPhrases] = useState(0);
@@ -61,21 +63,6 @@ export function TypingGame({ onBack }: TypingGameProps) {
   );
   const ranking = useRanking({ gameId: "typing-score", metricLabel: "Score", mode: "higher" });
 
-  useEffect(() => {
-    if (status !== "playing") {
-      return;
-    }
-
-    const timerId = window.setInterval(() => {
-      setTimeLeft((current) => {
-        return Math.max(0, current - 1);
-      });
-    }, 1000);
-
-    return () => {
-      window.clearInterval(timerId);
-    };
-  }, [status]);
 
   useEffect(() => {
     if (status === "playing" && timeLeft === 0) {
@@ -89,7 +76,7 @@ export function TypingGame({ onBack }: TypingGameProps) {
     setStatus("playing");
     setPhrase(firstPhrase);
     setInput("");
-    setTimeLeft(ROUND_SECONDS);
+    resetCountdown();
     setCorrectChars(0);
     setTotalTyped(0);
     setCompletedPhrases(0);
@@ -110,12 +97,12 @@ export function TypingGame({ onBack }: TypingGameProps) {
 
     if (!bestResult || result.score > bestResult.score) {
       setBestResult(result);
-      window.localStorage.setItem(BEST_KEY, JSON.stringify(result));
+      safeStorage.setItem(BEST_KEY, JSON.stringify(result));
     }
   };
 
   const handleInput = (value: string) => {
-    if (status !== "playing") {
+    if (hasExpired() || status !== "playing") {
       return;
     }
 
@@ -153,7 +140,7 @@ export function TypingGame({ onBack }: TypingGameProps) {
   };
 
   const resetBest = () => {
-    window.localStorage.removeItem(BEST_KEY);
+    safeStorage.removeItem(BEST_KEY);
     setBestResult(null);
   };
 

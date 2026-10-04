@@ -1,0 +1,190 @@
+/* 1280×720の固定画面に、地図と操作UIを一緒に縮尺表示する。 */
+.color-chain-rotation-stage.is-map-mode > .color-chain-rotation-stage-header,
+.color-chain-rotation-stage.is-map-mode > .color-chain-rotation-game-grid {
+  visibility: hidden;
+}
+.color-chain-rotation-top-actions .chroma-map-mode-button {
+  background: linear-gradient(#e9fff1, #9adbc7);
+  color: #203e3a;
+}
+.chroma-world-map {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  overflow: hidden;
+  outline: none;
+  color: #fff5d8;
+  background: #547c72;
+  isolation: isolate;
+}
+.chroma-world-map-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  user-select: none;
+  pointer-events: none;
+}
+.chroma-world-map-header {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  z-index: 5;
+  padding: 15px 24px 22px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  background: linear-gradient(#142733ee, #183546b8 65%, #18354600);
+  text-shadow: 0 2px 3px #142733;
+}
+.chroma-world-map-header p, .chroma-world-map-card p { margin: 0; }
+.chroma-world-map-header p, .chroma-world-map-location > p:first-child {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 12px; font-weight: 800; letter-spacing: .12em; color: #ffe09b;
+}
+.chroma-world-map-header h2 { margin: 4px 0 2px; font-size: 27px; line-height: 1.15; color: #fff8e4; }
+.chroma-world-map-header span { font-size: 14px; }
+.chroma-world-map-header nav, .chroma-world-map-card-actions > div { display: flex; gap: 8px; }
+.chroma-world-map button:not(.chroma-world-map-node) {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 42px; padding: 8px 15px; border: 2px solid #a67a36; border-radius: 10px;
+  background: linear-gradient(#fff7dd, #e7c888); color: #332b36;
+  font-size: 15px; font-weight: 800; cursor: pointer; box-shadow: 0 3px 0 #40302b;
+}
+.chroma-world-map button:disabled { cursor: default; }
+.chroma-world-map button:not(.chroma-world-map-node):disabled { opacity: .45; }
+.chroma-world-map button:focus-visible { outline: 4px solid #fff1a8; outline-offset: 4px; }
+.chroma-world-map button:not(:disabled):hover { filter: brightness(1.1); }
+.chroma-world-map svg { width: 19px; height: 19px; flex: 0 0 auto; }
+.chroma-world-map .chroma-world-map-trail {
+  position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;
+}
+.chroma-world-map-trail polyline {
+  fill: none; stroke: #fff0a9; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 3 8; filter: drop-shadow(0 1px 2px #543b5b);
+}
+.chroma-world-map-node {
+  position: absolute; z-index: 2; transform: translate(-50%, -25px);
+  width: 170px; min-height: 92px; padding: 0; border: 0; border-radius: 12px;
+  background: transparent; box-shadow: none; cursor: pointer; color: #fff5d8;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  touch-action: manipulation;
+}
+.chroma-world-map-node i {
+  width: 40px; height: 40px; display: grid; place-items: center;
+  border: 3px solid #fff2ad; border-radius: 50%; background: #254659e8;
+  box-shadow: 0 2px 0 #5c3d35, 0 0 0 5px #ffd06450;
+  font-size: 18px; font-weight: 900; font-style: normal;
+}
+.chroma-world-map-node > span {
+  border: 1px solid #e8c785; border-radius: 8px; padding: 4px 10px;
+  background: #192d41eb; box-shadow: 0 3px 7px #16203780;
+  white-space: nowrap; font-size: 17px; font-weight: 800; line-height: 1.15;
+}
+.chroma-world-map-node small { display: block; margin-top: 3px; color: #d2e8ee; font-size: 12px; font-weight: 600; }
+.chroma-world-map-node.is-selected i { background: #96513a; box-shadow: 0 0 0 6px #ffe5a15c, 0 0 19px #ffda87; }
+.chroma-world-map-node.is-current > span { border-color: #fff2ad; background: #285345f2; }
+.chroma-world-map-chroma {
+  position: absolute; z-index: 3; width: 125px; height: 125px;
+  transform: translate(-50%, -94%); pointer-events: none; will-change: left, top;
+}
+.chroma-world-map-chroma > i {
+  position: absolute; width: 43px; height: 12px; border-radius: 50%;
+  background: #173b4380; bottom: 5px; left: 41px; filter: blur(2px);
+}
+.chroma-world-map-sprite-preload { display: none; }
+.chroma-world-map-walk-sprite {
+  display: block; width: 100%; height: 100%;
+  background-image: url("/characters/chroma/chroma-map-walk-v1.webp");
+  background-size: 400% 400%; background-repeat: no-repeat;
+  background-position-x: 33.333333%;
+  filter: drop-shadow(0 2px 2px #f9ee9ca6);
+}
+.chroma-world-map-sprite-fallback {
+  width: 100%; height: 100%; object-fit: contain;
+  filter: drop-shadow(0 2px 2px #f9ee9ca6);
+}
+.chroma-world-map-cheer {
+  position: absolute; width: 140px; height: 140px; left: -7.5px; top: -4px;
+  object-fit: contain; filter: drop-shadow(0 2px 3px #fff5b8);
+  animation: chroma-map-cheer 1.2s ease-out both;
+}
+.chroma-world-map.is-activating .chroma-world-map-chroma { z-index: 6; }
+.chroma-world-map.is-activating .chroma-world-map-header > div > span { visibility: hidden; }
+.chroma-world-map-activation-flash {
+  position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(ellipse at center, #ffeabe55, #86ecff26 60%, transparent);
+  animation: chroma-map-flash 1.2s ease-out both;
+}
+.chroma-world-map-activation-effects { position: absolute; inset: 0; pointer-events: none; }
+.chroma-world-map-magic-ring {
+  position: absolute; left: 2px; bottom: -5px; width: 120px; height: 40px;
+  border: 3px solid #fff2a0; border-radius: 50%;
+  box-shadow: 0 0 14px #ffda62, inset 0 0 12px #99efff;
+  animation: chroma-map-ring 1.2s ease-out both;
+}
+.chroma-world-map-spark {
+  position: absolute; color: #fff7b3; font-size: 22px; line-height: 1;
+  text-shadow: 0 0 8px #f1c65a; font-weight: normal;
+  animation: chroma-map-spark 1.2s ease-out both;
+}
+.chroma-world-map-spark:nth-child(2) { left: -8px; top: 45px; }
+.chroma-world-map-spark:nth-child(3) { left: 18px; top: 8px; color: #baf7ff; }
+.chroma-world-map-spark:nth-child(4) { left: 75px; top: -8px; }
+.chroma-world-map-spark:nth-child(5) { right: -4px; top: 26px; color: #ffc6f2; }
+.chroma-world-map-spark:nth-child(6) { right: -15px; top: 83px; }
+.chroma-world-map-spark:nth-child(7) { left: 15px; top: 107px; color: #baf7ff; }
+.chroma-world-map.is-still .chroma-world-map-activation-effects,
+.chroma-world-map.is-still .chroma-world-map-activation-flash { display: none; }
+.chroma-world-map.is-still .chroma-world-map-cheer { animation: none; }
+.chroma-world-map.is-traveling .chroma-world-map-walk-sprite {
+  animation: chroma-map-walk-frames .56s steps(1, end) infinite;
+}
+.chroma-world-map.is-still .chroma-world-map-walk-sprite,
+.chroma-world-map.is-still .chroma-world-map-sprite-fallback { animation: none; }
+.chroma-world-map-card {
+  position: absolute; z-index: 4; bottom: 16px; left: 24px; right: 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  min-height: 106px; padding: 12px 20px;
+  border: 2px solid #e1bc70; border-radius: 16px;
+  background: linear-gradient(120deg, #193d4aef, #242b46f2);
+  box-shadow: 0 6px 18px #15273970, inset 0 0 0 3px #fff5c00c;
+}
+.chroma-world-map-location { min-width: 0; }
+.chroma-world-map-location h3 { margin: 3px 0; font-size: 24px; line-height: 1.2; color: #fff5d8; }
+.chroma-world-map-location h3 span { font-size: 15px; margin-left: 14px; color: #b5eee2; }
+.chroma-world-map-location > p { font-size: 15px; line-height: 1.4; color: #f0f3eb; }
+.chroma-world-map-location small { display: block; margin-top: 5px; font-size: 13px; color: #eadba9; }
+.chroma-world-map-card-actions { flex: 0 0 auto; display: grid; justify-items: stretch; gap: 8px; }
+.chroma-world-map .chroma-world-map-play { background: linear-gradient(#ddffef, #8ddfbe); border-color: #4aa48b; color: #163e36; }
+.chroma-world-map-error { position: absolute; top: 108px; left: 24px; background: #293544; padding: 8px 12px; border-radius: 8px; z-index: 5; }
+@keyframes chroma-map-cheer {
+  0% { transform: translateY(0) scale(.95); }
+  22% { transform: translateY(-9px) scale(1.08); }
+  45%, 80% { transform: translateY(-3px) scale(1.02); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes chroma-map-ring {
+  0% { opacity: 0; transform: scale(.4); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.6); }
+}
+@keyframes chroma-map-spark {
+  0% { opacity: 0; transform: translateY(12px) scale(.4); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-20px) scale(1.1); }
+}
+@keyframes chroma-map-flash { 0%, 100% { opacity: 0; } 25% { opacity: 1; } }
+@keyframes chroma-map-walk-frames {
+  0%, 100% { background-position-x: 0%; }
+  25% { background-position-x: 33.333333%; }
+  50% { background-position-x: 66.666667%; }
+  75% { background-position-x: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chroma-world-map-walk-sprite, .chroma-world-map-sprite-fallback,
+  .chroma-world-map-cheer { animation: none !important; }
+  .chroma-world-map-activation-effects, .chroma-world-map-activation-flash { display: none; }
+}
+

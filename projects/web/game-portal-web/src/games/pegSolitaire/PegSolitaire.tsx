@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { CircleDot, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
@@ -39,7 +40,7 @@ function createBoard(): PegCell[] {
 }
 
 function readBest(): PegBest | null {
-  const stored = window.localStorage.getItem(BEST_KEY);
+  const stored = safeStorage.getItem(BEST_KEY);
   return stored ? (JSON.parse(stored) as PegBest) : null;
 }
 
@@ -143,7 +144,7 @@ export function PegSolitaire({ onBack }: PegSolitaireProps) {
       recordedAt: new Date().toISOString()
     };
     setBest(nextBest);
-    window.localStorage.setItem(BEST_KEY, JSON.stringify(nextBest));
+    safeStorage.setItem(BEST_KEY, JSON.stringify(nextBest));
   };
 
   const startGame = () => {
@@ -220,7 +221,7 @@ export function PegSolitaire({ onBack }: PegSolitaireProps) {
   };
 
   const resetBest = () => {
-    window.localStorage.removeItem(BEST_KEY);
+    safeStorage.removeItem(BEST_KEY);
     setBest(null);
   };
 

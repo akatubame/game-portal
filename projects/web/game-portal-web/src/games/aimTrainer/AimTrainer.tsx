@@ -1,3 +1,5 @@
+import { useCountdown } from "../useCountdown";
+import { safeStorage } from "../../safeStorage";
 import { Crosshair, RotateCcw, Target } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { MouseEvent } from "react";
@@ -12,7 +14,7 @@ const ROUND_SECONDS = 30;
 const BEST_KEY = "game-shelf-aim-trainer-best";
 
 function readBestResult(): AimTrainerResult | null {
-  const stored = window.localStorage.getItem(BEST_KEY);
+  const stored = safeStorage.getItem(BEST_KEY);
   return stored ? (JSON.parse(stored) as AimTrainerResult) : null;
 }
 
@@ -41,7 +43,7 @@ function calculateScore(hits: number, misses: number, bestStreak: number) {
 export function AimTrainer({ onBack }: AimTrainerProps) {
   const [status, setStatus] = useState<AimTrainerStatus>("idle");
   const [target, setTarget] = useState<AimTarget>(() => createTarget());
-  const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS);
+  const { timeLeft, resetCountdown, hasExpired } = useCountdown(status === "playing", ROUND_SECONDS);
   const [hits, setHits] = useState(0);
   const [misses, setMisses] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -53,19 +55,6 @@ export function AimTrainer({ onBack }: AimTrainerProps) {
   const score = useMemo(() => calculateScore(hits, misses, bestStreak), [bestStreak, hits, misses]);
   const ranking = useRanking({ gameId: "aim-trainer-score", metricLabel: "Score", mode: "higher" });
 
-  useEffect(() => {
-    if (status !== "playing") {
-      return;
-    }
-
-    const timerId = window.setInterval(() => {
-      setTimeLeft((current) => Math.max(0, current - 1));
-    }, 1000);
-
-    return () => {
-      window.clearInterval(timerId);
-    };
-  }, [status]);
 
   useEffect(() => {
     if (status === "playing" && timeLeft === 0) {
@@ -76,7 +65,7 @@ export function AimTrainer({ onBack }: AimTrainerProps) {
   const startRound = () => {
     setStatus("playing");
     setTarget(createTarget());
-    setTimeLeft(ROUND_SECONDS);
+    resetCountdown();
     setHits(0);
     setMisses(0);
     setStreak(0);
@@ -99,14 +88,14 @@ export function AimTrainer({ onBack }: AimTrainerProps) {
 
     if (!bestResult || result.score > bestResult.score) {
       setBestResult(result);
-      window.localStorage.setItem(BEST_KEY, JSON.stringify(result));
+      safeStorage.setItem(BEST_KEY, JSON.stringify(result));
     }
   };
 
   const hitTarget = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
 
-    if (status !== "playing") {
+    if (hasExpired() || status !== "playing") {
       return;
     }
 
@@ -119,7 +108,7 @@ export function AimTrainer({ onBack }: AimTrainerProps) {
   };
 
   const missTarget = () => {
-    if (status !== "playing") {
+    if (hasExpired() || status !== "playing") {
       return;
     }
 
@@ -129,7 +118,7 @@ export function AimTrainer({ onBack }: AimTrainerProps) {
   };
 
   const resetBest = () => {
-    window.localStorage.removeItem(BEST_KEY);
+    safeStorage.removeItem(BEST_KEY);
     setBestResult(null);
   };
 

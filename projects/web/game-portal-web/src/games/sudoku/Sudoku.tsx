@@ -1,3 +1,5 @@
+import { useStopwatch } from "../useStopwatch";
+import { safeStorage } from "../../safeStorage";
 import { Eraser, Lightbulb, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
@@ -42,7 +44,7 @@ const sudokuTitleLabels: Record<string, string> = {
   "medium-02": "Rainy Logic",
   "medium-03": "Cafe Focus",
   "medium-04": "Moonlit Board",
-  "hard-01": "Night Watch"
+  "hard-01-v2": "Night Watch (Revised)"
 };
 
 function getSudokuDifficultyLabel(id: string) {
@@ -65,7 +67,7 @@ function getLocalizedCellLabel(row: number, column: number, isEnglish: boolean) 
 
 function readBestTimes(): Record<string, number> {
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(SUDOKU_BEST_TIME_KEY) ?? "{}");
+    const parsed = JSON.parse(safeStorage.getItem(SUDOKU_BEST_TIME_KEY) ?? "{}");
     return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
     return {};
@@ -80,14 +82,14 @@ export function Sudoku({ onBack }: SudokuProps) {
   const [grid, setGrid] = useState<SudokuGrid>(() => cloneGrid(puzzle.puzzle));
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const [showMistakes, setShowMistakes] = useState(true);
-  const [seconds, setSeconds] = useState(0);
+  const { seconds, startTimer, resetTimer, stopTimer } = useStopwatch();
   const [started, setStarted] = useState(false);
   const [recordedSolve, setRecordedSolve] = useState(false);
   const [bestTimes, setBestTimes] = useState<Record<string, number>>(() => readBestTimes());
 
-  const mistakes = useMemo(() => countMistakes(grid, puzzle.solution), [grid, puzzle.solution]);
+  const mistakes = useMemo(() => countMistakes(grid), [grid]);
   const filledCells = useMemo(() => countFilledCells(grid), [grid]);
-  const solved = useMemo(() => isSolved(grid, puzzle.solution), [grid, puzzle.solution]);
+  const solved = useMemo(() => isSolved(grid, puzzle.puzzle), [grid, puzzle.puzzle]);
   const complete = useMemo(() => isComplete(grid), [grid]);
   const ranking = useRanking({ gameId: `sudoku-${puzzle.id}`, metricLabel: "Time", mode: "lower" });
   const bestTime = bestTimes[puzzle.id] ?? null;
@@ -95,42 +97,30 @@ export function Sudoku({ onBack }: SudokuProps) {
   const visiblePuzzleTitle = isEnglish ? getSudokuTitleLabel(puzzle.id) : puzzle.title;
   const visibleDifficulty = isEnglish ? getSudokuDifficultyLabel(puzzle.id) : puzzle.difficulty;
 
-  useEffect(() => {
-    if (!started || solved) {
-      return;
-    }
-
-    const timerId = window.setInterval(() => {
-      setSeconds((current) => current + 1);
-    }, 1000);
-
-    return () => {
-      window.clearInterval(timerId);
-    };
-  }, [solved, started]);
 
   useEffect(() => {
     if (!solved || recordedSolve) {
       return;
     }
 
+    const finalSeconds = stopTimer(1);
     setBestTimes((current) => {
       const currentBest = current[puzzle.id];
-      if (currentBest !== undefined && currentBest <= clearSeconds) {
+      if (currentBest !== undefined && currentBest <= finalSeconds) {
         return current;
       }
 
-      const next = { ...current, [puzzle.id]: clearSeconds };
-      window.localStorage.setItem(SUDOKU_BEST_TIME_KEY, JSON.stringify(next));
+      const next = { ...current, [puzzle.id]: finalSeconds };
+      safeStorage.setItem(SUDOKU_BEST_TIME_KEY, JSON.stringify(next));
       return next;
     });
     setRecordedSolve(true);
-  }, [clearSeconds, puzzle.id, recordedSolve, solved]);
+  }, [puzzle.id, recordedSolve, solved, stopTimer]);
 
   const resetPuzzle = () => {
     setGrid(cloneGrid(puzzle.puzzle));
     setSelectedCell(null);
-    setSeconds(0);
+    resetTimer();
     setStarted(false);
     setRecordedSolve(false);
   };
@@ -140,7 +130,7 @@ export function Sudoku({ onBack }: SudokuProps) {
     setPuzzleIndex(nextIndex);
     setGrid(cloneGrid(nextPuzzle.puzzle));
     setSelectedCell(null);
-    setSeconds(0);
+    resetTimer();
     setStarted(false);
     setRecordedSolve(false);
   };
@@ -151,6 +141,7 @@ export function Sudoku({ onBack }: SudokuProps) {
     }
 
     if (!started) {
+      startTimer();
       setStarted(true);
     }
 
@@ -187,6 +178,7 @@ export function Sudoku({ onBack }: SudokuProps) {
       return nextGrid;
     });
     if (!started) {
+      startTimer();
       setStarted(true);
     }
     setSelectedCell({ row: target.row, column: target.column });
@@ -237,8 +229,7 @@ export function Sudoku({ onBack }: SudokuProps) {
               const given = isGivenCell(puzzle, rowIndex, columnIndex);
               const selected = selectedCell?.row === rowIndex && selectedCell.column === columnIndex;
               const sameNumber = selectedCell && value !== 0 && value === grid[selectedCell.row][selectedCell.column];
-              const mistake = showMistakes && value !== 0 && value !== puzzle.solution[rowIndex][columnIndex];
-              const conflict = showMistakes && hasConflict(grid, rowIndex, columnIndex);
+              const mistake = showMistakes && hasConflict(grid, rowIndex, columnIndex);
 
               return (
                 <button
@@ -247,7 +238,7 @@ export function Sudoku({ onBack }: SudokuProps) {
                     given ? "is-given" : "",
                     selected ? "is-selected" : "",
                     sameNumber ? "is-related" : "",
-                    mistake || conflict ? "is-mistake" : ""
+                    mistake ? "is-mistake" : ""
                   ]
                     .filter(Boolean)
                     .join(" ")}
@@ -313,11 +304,11 @@ export function Sudoku({ onBack }: SudokuProps) {
               checked={showMistakes}
               onChange={(event) => setShowMistakes(event.target.checked)}
             />
-            {isEnglish ? "Highlight mistakes in red" : "ミスを赤で表示する"}
+            {isEnglish ? "Highlight duplicate numbers in red" : "重複した数字を赤で表示する"}
           </label>
 
           <p className="sudoku-note">
-            {isEnglish ? "Current mistakes" : "現在のミス数"}: <strong>{mistakes}</strong>
+            {isEnglish ? "Cells with duplicate numbers" : "数字が重複しているマス"}: <strong>{mistakes}</strong>
           </p>
 
           <p className="sudoku-note">

@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { RotateCcw, Sparkles, Trophy, Undo2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
@@ -79,7 +80,7 @@ function cloneBottles(bottles: WaterBottle[]) {
 }
 
 function readRecord(): WaterSortRecord {
-  const stored = window.localStorage.getItem(RECORD_KEY);
+  const stored = safeStorage.getItem(RECORD_KEY);
   return stored ? (JSON.parse(stored) as WaterSortRecord) : {};
 }
 
@@ -212,7 +213,7 @@ export function WaterSort({ onBack }: WaterSortProps) {
     };
 
     setRecord(nextRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus("cleared");
     setMessage(`クリア！ ${nextMoves}手で全ボトルを整理できました。`);
 
@@ -283,7 +284,7 @@ export function WaterSort({ onBack }: WaterSortProps) {
 
   const resetRecord = () => {
     setRecord({});
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify({}));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify({}));
   };
 
   return (

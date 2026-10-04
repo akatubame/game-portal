@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
@@ -54,7 +55,7 @@ function createInitialBoard(): ReversiDisc[] {
 }
 
 function readRecord(): ReversiRecord {
-  const stored = window.localStorage.getItem(RECORD_KEY);
+  const stored = safeStorage.getItem(RECORD_KEY);
   return stored ? (JSON.parse(stored) as ReversiRecord) : { wins: 0, losses: 0, draws: 0 };
 }
 
@@ -180,7 +181,7 @@ export function Reversi({ onBack }: ReversiProps) {
     const finalScore = countDiscs(finalBoard);
 
     setRecord(nextRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus("finished");
     setTurn("black");
 
@@ -263,7 +264,7 @@ export function Reversi({ onBack }: ReversiProps) {
   const resetRecord = () => {
     const emptyRecord = { wins: 0, losses: 0, draws: 0 };
     setRecord(emptyRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
   };
 
   return (
@@ -327,7 +328,7 @@ export function Reversi({ onBack }: ReversiProps) {
                 disabled={status === "playing"}
                 key={level}
                 type="button"
-                onClick={() => setDifficulty(level)}
+                onClick={() => { if (level !== difficulty) { setDifficulty(level); startGame(); } }}
               >
                 <span>{difficultyLabels[level]}</span>
                 <small>{difficultyDescriptions[level]}</small>

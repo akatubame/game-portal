@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { Lightbulb, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
@@ -13,7 +14,7 @@ const RECORD_KEY = "game-shelf-hangman-record";
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
 function readRecord(): HangmanRecord {
-  const stored = window.localStorage.getItem(RECORD_KEY);
+  const stored = safeStorage.getItem(RECORD_KEY);
   return stored ? (JSON.parse(stored) as HangmanRecord) : { wins: 0, losses: 0, streak: 0 };
 }
 
@@ -66,7 +67,7 @@ export function Hangman({ onBack }: HangmanProps) {
   const finishGame = (nextStatus: HangmanStatus) => {
     const nextRecord = updateRecord(record, nextStatus);
     setRecord(nextRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus(nextStatus);
 
     if (nextStatus === "won") {
@@ -107,7 +108,7 @@ export function Hangman({ onBack }: HangmanProps) {
   const resetRecord = () => {
     const emptyRecord = { wins: 0, losses: 0, streak: 0 };
     setRecord(emptyRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
   };
 
   return (

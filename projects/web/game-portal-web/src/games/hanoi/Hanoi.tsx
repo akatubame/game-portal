@@ -1,5 +1,7 @@
+import { useStopwatch } from "../useStopwatch";
+import { safeStorage } from "../../safeStorage";
 import { RotateCcw, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import type { CSSProperties } from "react";
@@ -22,13 +24,13 @@ function minimumMoves(disks: number) {
 }
 
 function readBest(): Record<string, HanoiBest> {
-  const stored = window.localStorage.getItem(BEST_KEY);
+  const stored = safeStorage.getItem(BEST_KEY);
   return stored ? (JSON.parse(stored) as Record<string, HanoiBest>) : {};
 }
 
 function readBestTimes(): Record<string, number> {
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(BEST_TIME_KEY) ?? "{}");
+    const parsed = JSON.parse(safeStorage.getItem(BEST_TIME_KEY) ?? "{}");
     return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
     return {};
@@ -59,7 +61,7 @@ export function Hanoi({ onBack }: HanoiProps) {
   const [status, setStatus] = useState<HanoiStatus>("idle");
   const [selectedPeg, setSelectedPeg] = useState<number | null>(null);
   const [moves, setMoves] = useState(0);
-  const [seconds, setSeconds] = useState(0);
+  const { seconds, startTimer, resetTimer, stopTimer } = useStopwatch();
   const [message, setMessage] = useState("円盤を1枚ずつ動かして、すべて右端の柱へ移しましょう。");
   const [bestByDisk, setBestByDisk] = useState<Record<string, HanoiBest>>(() => readBest());
   const [bestTimes, setBestTimes] = useState<Record<string, number>>(() => readBestTimes());
@@ -77,25 +79,15 @@ export function Hanoi({ onBack }: HanoiProps) {
         : message
     : message;
 
-  useEffect(() => {
-    if (status !== "playing") {
-      return;
-    }
-
-    const timerId = window.setInterval(() => {
-      setSeconds((current) => current + 1);
-    }, 1000);
-
-    return () => window.clearInterval(timerId);
-  }, [status]);
 
   const startGame = (nextDiskCount = diskCount) => {
     setDiskCount(nextDiskCount);
     setPegs(createPegs(nextDiskCount));
-    setStatus("playing");
+    startTimer();
+      setStatus("playing");
     setSelectedPeg(null);
     setMoves(0);
-    setSeconds(0);
+    resetTimer(true);
     setMessage("動かしたい円盤がある柱を選び、次に移動先の柱を選びます。");
   };
 
@@ -110,12 +102,13 @@ export function Hanoi({ onBack }: HanoiProps) {
       recordedAt: new Date().toISOString()
     };
     const key = String(diskCount);
-    const clearSeconds = Math.max(1, seconds);
+    const clearSeconds = stopTimer(1);
+
 
     if (!bestByDisk[key] || nextMoves < bestByDisk[key].moves) {
       const nextBest = { ...bestByDisk, [key]: result };
       setBestByDisk(nextBest);
-      window.localStorage.setItem(BEST_KEY, JSON.stringify(nextBest));
+      safeStorage.setItem(BEST_KEY, JSON.stringify(nextBest));
       setMessage(`完成！${nextMoves}手でベスト更新です。`);
     } else {
       setMessage(`完成！${nextMoves}手でした。最短は${minMoves}手です。`);
@@ -128,7 +121,7 @@ export function Hanoi({ onBack }: HanoiProps) {
       }
 
       const next = { ...current, [key]: clearSeconds };
-      window.localStorage.setItem(BEST_TIME_KEY, JSON.stringify(next));
+      safeStorage.setItem(BEST_TIME_KEY, JSON.stringify(next));
       return next;
     });
 
@@ -180,8 +173,8 @@ export function Hanoi({ onBack }: HanoiProps) {
   };
 
   const resetBest = () => {
-    window.localStorage.removeItem(BEST_KEY);
-    window.localStorage.removeItem(BEST_TIME_KEY);
+    safeStorage.removeItem(BEST_KEY);
+    safeStorage.removeItem(BEST_TIME_KEY);
     setBestByDisk({});
     setBestTimes({});
   };

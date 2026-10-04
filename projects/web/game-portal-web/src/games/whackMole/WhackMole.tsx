@@ -1,3 +1,5 @@
+import { useCountdown } from "../useCountdown";
+import { safeStorage } from "../../safeStorage";
 import { Hammer, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
@@ -12,7 +14,7 @@ const HOLE_COUNT = 9;
 const BEST_KEY = "game-shelf-whack-mole-best";
 
 function readBestResult(): WhackMoleResult | null {
-  const stored = window.localStorage.getItem(BEST_KEY);
+  const stored = safeStorage.getItem(BEST_KEY);
   return stored ? (JSON.parse(stored) as WhackMoleResult) : null;
 }
 
@@ -58,7 +60,7 @@ function calculateScore(hits: number, misses: number, combo: number, goldenHits:
 export function WhackMole({ onBack }: WhackMoleProps) {
   const [status, setStatus] = useState<WhackMoleStatus>("idle");
   const [holes, setHoles] = useState<MoleHole[]>(() => createEmptyHoles());
-  const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS);
+  const { timeLeft, resetCountdown, hasExpired } = useCountdown(status === "playing", ROUND_SECONDS);
   const [hits, setHits] = useState(0);
   const [misses, setMisses] = useState(0);
   const [combo, setCombo] = useState(0);
@@ -79,19 +81,6 @@ export function WhackMole({ onBack }: WhackMoleProps) {
     statusRef.current = status;
   }, [status]);
 
-  useEffect(() => {
-    if (status !== "playing") {
-      return;
-    }
-
-    const timerId = window.setInterval(() => {
-      setTimeLeft((current) => Math.max(0, current - 1));
-    }, 1000);
-
-    return () => {
-      window.clearInterval(timerId);
-    };
-  }, [status]);
 
   useEffect(() => {
     if (status !== "playing") {
@@ -116,7 +105,7 @@ export function WhackMole({ onBack }: WhackMoleProps) {
   const startRound = () => {
     setStatus("playing");
     setHoles(createRoundHoles());
-    setTimeLeft(ROUND_SECONDS);
+    resetCountdown();
     setHits(0);
     setMisses(0);
     setCombo(0);
@@ -141,12 +130,12 @@ export function WhackMole({ onBack }: WhackMoleProps) {
 
     if (!bestResult || result.score > bestResult.score) {
       setBestResult(result);
-      window.localStorage.setItem(BEST_KEY, JSON.stringify(result));
+      safeStorage.setItem(BEST_KEY, JSON.stringify(result));
     }
   };
 
   const hitHole = (hole: MoleHole) => {
-    if (statusRef.current !== "playing") {
+    if (hasExpired() || statusRef.current !== "playing") {
       return;
     }
 
@@ -180,7 +169,7 @@ export function WhackMole({ onBack }: WhackMoleProps) {
   };
 
   const resetBest = () => {
-    window.localStorage.removeItem(BEST_KEY);
+    safeStorage.removeItem(BEST_KEY);
     setBestResult(null);
   };
 

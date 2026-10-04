@@ -1,5 +1,7 @@
+import { useStopwatch } from "../useStopwatch";
+import { safeStorage } from "../../safeStorage";
 import { Check, Delete, RotateCcw, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
 import type { HitBlowBest, HitBlowDifficulty, HitBlowGuess, HitBlowStatus } from "./types";
 
@@ -32,7 +34,7 @@ const difficultySettings: Record<HitBlowDifficulty, { label: string; attempts: n
 };
 
 function readBest(): Record<HitBlowDifficulty, HitBlowBest | undefined> {
-  const stored = window.localStorage.getItem(BEST_KEY);
+  const stored = safeStorage.getItem(BEST_KEY);
   return {
     easy: undefined,
     normal: undefined,
@@ -95,7 +97,7 @@ export function HitBlow({ onBack }: HitBlowProps) {
   const [input, setInput] = useState("");
   const [guesses, setGuesses] = useState<HitBlowGuess[]>([]);
   const [message, setMessage] = useState("重複しない4桁の数字を推理しましょう。Hitは位置も数字も一致、Blowは数字だけ一致です。");
-  const [seconds, setSeconds] = useState(0);
+  const { seconds, resetTimer, stopTimer } = useStopwatch();
   const [bestByDifficulty, setBestByDifficulty] = useState<Record<HitBlowDifficulty, HitBlowBest | undefined>>(() => readBest());
 
   const settings = difficultySettings[difficulty];
@@ -105,17 +107,6 @@ export function HitBlow({ onBack }: HitBlowProps) {
   const inputDigits = useMemo(() => input.padEnd(4, " ").split("").slice(0, 4), [input]);
   const canSubmit = status === "playing" && input.length === 4 && new Set(input).size === 4;
 
-  useEffect(() => {
-    if (status !== "playing") {
-      return;
-    }
-
-    const timerId = window.setInterval(() => {
-      setSeconds((current) => current + 1);
-    }, 1000);
-
-    return () => window.clearInterval(timerId);
-  }, [status]);
 
   const saveBest = (attempts: number, clearSeconds: number) => {
     if (!isBetterBest(currentBest, attempts, clearSeconds)) {
@@ -130,7 +121,7 @@ export function HitBlow({ onBack }: HitBlowProps) {
     };
     const nextBestByDifficulty = { ...bestByDifficulty, [difficulty]: nextBest };
     setBestByDifficulty(nextBestByDifficulty);
-    window.localStorage.setItem(BEST_KEY, JSON.stringify(nextBestByDifficulty));
+    safeStorage.setItem(BEST_KEY, JSON.stringify(nextBestByDifficulty));
   };
 
   const startGame = (nextDifficulty = difficulty) => {
@@ -139,7 +130,7 @@ export function HitBlow({ onBack }: HitBlowProps) {
     setStatus("playing");
     setInput("");
     setGuesses([]);
-    setSeconds(0);
+    resetTimer(true);
     setMessage("数字ボタンで4桁を入力し、判定しましょう。数字は重複できません。");
   };
 
@@ -170,11 +161,12 @@ export function HitBlow({ onBack }: HitBlowProps) {
     if (result.hits === 4) {
       setStatus("cleared");
       setMessage(`正解！${nextGuesses.length}回で当てました。`);
-      saveBest(nextGuesses.length, seconds);
+      saveBest(nextGuesses.length, stopTimer());
       return;
     }
 
     if (nextGuesses.length >= settings.attempts) {
+      stopTimer();
       setStatus("failed");
       setMessage(`ゲームオーバー。答えは ${answer} でした。`);
       return;
@@ -184,7 +176,7 @@ export function HitBlow({ onBack }: HitBlowProps) {
   };
 
   const resetBest = () => {
-    window.localStorage.removeItem(BEST_KEY);
+    safeStorage.removeItem(BEST_KEY);
     setBestByDifficulty({ easy: undefined, normal: undefined, hard: undefined });
   };
 

@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { PaintBucket, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
@@ -42,7 +43,7 @@ const difficultySettings: Record<FloodDifficulty, { label: string; size: number;
 };
 
 function readBest(): Record<FloodDifficulty, FloodBest | undefined> {
-  const stored = window.localStorage.getItem(BEST_KEY);
+  const stored = safeStorage.getItem(BEST_KEY);
   return {
     small: undefined,
     normal: undefined,
@@ -132,7 +133,7 @@ export function FloodFill({ onBack }: FloodFillProps) {
     };
     const nextBestByDifficulty = { ...bestByDifficulty, [difficulty]: nextBest };
     setBestByDifficulty(nextBestByDifficulty);
-    window.localStorage.setItem(BEST_KEY, JSON.stringify(nextBestByDifficulty));
+    safeStorage.setItem(BEST_KEY, JSON.stringify(nextBestByDifficulty));
   };
 
   const startGame = (nextDifficulty = difficulty) => {
@@ -171,7 +172,7 @@ export function FloodFill({ onBack }: FloodFillProps) {
   };
 
   const resetBest = () => {
-    window.localStorage.removeItem(BEST_KEY);
+    safeStorage.removeItem(BEST_KEY);
     setBestByDifficulty({ small: undefined, normal: undefined, large: undefined });
   };
 

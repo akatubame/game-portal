@@ -1,3 +1,5 @@
+import { useStopwatch } from "../useStopwatch";
+import { safeStorage } from "../../safeStorage";
 import { Lightbulb, RotateCcw, Shuffle } from "lucide-react";
 import { useEffect, useState, type CSSProperties } from "react";
 import { useI18n } from "../../i18n";
@@ -26,47 +28,34 @@ export function LightsOut({ onBack }: LightsOutProps) {
   const difficulty = getDifficulty(difficultyId);
   const [board, setBoard] = useState<LightsOutBoard>(() => createPuzzle(difficulty));
   const [moves, setMoves] = useState(0);
-  const [seconds, setSeconds] = useState(0);
+  const { seconds, startTimer, resetTimer, stopTimer } = useStopwatch();
   const [status, setStatus] = useState<LightsOutStatus>("ready");
   const bestScoreKey = `game-shelf-lights-out-best-${difficulty.id}`;
   const bestTimeKey = `game-shelf-lights-out-best-time-${difficulty.id}`;
   const [bestMoves, setBestMoves] = useState<number | null>(() => {
-    const stored = window.localStorage.getItem(bestScoreKey);
+    const stored = safeStorage.getItem(bestScoreKey);
     return stored ? Number(stored) || null : null;
   });
   const [bestTime, setBestTime] = useState<number | null>(() => {
-    const stored = window.localStorage.getItem(bestTimeKey);
+    const stored = safeStorage.getItem(bestTimeKey);
     return stored ? Number(stored) || null : null;
   });
   const ranking = useRanking({ gameId: `lights-out-${difficulty.id}`, metricLabel: "Moves", mode: "lower" });
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(bestScoreKey);
+    const stored = safeStorage.getItem(bestScoreKey);
     setBestMoves(stored ? Number(stored) || null : null);
-    const storedTime = window.localStorage.getItem(bestTimeKey);
+    const storedTime = safeStorage.getItem(bestTimeKey);
     setBestTime(storedTime ? Number(storedTime) || null : null);
   }, [bestScoreKey, bestTimeKey]);
 
-  useEffect(() => {
-    if (status !== "playing") {
-      return;
-    }
-
-    const timerId = window.setInterval(() => {
-      setSeconds((current) => current + 1);
-    }, 1000);
-
-    return () => {
-      window.clearInterval(timerId);
-    };
-  }, [status]);
 
   const resetGame = (nextDifficultyId = difficultyId) => {
     const nextDifficulty = getDifficulty(nextDifficultyId);
     setDifficultyId(nextDifficultyId);
     setBoard(createPuzzle(nextDifficulty));
     setMoves(0);
-    setSeconds(0);
+    resetTimer();
     setStatus("ready");
   };
 
@@ -82,18 +71,20 @@ export function LightsOut({ onBack }: LightsOutProps) {
     setMoves(nextMoves);
 
     if (status === "ready") {
+      startTimer();
       setStatus("playing");
     }
 
     if (isCleared(nextBoard)) {
       setStatus("cleared");
-      const clearSeconds = Math.max(1, seconds);
+      const clearSeconds = stopTimer(1);
+
       setBestMoves((currentBest) => {
         if (currentBest !== null && currentBest <= nextMoves) {
           return currentBest;
         }
 
-        window.localStorage.setItem(bestScoreKey, String(nextMoves));
+        safeStorage.setItem(bestScoreKey, String(nextMoves));
         return nextMoves;
       });
       setBestTime((currentBest) => {
@@ -101,7 +92,7 @@ export function LightsOut({ onBack }: LightsOutProps) {
           return currentBest;
         }
 
-        window.localStorage.setItem(bestTimeKey, String(clearSeconds));
+        safeStorage.setItem(bestTimeKey, String(clearSeconds));
         return clearSeconds;
       });
     }

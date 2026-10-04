@@ -1,0 +1,70 @@
+.chroma-stage-dialogue {
+  position: absolute; inset: 0; z-index: 60; overflow: hidden; isolation: isolate;
+  background: linear-gradient(#75bdad, #d5efac); color: #fff4d4; outline: none;
+}
+.chroma-stage-dialogue-background { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; pointer-events: none; }
+.chroma-stage-dialogue-header {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 3;
+  padding: 18px 30px 26px; display: flex; align-items: flex-start; justify-content: space-between; gap: 18px;
+  background: linear-gradient(#163f44e6, #183e4060 70%, transparent); text-shadow: 0 2px 3px #183338;
+}
+.chroma-stage-dialogue-header small { font-size: 14px; font-weight: 800; letter-spacing: .15em; color: #ffe3a2; }
+.chroma-stage-dialogue-header h2 { font-size: 28px; margin: 3px 0 0; color: #fff7dc; }
+.chroma-stage-dialogue-header nav { display: flex; gap: 10px; }
+.chroma-stage-dialogue button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border: 2px solid #a57835; border-radius: 10px; background: linear-gradient(#fff7db, #e8c889);
+  padding: 10px 16px; color: #28393b; font-size: 16px; font-weight: 800; box-shadow: 0 3px 0 #65442b;
+  cursor: pointer; touch-action: manipulation;
+}
+.chroma-stage-dialogue button svg { width: 20px; height: 20px; }
+.chroma-stage-dialogue button:disabled { cursor: default; }
+.chroma-stage-dialogue button:focus-visible { outline: 4px solid #fff0b4; outline-offset: 4px; }
+.chroma-stage-dialogue-chroma {
+  position: absolute; left: 23%; top: 76%; width: 320px; height: 320px; z-index: 2;
+  transform: translate(-50%, -93%); pointer-events: none;
+}
+.chroma-stage-dialogue.is-entering .chroma-stage-dialogue-chroma { animation: chroma-dialogue-enter 1.8s linear both; }
+.chroma-stage-dialogue-walk { background-position-y: 100%; background-position-x: 33.333333%; filter: drop-shadow(0 3px 3px #293b3560); }
+.chroma-stage-dialogue.is-entering .chroma-stage-dialogue-walk { animation: chroma-map-walk-frames .56s steps(1, end) infinite; }
+.chroma-stage-dialogue-idle {
+  position: absolute; left: 0; bottom: 22px; width: 100%; height: 300px;
+  object-fit: contain; object-position: center bottom; filter: drop-shadow(0 3px 3px #293b3560);
+}
+.chroma-stage-dialogue-moko {
+  position: absolute; left: 77%; top: 76%; width: 171px; height: 150px; z-index: 2;
+  transform: translate(-50%, -100%); pointer-events: none;
+}
+.chroma-stage-dialogue-moko img, .chroma-stage-dialogue-fallback { width: 100%; height: 100%; object-fit: contain; object-position: center bottom; }
+.chroma-stage-dialogue-moko img { transform-origin: center bottom; }
+.chroma-stage-dialogue-moko.is-speaking img { animation: chroma-dialogue-moko-talk .8s ease-in-out infinite; }
+.chroma-stage-dialogue-shadow {
+  position: absolute; width: 43%; height: 18px; left: 28.5%; bottom: 0; border-radius: 50%; background: #1e493348;
+}
+.chroma-stage-dialogue-chroma > .chroma-stage-dialogue-shadow { bottom: 21px; }
+.chroma-stage-dialogue-box {
+  position: absolute; left: 30px; right: 30px; bottom: 18px; z-index: 4; min-height: 144px;
+  display: flex; align-items: center; gap: 24px; padding: 14px 22px; border: 3px solid #ac783f; border-radius: 16px;
+  background: linear-gradient(120deg, #fff7e5f5, #e8f4d9f5); box-shadow: 0 5px 0 #684429, inset 0 0 0 2px #fff9d6;
+}
+.chroma-stage-dialogue .chroma-stage-dialogue-copy {
+  flex: 1; min-width: 0; display: block; padding: 0; border: 0; box-shadow: none; background: none; text-align: left; color: #233a37;
+}
+.chroma-stage-dialogue-speaker { display: block; font-size: 23px; font-weight: 900; color: #684055; margin-bottom: 8px; }
+.chroma-stage-dialogue-text { display: block; min-height: 73px; font-size: 25px; font-weight: 600; line-height: 1.45; }
+.chroma-stage-dialogue-next { flex: 0 0 184px; display: grid; justify-items: stretch; gap: 8px; color: #54736a; text-align: center; }
+.chroma-stage-dialogue-next > span { font-size: 14px; font-weight: 800; }
+.chroma-stage-dialogue-next button:disabled { opacity: .5; }
+.chroma-stage-dialogue-next small { font-size: 12px; }
+.chroma-stage-dialogue-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.chroma-stage-dialogue.is-still .chroma-stage-dialogue-chroma,
+.chroma-stage-dialogue.is-still .chroma-stage-dialogue-walk,
+.chroma-stage-dialogue.is-still .chroma-stage-dialogue-moko img { animation: none; }
+.chroma-stage-dialogue.is-suspended .chroma-stage-dialogue-chroma,
+.chroma-stage-dialogue.is-suspended .chroma-stage-dialogue-walk,
+.chroma-stage-dialogue.is-suspended .chroma-stage-dialogue-moko img { animation-play-state: paused; }
+@keyframes chroma-dialogue-enter {
+  from { transform: translate(calc(-50% - 480px), -93%); }
+  to { transform: translate(-50%, -93%); }
+}
+@keyframes chroma-dialogue-moko-talk { 50% { transform: scale(1.025, .975); } }

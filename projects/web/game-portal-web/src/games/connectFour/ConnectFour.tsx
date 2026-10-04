@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { CircleDot, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
@@ -49,7 +50,7 @@ function createBoard(): ConnectFourCell[] {
 }
 
 function readRecord(): ConnectFourRecord {
-  const stored = window.localStorage.getItem(RECORD_KEY);
+  const stored = safeStorage.getItem(RECORD_KEY);
   return stored ? (JSON.parse(stored) as ConnectFourRecord) : { wins: 0, losses: 0, draws: 0, streak: 0 };
 }
 
@@ -263,7 +264,7 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
 
     const nextRecord = updateRecord(record, outcome);
     setRecord(nextRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus("finished");
 
     if (outcome === "win") setMessage("勝利！赤が4つ並びました。");
@@ -322,7 +323,7 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
   const resetRecord = () => {
     const emptyRecord = { wins: 0, losses: 0, draws: 0, streak: 0 };
     setRecord(emptyRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
   };
 
   return (
@@ -393,7 +394,14 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
                 disabled={status === "playing"}
                 key={level}
                 type="button"
-                onClick={() => setDifficulty(level)}
+                onClick={() => {
+                  if (level === difficulty) return;
+                  const nextRecord = { ...record, streak: 0 };
+                  setRecord(nextRecord);
+                  safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
+                  setDifficulty(level);
+                  startGame();
+                }}
               >
                 <span>{isEnglish ? difficultyLabelsEn[level] : difficultyLabels[level]}</span>
                 <small>{isEnglish ? difficultyDescriptionsEn[level] : difficultyDescriptions[level]}</small>

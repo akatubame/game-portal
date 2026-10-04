@@ -1,3 +1,5 @@
+import { safeStorage } from "./safeStorage";
+import { StorageNotice } from "./StorageNotice";
 import { ArrowLeft, ArrowUpRight, Clock3, Gamepad2, Languages, Link2, Search, Shuffle, Star } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ComponentType, type CSSProperties, type LazyExoticComponent, type ReactNode } from "react";
 import { trackGameOpen, trackPageView } from "./analytics";
@@ -119,7 +121,7 @@ function getSelectedGameId() {
 
 function readStoredIds(key: string) {
   try {
-    const parsed = JSON.parse(localStorage.getItem(key) ?? "[]");
+    const parsed = JSON.parse(safeStorage.getItem(key) ?? "[]");
     return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === "string") : [];
   } catch {
     return [];
@@ -256,7 +258,7 @@ export function App() {
 
   const setLanguage = (nextLanguage: Language) => {
     setLanguageState(nextLanguage);
-    localStorage.setItem("game-shelf-language", nextLanguage);
+    safeStorage.setItem("game-shelf-language", nextLanguage);
   };
 
   const rememberPlayedGame = (gameId: string) => {
@@ -266,7 +268,7 @@ export function App() {
 
     setRecentlyPlayedIds((current) => {
       const next = [gameId, ...current.filter((id) => id !== gameId)].slice(0, maxRecentlyPlayed);
-      localStorage.setItem(recentlyPlayedStorageKey, JSON.stringify(next));
+      safeStorage.setItem(recentlyPlayedStorageKey, JSON.stringify(next));
       return next;
     });
   };
@@ -275,7 +277,7 @@ export function App() {
     setFavoriteIds((current) => {
       const exists = current.includes(gameId);
       const next = exists ? current.filter((id) => id !== gameId) : [gameId, ...current];
-      localStorage.setItem(favoriteStorageKey, JSON.stringify(next));
+      safeStorage.setItem(favoriteStorageKey, JSON.stringify(next));
       return next;
     });
   };
@@ -437,6 +439,7 @@ export function App() {
   if (SelectedGame || selectedEmbeddedGame) {
     return (
       <I18nContext.Provider value={{ language, setLanguage }}>
+        <StorageNotice />
         <main className={`game-screen${selectedTestGameRoute ? ` ${selectedTestGameRoute.screenClass}` : ""}`}>
           <DomTranslationLayer language={language} />
           <PwaControls language={language} showInstall={false} />
@@ -461,6 +464,7 @@ export function App() {
 
   return (
     <I18nContext.Provider value={{ language, setLanguage }}>
+      <StorageNotice />
     <main>
       <DomTranslationLayer language={language} />
       {copyNotice && (

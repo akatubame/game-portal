@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { CircleDollarSign, RotateCcw, Sparkles, Trophy } from "lucide-react";
 import { useMemo, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
@@ -40,7 +41,7 @@ const handTable: PokerHandResult[] = [
 ];
 
 function readRecord(): PokerRecord {
-  const stored = window.localStorage.getItem(RECORD_KEY);
+  const stored = safeStorage.getItem(RECORD_KEY);
   return stored ? (JSON.parse(stored) as PokerRecord) : { plays: 0, bestHand: "なし", bestScore: 0 };
 }
 
@@ -169,14 +170,14 @@ export function Poker({ onBack }: PokerProps) {
     setSelectedIndexes([]);
     setStatus("drawn");
     setRecord(nextRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setMessage(selectedCount === 0 ? `交換なしで勝負。役は「${nextResult.name}」です。` : `${selectedCount}枚交換しました。役は「${nextResult.name}」です。`);
   };
 
   const resetRecord = () => {
     const emptyRecord = { plays: 0, bestHand: "なし", bestScore: 0 };
     setRecord(emptyRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
   };
 
   const renderCard = (card: PokerCard, index: number) => {

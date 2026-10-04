@@ -1,3 +1,4 @@
+import { safeStorage } from "./safeStorage";
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { I18nContext, detectInitialLanguage, type Language } from "./i18n";
@@ -8,7 +9,7 @@ function AndroidPuzzle() {
   const [language, updateLanguage] = useState<Language>(detectInitialLanguage);
   const setLanguage = (next: Language) => {
     updateLanguage(next);
-    try { localStorage.setItem("game-shelf-language", next); } catch { /* 保存不可でも遊べる */ }
+    try { safeStorage.setItem("game-shelf-language", next); } catch { /* 保存不可でも遊べる */ }
   };
   return <I18nContext.Provider value={{ language, setLanguage }}>
     <ColorChainRotationTest presentation="android" onBack={() => {

@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { RotateCcw, Sparkles, Timer, Trophy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
@@ -32,7 +33,7 @@ function createBoard(): OneToFiftyCell[] {
 }
 
 function readRecord(): OneToFiftyRecord {
-  const stored = window.localStorage.getItem(RECORD_KEY);
+  const stored = safeStorage.getItem(RECORD_KEY);
   return stored ? (JSON.parse(stored) as OneToFiftyRecord) : { bestTimeMs: null, plays: 0 };
 }
 
@@ -117,7 +118,7 @@ export function OneToFifty({ onBack }: OneToFiftyProps) {
     };
 
     setRecord(nextRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus("cleared");
     setStartedAt(null);
     setTargetChangedAt(null);
@@ -164,7 +165,7 @@ export function OneToFifty({ onBack }: OneToFiftyProps) {
   const resetRecord = () => {
     const emptyRecord = { bestTimeMs: null, plays: 0 };
     setRecord(emptyRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
   };
 
   return (

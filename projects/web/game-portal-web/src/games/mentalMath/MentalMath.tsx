@@ -1,3 +1,5 @@
+import { useCountdown } from "../useCountdown";
+import { safeStorage } from "../../safeStorage";
 import { Calculator, RotateCcw, Send } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
@@ -12,7 +14,7 @@ const ROUND_SECONDS = 60;
 const BEST_KEY = "game-shelf-mental-math-best";
 
 function readBestResult(): MentalMathResult | null {
-  const stored = window.localStorage.getItem(BEST_KEY);
+  const stored = safeStorage.getItem(BEST_KEY);
   return stored ? (JSON.parse(stored) as MentalMathResult) : null;
 }
 
@@ -69,7 +71,7 @@ export function MentalMath({ onBack }: MentalMathProps) {
   const [status, setStatus] = useState<MentalMathStatus>("idle");
   const [problem, setProblem] = useState<MathProblem>(() => createProblem());
   const [answer, setAnswer] = useState("");
-  const [timeLeft, setTimeLeft] = useState(ROUND_SECONDS);
+  const { timeLeft, resetCountdown, hasExpired } = useCountdown(status === "playing", ROUND_SECONDS);
   const [solved, setSolved] = useState(0);
   const [mistakes, setMistakes] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -82,19 +84,6 @@ export function MentalMath({ onBack }: MentalMathProps) {
   const ranking = useRanking({ gameId: "mental-math-score", metricLabel: "Score", mode: "higher" });
   const visibleMessage = isEnglish ? translateMentalMathMessage(message) : message;
 
-  useEffect(() => {
-    if (status !== "playing") {
-      return;
-    }
-
-    const timerId = window.setInterval(() => {
-      setTimeLeft((current) => Math.max(0, current - 1));
-    }, 1000);
-
-    return () => {
-      window.clearInterval(timerId);
-    };
-  }, [status]);
 
   useEffect(() => {
     if (status !== "playing" || timeLeft > 0) {
@@ -108,7 +97,7 @@ export function MentalMath({ onBack }: MentalMathProps) {
     setStatus("playing");
     setProblem(createProblem());
     setAnswer("");
-    setTimeLeft(ROUND_SECONDS);
+    resetCountdown();
     setSolved(0);
     setMistakes(0);
     setStreak(0);
@@ -132,12 +121,12 @@ export function MentalMath({ onBack }: MentalMathProps) {
 
     if (!bestResult || result.score > bestResult.score) {
       setBestResult(result);
-      window.localStorage.setItem(BEST_KEY, JSON.stringify(result));
+      safeStorage.setItem(BEST_KEY, JSON.stringify(result));
     }
   };
 
   const submitAnswer = () => {
-    if (status !== "playing" || answer.trim() === "") {
+    if (hasExpired() || status !== "playing" || answer.trim() === "") {
       return;
     }
 
@@ -162,7 +151,7 @@ export function MentalMath({ onBack }: MentalMathProps) {
   };
 
   const resetBest = () => {
-    window.localStorage.removeItem(BEST_KEY);
+    safeStorage.removeItem(BEST_KEY);
     setBestResult(null);
   };
 

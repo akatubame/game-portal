@@ -14,7 +14,12 @@
     "preview:deploy": "vite preview --host 0.0.0.0 --port 4175 --strictPort",
     "deploy:check": "npm run build",
     "test:color-chain": "node scripts/test-color-chain.mjs",
+    "test:portal-core": "node scripts/test-portal-core.mjs",
+    "test:portal-phase2": "node scripts/test-portal-phase2.mjs",
+    "test:portal-phase3": "node scripts/test-portal-phase3.mjs",
+    "test:portal-browser": "node scripts/test-portal-browser.mjs",
     "test:color-chain-rotation": "node scripts/test-color-chain-rotation.mjs",
+    "test:color-chain-map": "node scripts/test-color-chain-map.mjs",
     "icons:pwa": "node scripts/generate-pwa-icons.mjs",
     "seo:generate": "node scripts/generate-search-pages.mjs",
     "seo:sitemap": "node scripts/generate-search-pages.mjs --sitemap-only"

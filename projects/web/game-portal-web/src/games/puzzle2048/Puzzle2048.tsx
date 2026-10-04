@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
@@ -11,7 +12,7 @@ type Puzzle2048Props = {
 };
 
 function readBestScore() {
-  const stored = window.localStorage.getItem(BEST_SCORE_KEY);
+  const stored = safeStorage.getItem(BEST_SCORE_KEY);
   return stored ? Number(stored) || 0 : 0;
 }
 
@@ -42,6 +43,7 @@ export function Puzzle2048({ onBack }: Puzzle2048Props) {
   const [gameOver, setGameOver] = useState(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const scoreRef = useRef(0);
+  const boardRef = useRef(board);
   const bestScoreRef = useRef(bestScore);
   const ranking = useRanking({ gameId: "2048-score", metricLabel: "Score", mode: "higher" });
 
@@ -58,7 +60,9 @@ export function Puzzle2048({ onBack }: Puzzle2048Props) {
   }, [gameOver, won]);
 
   const resetGame = useCallback(() => {
-    setBoard(createInitialBoard());
+    const nextBoard = createInitialBoard();
+    boardRef.current = nextBoard;
+    setBoard(nextBoard);
     setScore(0);
     scoreRef.current = 0;
     setWon(false);
@@ -79,11 +83,12 @@ export function Puzzle2048({ onBack }: Puzzle2048Props) {
         return;
       }
 
-      setBoard((currentBoard) => {
+      {
+        const currentBoard = boardRef.current;
         const moved = moveBoard(currentBoard, direction);
 
         if (!moved.moved) {
-          return currentBoard;
+          return;
         }
 
         const nextBoard = addRandomTile(moved.board);
@@ -95,7 +100,7 @@ export function Puzzle2048({ onBack }: Puzzle2048Props) {
         if (nextScore > bestScoreRef.current) {
           bestScoreRef.current = nextScore;
           setBestScore(nextScore);
-          window.localStorage.setItem(BEST_SCORE_KEY, String(nextScore));
+          safeStorage.setItem(BEST_SCORE_KEY, String(nextScore));
         }
 
         if (hasWon(nextBoard)) {
@@ -106,14 +111,18 @@ export function Puzzle2048({ onBack }: Puzzle2048Props) {
           setGameOver(true);
         }
 
-        return nextBoard;
-      });
+        boardRef.current = nextBoard;
+        setBoard(nextBoard);
+      }
     },
     [gameOver]
   );
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (event.isComposing || (target instanceof HTMLElement &&
+          (target.isContentEditable || target.closest("input, textarea, select, button")))) return;
       const direction = getDirectionFromKey(event.key);
 
       if (!direction) {

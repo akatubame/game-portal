@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { Apple, Pause, Play, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
@@ -34,7 +35,7 @@ const oppositeDirections: Record<Direction, Direction> = {
 };
 
 function readBestResult(): SnakeResult | null {
-  const stored = window.localStorage.getItem(BEST_KEY);
+  const stored = safeStorage.getItem(BEST_KEY);
   return stored ? (JSON.parse(stored) as SnakeResult) : null;
 }
 
@@ -74,6 +75,7 @@ export function SnakeGame({ onBack }: SnakeGameProps) {
   const snakeRef = useRef(snake);
   const foodRef = useRef(food);
   const directionRef = useRef(direction);
+  const pendingDirectionRef = useRef<Direction | null>(null);
   const statusRef = useRef(status);
   const applesRef = useRef(apples);
 
@@ -87,10 +89,6 @@ export function SnakeGame({ onBack }: SnakeGameProps) {
   useEffect(() => {
     foodRef.current = food;
   }, [food]);
-
-  useEffect(() => {
-    directionRef.current = direction;
-  }, [direction]);
 
   useEffect(() => {
     statusRef.current = status;
@@ -113,7 +111,7 @@ export function SnakeGame({ onBack }: SnakeGameProps) {
 
     if (!bestResult || result.score > bestResult.score) {
       setBestResult(result);
-      window.localStorage.setItem(BEST_KEY, JSON.stringify(result));
+      safeStorage.setItem(BEST_KEY, JSON.stringify(result));
     }
   };
 
@@ -124,6 +122,11 @@ export function SnakeGame({ onBack }: SnakeGameProps) {
 
     const currentSnake = snakeRef.current;
     const currentFood = foodRef.current;
+    if (pendingDirectionRef.current !== null) {
+      directionRef.current = pendingDirectionRef.current;
+      pendingDirectionRef.current = null;
+      setDirection(directionRef.current);
+    }
     const vector = directionVectors[directionRef.current];
     const head = currentSnake[0];
     const nextHead = { x: head.x + vector.x, y: head.y + vector.y };
@@ -167,12 +170,12 @@ export function SnakeGame({ onBack }: SnakeGameProps) {
   }, [status]);
 
   const changeDirection = (nextDirection: Direction) => {
-    if (oppositeDirections[directionRef.current] === nextDirection) {
+    if (statusRef.current !== "playing" || pendingDirectionRef.current !== null ||
+        nextDirection === directionRef.current || oppositeDirections[directionRef.current] === nextDirection) {
       return;
     }
 
-    directionRef.current = nextDirection;
-    setDirection(nextDirection);
+    pendingDirectionRef.current = nextDirection;
   };
 
   useEffect(() => {
@@ -231,6 +234,8 @@ export function SnakeGame({ onBack }: SnakeGameProps) {
     snakeRef.current = nextSnake;
     foodRef.current = nextFood;
     directionRef.current = "right";
+    pendingDirectionRef.current = null;
+    statusRef.current = "playing";
     applesRef.current = 0;
   };
 
@@ -248,7 +253,7 @@ export function SnakeGame({ onBack }: SnakeGameProps) {
   };
 
   const resetBest = () => {
-    window.localStorage.removeItem(BEST_KEY);
+    safeStorage.removeItem(BEST_KEY);
     setBestResult(null);
   };
 

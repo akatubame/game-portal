@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { RotateCcw, Zap } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
@@ -11,12 +12,12 @@ const BEST_KEY = "game-shelf-reaction-best";
 const HISTORY_KEY = "game-shelf-reaction-history";
 
 function readBestResult(): ReactionResult | null {
-  const stored = window.localStorage.getItem(BEST_KEY);
+  const stored = safeStorage.getItem(BEST_KEY);
   return stored ? (JSON.parse(stored) as ReactionResult) : null;
 }
 
 function readHistory(): ReactionResult[] {
-  const stored = window.localStorage.getItem(HISTORY_KEY);
+  const stored = safeStorage.getItem(HISTORY_KEY);
   return stored ? (JSON.parse(stored) as ReactionResult[]) : [];
 }
 
@@ -82,8 +83,11 @@ export function ReactionTest({ onBack }: ReactionTestProps) {
   };
 
   const resetRecords = () => {
-    window.localStorage.removeItem(BEST_KEY);
-    window.localStorage.removeItem(HISTORY_KEY);
+    if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+    readyAtRef.current = null;
+    safeStorage.removeItem(BEST_KEY);
+    safeStorage.removeItem(HISTORY_KEY);
     setBestResult(null);
     setHistory([]);
     setLastResult(null);
@@ -113,11 +117,11 @@ export function ReactionTest({ onBack }: ReactionTestProps) {
 
       setLastResult(result);
       setHistory(nextHistory);
-      window.localStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
+      safeStorage.setItem(HISTORY_KEY, JSON.stringify(nextHistory));
 
       if (!bestResult || milliseconds < bestResult.milliseconds) {
         setBestResult(result);
-        window.localStorage.setItem(BEST_KEY, JSON.stringify(result));
+        safeStorage.setItem(BEST_KEY, JSON.stringify(result));
       }
 
       setStatus("finished");

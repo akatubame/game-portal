@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { Eye, Grid3X3, Paintbrush, RotateCcw, Sparkles, X } from "lucide-react";
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { RankingPanel, useRanking } from "../ranking";
@@ -498,7 +499,7 @@ const puzzles: NonogramPuzzle[] = [
 ];
 
 function readRecord(): NonogramRecord {
-  const stored = window.localStorage.getItem(RECORD_KEY);
+  const stored = safeStorage.getItem(RECORD_KEY);
   return stored ? (JSON.parse(stored) as NonogramRecord) : {};
 }
 
@@ -695,7 +696,7 @@ export function Nonogram({ onBack }: NonogramProps) {
     };
 
     setRecord(nextRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus("cleared");
     setMessage(`完成！ ${nextMoves}手で「${puzzle.name}」を解きました。`);
 
@@ -793,7 +794,7 @@ export function Nonogram({ onBack }: NonogramProps) {
 
   const resetRecord = () => {
     setRecord({});
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify({}));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify({}));
   };
 
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
@@ -935,6 +936,12 @@ export function Nonogram({ onBack }: NonogramProps) {
                       data-column={columnIndex}
                       onPointerDown={(event) => startDrag(event, rowIndex, columnIndex)}
                       onPointerUp={stopDrag}
+                      onClick={(event) => {
+                        if (event.detail !== 0) return;
+                        const nextCell = getToolCell(tool);
+                        applyCells([{ rowIndex, columnIndex }], cell === nextCell ? "unknown" : nextCell, true);
+                      }}
+                      aria-pressed={cell === "filled"}
                       aria-label={`${rowIndex + 1}行 ${columnIndex + 1}列`}
                     >
                       {cell === "marked" ? "×" : ""}

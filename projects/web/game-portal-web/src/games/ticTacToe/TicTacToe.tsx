@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { Brain, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
@@ -45,7 +46,7 @@ const difficultyDescriptions: Record<TicTacToeDifficulty, string> = {
 };
 
 function readRecord(): TicTacToeRecord {
-  const stored = window.localStorage.getItem(RECORD_KEY);
+  const stored = safeStorage.getItem(RECORD_KEY);
 
   if (!stored) {
     return { wins: 0, losses: 0, draws: 0, streak: 0 };
@@ -199,7 +200,7 @@ export function TicTacToe({ onBack }: TicTacToeProps) {
 
     const nextRecord = updateRecord(record, outcome);
     setRecord(nextRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus("finished");
 
     if (outcome === "win") {
@@ -253,7 +254,7 @@ export function TicTacToe({ onBack }: TicTacToeProps) {
   const resetRecord = () => {
     const emptyRecord = { wins: 0, losses: 0, draws: 0, streak: 0 };
     setRecord(emptyRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
   };
 
   return (
@@ -314,7 +315,14 @@ export function TicTacToe({ onBack }: TicTacToeProps) {
                 disabled={status === "playing"}
                 key={level}
                 type="button"
-                onClick={() => setDifficulty(level)}
+                onClick={() => {
+                  if (level === difficulty) return;
+                  const nextRecord = { ...record, streak: 0 };
+                  setRecord(nextRecord);
+                  safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
+                  setDifficulty(level);
+                  startGame();
+                }}
               >
                 <span>{difficultyLabels[level]}</span>
                 <small>{difficultyDescriptions[level]}</small>

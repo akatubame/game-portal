@@ -1,5 +1,8 @@
+import { useStopwatch } from "../useStopwatch";
+import { useI18n } from "../../i18n";
+import { safeStorage } from "../../safeStorage";
 import { RotateCcw } from "lucide-react";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { RankingPanel, useRanking } from "../ranking";
 import { countMatchedPairs, createMemoryCards, isCleared, memoryDifficulties } from "./logic";
 import type { MemoryCard, MemoryDifficultyId, MemoryStatus } from "./types";
@@ -19,56 +22,51 @@ function formatTime(seconds: number) {
 }
 
 export function Memory({ onBack }: MemoryProps) {
+  const { language } = useI18n();
+  const en = language === "en";
+  const label = (id: MemoryDifficultyId) => en
+    ? ({ easy: "Easy", normal: "Normal", hard: "Hard" })[id] : getDifficulty(id).label;
   const [difficultyId, setDifficultyId] = useState<MemoryDifficultyId>("easy");
   const difficulty = getDifficulty(difficultyId);
   const [cards, setCards] = useState<MemoryCard[]>(() => createMemoryCards(difficulty));
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [moves, setMoves] = useState(0);
-  const [seconds, setSeconds] = useState(0);
+  const { seconds, startTimer, resetTimer, stopTimer } = useStopwatch();
   const [status, setStatus] = useState<MemoryStatus>("ready");
   const [locked, setLocked] = useState(false);
+  const judgingTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(judgingTimer.current), []);
 
   const matchedPairs = useMemo(() => countMatchedPairs(cards), [cards]);
   const bestScoreKey = `game-shelf-memory-best-${difficulty.id}`;
   const bestTimeKey = `game-shelf-memory-best-time-${difficulty.id}`;
   const ranking = useRanking({ gameId: `memory-${difficulty.id}`, metricLabel: "Time", mode: "lower" });
   const [bestMoves, setBestMoves] = useState<number | null>(() => {
-    const stored = window.localStorage.getItem(bestScoreKey);
+    const stored = safeStorage.getItem(bestScoreKey);
     return stored ? Number(stored) || null : null;
   });
   const [bestTime, setBestTime] = useState<number | null>(() => {
-    const stored = window.localStorage.getItem(bestTimeKey);
+    const stored = safeStorage.getItem(bestTimeKey);
     return stored ? Number(stored) || null : null;
   });
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(bestScoreKey);
+    const stored = safeStorage.getItem(bestScoreKey);
     setBestMoves(stored ? Number(stored) || null : null);
-    const storedTime = window.localStorage.getItem(bestTimeKey);
+    const storedTime = safeStorage.getItem(bestTimeKey);
     setBestTime(storedTime ? Number(storedTime) || null : null);
   }, [bestScoreKey, bestTimeKey]);
 
-  useEffect(() => {
-    if (status !== "playing") {
-      return;
-    }
-
-    const timerId = window.setInterval(() => {
-      setSeconds((current) => current + 1);
-    }, 1000);
-
-    return () => {
-      window.clearInterval(timerId);
-    };
-  }, [status]);
 
   const resetGame = (nextDifficultyId = difficultyId) => {
+    window.clearTimeout(judgingTimer.current);
+    judgingTimer.current = undefined;
     const nextDifficulty = getDifficulty(nextDifficultyId);
     setDifficultyId(nextDifficultyId);
     setCards(createMemoryCards(nextDifficulty));
     setSelectedCardIds([]);
     setMoves(0);
-    setSeconds(0);
+    resetTimer();
     setStatus("ready");
     setLocked(false);
   };
@@ -85,6 +83,7 @@ export function Memory({ onBack }: MemoryProps) {
     }
 
     if (status === "ready") {
+      startTimer();
       setStatus("playing");
     }
 
@@ -107,42 +106,34 @@ export function Memory({ onBack }: MemoryProps) {
     setMoves(nextMoves);
     setLocked(true);
 
-    window.setTimeout(
+    judgingTimer.current = window.setTimeout(
       () => {
-        setCards((currentCards) => {
-          const judgedCards = currentCards.map((item) => {
-            if (!nextSelectedIds.includes(item.id)) {
-              return item;
-            }
-
-            return pairMatched
-              ? { ...item, flipped: true, matched: true }
-              : { ...item, flipped: false, matched: false };
-          });
-
-          if (pairMatched && isCleared(judgedCards)) {
-            setStatus("cleared");
-            const clearSeconds = Math.max(1, seconds);
-            setBestMoves((currentBest) => {
-              if (currentBest !== null && currentBest <= nextMoves) {
-                return currentBest;
-              }
-
-              window.localStorage.setItem(bestScoreKey, String(nextMoves));
-              return nextMoves;
-            });
-            setBestTime((currentBest) => {
-              if (currentBest !== null && currentBest <= clearSeconds) {
-                return currentBest;
-              }
-
-              window.localStorage.setItem(bestTimeKey, String(clearSeconds));
-              return clearSeconds;
-            });
+        judgingTimer.current = undefined;
+        const judgedCards = nextCards.map((item) => {
+          if (!nextSelectedIds.includes(item.id)) {
+            return item;
           }
 
-          return judgedCards;
+          return pairMatched
+            ? { ...item, flipped: true, matched: true }
+            : { ...item, flipped: false, matched: false };
         });
+
+        if (pairMatched && isCleared(judgedCards)) {
+          setStatus("cleared");
+          const clearSeconds = stopTimer(1);
+
+          if (bestMoves === null || nextMoves < bestMoves) {
+            safeStorage.setItem(bestScoreKey, String(nextMoves));
+            setBestMoves(nextMoves);
+          }
+          if (bestTime === null || clearSeconds < bestTime) {
+            safeStorage.setItem(bestTimeKey, String(clearSeconds));
+            setBestTime(clearSeconds);
+          }
+        }
+
+        setCards(judgedCards);
         setSelectedCardIds([]);
         setLocked(false);
       },
@@ -150,21 +141,25 @@ export function Memory({ onBack }: MemoryProps) {
     );
   };
 
-  const statusText = {
+  const statusText = (en ? {
+    ready: "Find matching pairs. The timer starts when you turn over your first card.",
+    playing: "Two cards with the same picture make a pair. Try to finish in fewer moves.",
+    cleared: "Cleared! You found every pair."
+  } : {
     ready: "同じ絵柄のカードを2枚ずつ見つけましょう。最初の1枚でタイマーが始まります。",
     playing: "めくった2枚が同じならペア成立です。少ない手数でのクリアを目指しましょう。",
     cleared: "クリア！すべてのペアを見つけました。"
-  }[status];
+  })[status];
 
   return (
-    <section className="puzzle-shell memory-shell" aria-labelledby="memory-title">
+    <section className="puzzle-shell memory-shell" aria-labelledby="memory-title" data-native-i18n>
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">PUZZLE / INTERNAL GAME</p>
-          <h1 id="memory-title">神経衰弱</h1>
+          <h1 id="memory-title">{en ? "Memory" : "神経衰弱"}</h1>
           <p className="lead">{statusText}</p>
         </div>
-        <div className="score-panel memory-stats" aria-label="神経衰弱の状態">
+        <div className="score-panel memory-stats" aria-label={en ? "Memory game status" : "神経衰弱の状態"}>
           <div>
             <span>Moves</span>
             <strong>{moves}</strong>
@@ -183,7 +178,7 @@ export function Memory({ onBack }: MemoryProps) {
       <div className="puzzle-layout memory-layout">
         <div
           className="memory-board"
-          aria-label={`${difficulty.label}のカード盤面`}
+          aria-label={en ? `${label(difficulty.id)} card board` : `${difficulty.label}のカード盤面`}
           style={{ "--columns": difficulty.columns } as CSSProperties}
         >
           {cards.map((card) => {
@@ -195,7 +190,7 @@ export function Memory({ onBack }: MemoryProps) {
                 type="button"
                 key={card.id}
                 onClick={() => chooseCard(card.id)}
-                aria-label={visible ? `${card.symbol}のカード` : "裏向きのカード"}
+                aria-label={visible ? (en ? `${card.symbol} card` : `${card.symbol}のカード`) : (en ? "Face-down card" : "裏向きのカード")}
               >
                 <span className="memory-card-front">{card.symbol}</span>
                 <span className="memory-card-back">?</span>
@@ -206,16 +201,16 @@ export function Memory({ onBack }: MemoryProps) {
 
         <aside className="puzzle-side memory-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
-            <p>カードを2枚めくり、同じ絵柄ならペアになります。すべてのペアを見つけるとクリアです。</p>
+            <h2>{en ? "How to Play" : "遊び方"}</h2>
+            <p>{en ? "Turn over two cards. Matching pictures form a pair. Find every pair to clear the game." : "カードを2枚めくり、同じ絵柄ならペアになります。すべてのペアを見つけるとクリアです。"}</p>
           </div>
 
           <label className="select-label">
-            難易度
+            {en ? "Difficulty" : "難易度"}
             <select value={difficultyId} onChange={(event) => resetGame(event.target.value as MemoryDifficultyId)}>
               {memoryDifficulties.map((item) => (
                 <option value={item.id} key={item.id}>
-                  {item.label} - {item.pairs}ペア
+                  {label(item.id)} - {item.pairs}{en ? " pairs" : "ペア"}
                 </option>
               ))}
             </select>
@@ -223,10 +218,10 @@ export function Memory({ onBack }: MemoryProps) {
 
           <div className="memory-progress">
             <span>
-              ペア: {matchedPairs}/{difficulty.pairs}
+              {en ? "Pairs" : "ペア"}: {matchedPairs}/{difficulty.pairs}
             </span>
-            <span>ベスト手数: {bestMoves ?? "未記録"}</span>
-            <span>ベストタイム: {bestTime === null ? "未記録" : formatTime(bestTime)}</span>
+            <span>{en ? "Best moves" : "ベスト手数"}: {bestMoves ?? (en ? "No record" : "未記録")}</span>
+            <span>{en ? "Best time" : "ベストタイム"}: {bestTime === null ? (en ? "No record" : "未記録") : formatTime(bestTime)}</span>
           </div>
 
           <RankingPanel
@@ -237,10 +232,10 @@ export function Memory({ onBack }: MemoryProps) {
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => resetGame()}>
               <RotateCcw aria-hidden="true" />
-              リセット
+              {en ? "Reset" : "リセット"}
             </button>
             <button className="ghost-button" type="button" onClick={onBack}>
-              棚へ戻る
+              {en ? "Back to shelf" : "棚へ戻る"}
             </button>
           </div>
         </aside>

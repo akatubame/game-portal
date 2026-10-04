@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { Delete, Keyboard, RotateCcw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
@@ -88,7 +89,7 @@ const keyboardRows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
 
 function readRecord(): WordGuessRecord {
   try {
-    const stored = window.localStorage.getItem(RECORD_KEY);
+    const stored = safeStorage.getItem(RECORD_KEY);
     return stored ? (JSON.parse(stored) as WordGuessRecord) : { wins: 0, losses: 0, streak: 0, bestStreak: 0 };
   } catch {
     return { wins: 0, losses: 0, streak: 0, bestStreak: 0 };
@@ -214,7 +215,7 @@ export function WordGuess({ onBack }: WordGuessProps) {
   const finish = useCallback((result: "win" | "loss", nextAttempts: WordGuessAttempt[]) => {
     const nextRecord = updateRecord(record, result);
     setRecord(nextRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus(result === "win" ? "won" : "lost");
     setMessage(result === "win" ? `${nextAttempts.length}回で正解！` : `残念。答えは ${answer} でした。`);
   }, [answer, record]);
@@ -302,7 +303,7 @@ export function WordGuess({ onBack }: WordGuessProps) {
   const resetRecord = () => {
     const emptyRecord = { wins: 0, losses: 0, streak: 0, bestStreak: 0 };
     setRecord(emptyRecord);
-    window.localStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
+    safeStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
   };
 
   const rows = Array.from({ length: MAX_ATTEMPTS }, (_, rowIndex) => {

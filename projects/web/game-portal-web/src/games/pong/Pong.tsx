@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { ChevronDown, ChevronUp, Pause, Play, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
@@ -59,7 +60,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function readBestResult(): PongResult | null {
-  const stored = window.localStorage.getItem(BEST_KEY);
+  const stored = safeStorage.getItem(BEST_KEY);
   return stored ? (JSON.parse(stored) as PongResult) : null;
 }
 
@@ -144,7 +145,7 @@ export function Pong({ onBack }: PongProps) {
 
     if (winner === "player" && (!bestResult || finalCpuScore < bestResult.cpuScore || bestResult.winner === "cpu")) {
       setBestResult(result);
-      window.localStorage.setItem(BEST_KEY, JSON.stringify(result));
+      safeStorage.setItem(BEST_KEY, JSON.stringify(result));
     }
   };
 
@@ -363,12 +364,16 @@ export function Pong({ onBack }: PongProps) {
   };
 
   const changeDifficulty = (nextDifficulty: PongDifficulty) => {
+    if (nextDifficulty === difficulty) return;
+    releaseControls();
+    setStatus("idle");
+    statusRef.current = "idle";
+    setPlayerScore(0);
+    setCpuScore(0);
     setDifficulty(nextDifficulty);
     difficultyRef.current = nextDifficulty;
 
-    if (statusRef.current !== "playing") {
-      setMessage(`${difficultySettings[nextDifficulty].label}でプレイします。スタートを押して開始してください。`);
-    }
+    setMessage(`${difficultySettings[nextDifficulty].label}でプレイします。スタートを押して開始してください。`);
   };
 
   const togglePause = () => {
@@ -386,7 +391,7 @@ export function Pong({ onBack }: PongProps) {
   };
 
   const resetBest = () => {
-    window.localStorage.removeItem(BEST_KEY);
+    safeStorage.removeItem(BEST_KEY);
     setBestResult(null);
   };
 

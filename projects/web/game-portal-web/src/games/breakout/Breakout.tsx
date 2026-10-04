@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
@@ -25,7 +26,7 @@ const initialBall: Ball = {
 };
 
 function readBestResult(): BreakoutResult | null {
-  const stored = window.localStorage.getItem(BEST_KEY);
+  const stored = safeStorage.getItem(BEST_KEY);
   return stored ? (JSON.parse(stored) as BreakoutResult) : null;
 }
 
@@ -129,7 +130,7 @@ export function Breakout({ onBack }: BreakoutProps) {
     if (nextStatus === "cleared" || nextStatus === "finished") {
       if (!bestResult || result.score > bestResult.score) {
         setBestResult(result);
-        window.localStorage.setItem(BEST_KEY, JSON.stringify(result));
+        safeStorage.setItem(BEST_KEY, JSON.stringify(result));
       }
     }
   };
@@ -357,7 +358,7 @@ export function Breakout({ onBack }: BreakoutProps) {
   };
 
   const resetBest = () => {
-    window.localStorage.removeItem(BEST_KEY);
+    safeStorage.removeItem(BEST_KEY);
     setBestResult(null);
   };
 

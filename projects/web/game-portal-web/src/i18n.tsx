@@ -1,3 +1,4 @@
+import { safeStorage } from "./safeStorage";
 import { createContext, useContext } from "react";
 
 export type Language = "ja" | "en";
@@ -19,7 +20,7 @@ export function useI18n() {
 }
 
 export function detectInitialLanguage(): Language {
-  const saved = localStorage.getItem("game-shelf-language");
+  const saved = safeStorage.getItem("game-shelf-language");
 
   if (saved === "ja" || saved === "en") {
     return saved;

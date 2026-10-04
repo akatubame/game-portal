@@ -9,11 +9,14 @@ export function isGivenCell(puzzle: SudokuPuzzle, row: number, column: number): 
 }
 
 export function isComplete(grid: SudokuGrid): boolean {
-  return grid.every((row) => row.every((value) => value >= 1 && value <= 9));
+  return grid.length === 9 && grid.every((row) => row.length === 9 &&
+    row.every((value) => Number.isInteger(value) && value >= 1 && value <= 9));
 }
 
-export function isSolved(grid: SudokuGrid, solution: SudokuGrid): boolean {
-  return grid.every((row, rowIndex) => row.every((value, columnIndex) => value === solution[rowIndex][columnIndex]));
+export function isSolved(grid: SudokuGrid, givens: SudokuGrid): boolean {
+  return isComplete(grid) && givens.length === 9 && givens.every((row) => row.length === 9) &&
+    grid.every((row, r) => row.every((value, c) =>
+      (givens[r][c] === 0 || givens[r][c] === value) && !hasConflict(grid, r, c)));
 }
 
 export function hasConflict(grid: SudokuGrid, row: number, column: number): boolean {
@@ -50,10 +53,10 @@ export function hasConflict(grid: SudokuGrid, row: number, column: number): bool
   return false;
 }
 
-export function countMistakes(grid: SudokuGrid, solution: SudokuGrid): number {
+export function countMistakes(grid: SudokuGrid): number {
   return grid.reduce(
     (total, row, rowIndex) =>
-      total + row.filter((value, columnIndex) => value !== 0 && value !== solution[rowIndex][columnIndex]).length,
+      total + row.filter((_, columnIndex) => hasConflict(grid, rowIndex, columnIndex)).length,
     0
   );
 }

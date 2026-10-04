@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { Eraser, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
@@ -41,7 +42,7 @@ const difficultySettings: Record<SameGameDifficulty, { label: string; columns: n
 };
 
 function readBest(): Record<SameGameDifficulty, SameGameBest | undefined> {
-  const stored = window.localStorage.getItem(BEST_KEY);
+  const stored = safeStorage.getItem(BEST_KEY);
   return {
     small: undefined,
     normal: undefined,
@@ -181,7 +182,7 @@ export function SameGame({ onBack }: SameGameProps) {
     };
     const nextBestByDifficulty = { ...bestByDifficulty, [difficulty]: nextBest };
     setBestByDifficulty(nextBestByDifficulty);
-    window.localStorage.setItem(BEST_KEY, JSON.stringify(nextBestByDifficulty));
+    safeStorage.setItem(BEST_KEY, JSON.stringify(nextBestByDifficulty));
   };
 
   const finishGame = (finalScore: number, nextBoard: SameGameCell[]) => {
@@ -234,7 +235,7 @@ export function SameGame({ onBack }: SameGameProps) {
   };
 
   const resetBest = () => {
-    window.localStorage.removeItem(BEST_KEY);
+    safeStorage.removeItem(BEST_KEY);
     setBestByDifficulty({ small: undefined, normal: undefined, large: undefined });
   };
 

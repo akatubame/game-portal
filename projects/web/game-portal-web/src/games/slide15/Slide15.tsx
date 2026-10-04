@@ -1,5 +1,7 @@
+import { useStopwatch } from "../useStopwatch";
+import { safeStorage } from "../../safeStorage";
 import { RotateCcw, Shuffle } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
 import { EMPTY_TILE, canMoveTile, isSolved, moveTile, shuffleBoard } from "./logic";
 import type { SlideBoard, SlideStatus } from "./types";
@@ -17,40 +19,27 @@ function formatTime(seconds: number) {
 export function Slide15({ onBack }: Slide15Props) {
   const [board, setBoard] = useState<SlideBoard>(() => shuffleBoard());
   const [moves, setMoves] = useState(0);
-  const [seconds, setSeconds] = useState(0);
+  const { seconds, startTimer, resetTimer, stopTimer } = useStopwatch();
   const [status, setStatus] = useState<SlideStatus>("ready");
   const bestScoreKey = "game-shelf-slide15-best-moves";
   const bestTimeKey = "game-shelf-slide15-best-time";
   const [bestMoves, setBestMoves] = useState<number | null>(() => {
-    const stored = window.localStorage.getItem(bestScoreKey);
+    const stored = safeStorage.getItem(bestScoreKey);
     return stored ? Number(stored) || null : null;
   });
   const [bestTime, setBestTime] = useState<number | null>(() => {
-    const stored = window.localStorage.getItem(bestTimeKey);
+    const stored = safeStorage.getItem(bestTimeKey);
     return stored ? Number(stored) || null : null;
   });
   const ranking = useRanking({ gameId: "slide15-time", metricLabel: "Time", mode: "lower" });
 
   const movableIndexes = useMemo(() => getMovableIndexSet(board), [board]);
 
-  useEffect(() => {
-    if (status !== "playing") {
-      return;
-    }
-
-    const timerId = window.setInterval(() => {
-      setSeconds((current) => current + 1);
-    }, 1000);
-
-    return () => {
-      window.clearInterval(timerId);
-    };
-  }, [status]);
 
   const resetGame = () => {
     setBoard(shuffleBoard());
     setMoves(0);
-    setSeconds(0);
+    resetTimer();
     setStatus("ready");
   };
 
@@ -66,18 +55,20 @@ export function Slide15({ onBack }: Slide15Props) {
     setMoves(nextMoves);
 
     if (status === "ready") {
+      startTimer();
       setStatus("playing");
     }
 
     if (isSolved(nextBoard)) {
       setStatus("cleared");
-      const clearSeconds = Math.max(1, seconds);
+      const clearSeconds = stopTimer(1);
+
       setBestMoves((currentBest) => {
         if (currentBest !== null && currentBest <= nextMoves) {
           return currentBest;
         }
 
-        window.localStorage.setItem(bestScoreKey, String(nextMoves));
+        safeStorage.setItem(bestScoreKey, String(nextMoves));
         return nextMoves;
       });
       setBestTime((currentBest) => {
@@ -85,7 +76,7 @@ export function Slide15({ onBack }: Slide15Props) {
           return currentBest;
         }
 
-        window.localStorage.setItem(bestTimeKey, String(clearSeconds));
+        safeStorage.setItem(bestTimeKey, String(clearSeconds));
         return clearSeconds;
       });
     }

@@ -4,6 +4,7 @@ import {
   Grid3X3,
   HelpCircle,
   Languages,
+  Map as MapIcon,
   Lightbulb,
   Play,
   RotateCcw,
@@ -27,6 +28,8 @@ import {
   type PointerEvent as ReactPointerEvent
 } from "react";
 import { useI18n } from "../../i18n";
+import { ColorChainWorldMap } from "./ColorChainWorldMap";
+import { ColorChainStageDialogue } from "./ColorChainStageDialogue";
 import {
   BOMB_BLOCK,
   COLOR_BREAKER_BLOCK,
@@ -113,7 +116,7 @@ type PointerStart = {
 type ChromaMood = "idle" | "blink" | "chain" | "danger" | "defeat";
 type MokoMood = "idle" | "light" | "medium" | "heavy" | "purified";
 type BattleImpact = "light" | "medium" | "heavy" | null;
-type RotationOverlayPanel = "help" | "settings" | "tutorial" | null;
+type RotationOverlayPanel = "help" | "settings" | "tutorial" | "map" | "dialogue" | null;
 type RotationBest = {
   maxChain: number;
   remainingTime: number;
@@ -156,6 +159,7 @@ type BoardSpellEffect = {
 type RotationAudio = {
   bgm: HTMLAudioElement;
   chain: HTMLAudioElement;
+  stageSelect: HTMLAudioElement;
   chainBomb: HTMLAudioElement;
   chainPillar: HTMLAudioElement;
   chainWave: HTMLAudioElement;
@@ -211,6 +215,7 @@ const ROTATION_CHROMA_KEY = "game-shelf-color-chain-rotate-v1-chroma";
 const audioPaths = {
   bgm: "/audio/color-chain/block-puzzle-blues.mp3",
   chain: "/audio/color-chain/magical-chain.mp3",
+  stageSelect: "/audio/color-chain/stage-select-glock.mp3",
   chainBomb: "/audio/color-chain/chain-bomb.mp3",
   chainPillar: "/audio/color-chain/chain-pillar.mp3",
   chainWave: "/audio/color-chain/chain-wave.mp3",
@@ -961,6 +966,7 @@ export function ColorChainRotationTest({
     if (audioRef.current) return audioRef.current;
     const bgm = new Audio(audioPaths.bgm);
     const chain = new Audio(audioPaths.chain);
+    const stageSelect = new Audio(audioPaths.stageSelect);
     const chainBomb = new Audio(audioPaths.chainBomb);
     const chainPillar = new Audio(audioPaths.chainPillar);
     const chainWave = new Audio(audioPaths.chainWave);
@@ -978,6 +984,8 @@ export function ColorChainRotationTest({
     bgm.volume = 0.25;
     chain.preload = "auto";
     chain.volume = 0.48;
+    stageSelect.preload = "auto";
+    stageSelect.volume = 0.48;
     chainBomb.preload = "auto";
     chainBomb.volume = 0.58;
     chainPillar.preload = "auto";
@@ -1005,6 +1013,7 @@ export function ColorChainRotationTest({
     audioRef.current = {
       bgm,
       chain,
+      stageSelect,
       chainBomb,
       chainPillar,
       chainWave,
@@ -1100,7 +1109,8 @@ export function ColorChainRotationTest({
   const openOverlay = (panel: Exclude<RotationOverlayPanel, null>) => {
     if (isResolving) return;
     if (phaseRef.current === "ready" || phaseRef.current === "selecting") {
-      overlayResumePhaseRef.current = phaseRef.current;
+      pointerRef.current = null;
+      overlayResumePhaseRef.current = "ready";
       commitPhase("paused");
     }
     setOverlayPanel(panel);
@@ -1111,6 +1121,9 @@ export function ColorChainRotationTest({
     const resumePhase = overlayResumePhaseRef.current;
     overlayResumePhaseRef.current = null;
     if (phaseRef.current === "paused" && resumePhase) commitPhase(resumePhase);
+    if (overlayPanel === "map" || overlayPanel === "dialogue") {
+      window.requestAnimationFrame(() => document.querySelector<HTMLButtonElement>(".chroma-map-mode-button")?.focus());
+    }
   };
 
   const advanceTutorial = () => {
@@ -2116,16 +2129,22 @@ export function ColorChainRotationTest({
 
       <div className="color-chain-rotation-stage-frame" style={stageFrameStyle}>
         <section
-          className={`color-chain-rotation-stage is-${phase}${mobilePerformance ? " is-mobile-performance" : ""}${grandSpell ? " is-grand-cutin-active" : ""}${grandSpell?.id === "ultimate-magical-chain" ? " is-ultimate-cutin" : ""}${effectsEnabled ? "" : " is-effects-off"}${chromaVisible ? "" : " is-chroma-hidden"}`}
+          className={`color-chain-rotation-stage is-${phase}${overlayPanel === "map" || overlayPanel === "dialogue" ? " is-map-mode" : ""}${mobilePerformance ? " is-mobile-performance" : ""}${grandSpell ? " is-grand-cutin-active" : ""}${grandSpell?.id === "ultimate-magical-chain" ? " is-ultimate-cutin" : ""}${effectsEnabled ? "" : " is-effects-off"}${chromaVisible ? "" : " is-chroma-hidden"}`}
           style={stageStyle}
         >
-          <header className="color-chain-rotation-stage-header">
+          <header className="color-chain-rotation-stage-header" inert={overlayPanel === "map" || overlayPanel === "dialogue"}>
             <div className="color-chain-rotation-title">
               <p>{pageEyebrow}</p>
               <h1>{pageTitle}</h1>
               <span>{pageSubtitle}</span>
             </div>
             <div className="color-chain-rotation-top-actions">
+              <button className="chroma-map-mode-button" disabled={isResolving}
+                onClick={() => openOverlay("map")} type="button"
+                aria-label={language === "ja" ? "マップモード" : "Map Mode"}>
+                <MapIcon aria-hidden="true" />
+                {language === "ja" ? "マップモード" : "Map Mode"}
+              </button>
               <button
                 aria-label={t.help}
                 disabled={isResolving}
@@ -2155,7 +2174,7 @@ export function ColorChainRotationTest({
                 {audioEnabled ? <Volume2 aria-hidden="true" /> : <VolumeX aria-hidden="true" />}
                 {audioEnabled ? "ON" : "OFF"}
               </button>
-              <button onClick={() => setLanguage(language === "ja" ? "en" : "ja")} type="button">
+              <button onClick={() => setLanguage(language === "ja" ? "en" : "ja")} type="button" data-native-i18n>
                 <Languages aria-hidden="true" />
                 {t.language}
               </button>
@@ -2166,7 +2185,7 @@ export function ColorChainRotationTest({
             </div>
           </header>
 
-          <div className="color-chain-rotation-game-grid">
+          <div className="color-chain-rotation-game-grid" inert={overlayPanel === "map" || overlayPanel === "dialogue"}>
             <aside className="color-chain-rotation-side-panel is-goal">
               <section className="color-chain-rotation-chroma-card">
                 <div className="color-chain-rotation-character-heading">
@@ -2555,7 +2574,23 @@ export function ColorChainRotationTest({
               </div>
             </aside>
           </div>
-          {overlayPanel && (
+          {overlayPanel === "map" && (
+            <ColorChainWorldMap onClose={closeOverlay} effectsEnabled={effectsEnabled}
+              onSelectSound={() => playAudioEffect("stageSelect")}
+              onEnterFirstStage={() => setOverlayPanel("dialogue")}
+              canResume={phase === "paused"}
+              onPlay={() => {
+                closeOverlay();
+                if (["idle", "clear", "timeout"].includes(phaseRef.current)) startGame();
+              }} />
+          )}
+          {overlayPanel === "dialogue" && <ColorChainStageDialogue effectsEnabled={effectsEnabled}
+            canResume={phase === "paused"} onBack={() => setOverlayPanel("map")}
+            onPlay={() => {
+              closeOverlay();
+              if (["idle", "clear", "timeout"].includes(phaseRef.current)) startGame();
+            }} />}
+          {overlayPanel && overlayPanel !== "map" && overlayPanel !== "dialogue" && (
             <div className="color-chain-rotation-dialog-backdrop" role="presentation">
               <section
                 aria-labelledby="color-chain-rotation-dialog-title"

@@ -1,3 +1,4 @@
+import { safeStorage } from "../../safeStorage";
 import { Dice5, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
@@ -163,7 +164,7 @@ function translateYachtMessage(message: string) {
 }
 
 function readBest(): YachtBest | null {
-  const stored = window.localStorage.getItem(BEST_KEY);
+  const stored = safeStorage.getItem(BEST_KEY);
   return stored ? (JSON.parse(stored) as YachtBest) : null;
 }
 
@@ -236,7 +237,7 @@ export function YachtDice({ onBack }: YachtDiceProps) {
       const nextBest = !best || nextTotal > best.score ? { score: nextTotal, recordedAt: new Date().toISOString() } : best;
       if (nextBest !== best) {
         setBest(nextBest);
-        window.localStorage.setItem(BEST_KEY, JSON.stringify(nextBest));
+        safeStorage.setItem(BEST_KEY, JSON.stringify(nextBest));
       }
 
       setStatus("finished");
@@ -251,7 +252,7 @@ export function YachtDice({ onBack }: YachtDiceProps) {
   };
 
   const resetBest = () => {
-    window.localStorage.removeItem(BEST_KEY);
+    safeStorage.removeItem(BEST_KEY);
     setBest(null);
   };
 
