@@ -1,7 +1,10 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { Eraser, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { useLocalizedMessage } from "../useLocalizedMessage";
 import type { CSSProperties } from "react";
 import type { SameGameBest, SameGameCell, SameGameColor, SameGameDifficulty, SameGameStatus } from "./types";
 
@@ -151,13 +154,17 @@ function scoreForGroup(size: number) {
 }
 
 export function SameGame({ onBack }: SameGameProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
+  const text = (ja: string, en: string) => isEnglish ? en : ja;
+  const confirmRecordReset = useConfirmRecordReset();
   const [difficulty, setDifficulty] = useState<SameGameDifficulty>("normal");
   const [board, setBoard] = useState<SameGameCell[]>(() => createBoard(difficultySettings.normal.columns, difficultySettings.normal.rows));
   const [status, setStatus] = useState<SameGameStatus>("idle");
   const [score, setScore] = useState(0);
   const scoreRef = useRef(0);
   const [lastRemoved, setLastRemoved] = useState(0);
-  const [message, setMessage] = useState("同じ色が2個以上つながったブロックをクリックして消しましょう。");
+  const [message, setMessage] = useLocalizedMessage("同じ色が2個以上つながったブロックをクリックして消しましょう。", "Click groups of two or more connected blocks of the same color.");
   const [bestByDifficulty, setBestByDifficulty] = useState<Record<SameGameDifficulty, SameGameBest | undefined>>(() => readBest());
 
   const settings = difficultySettings[difficulty];
@@ -192,7 +199,7 @@ export function SameGame({ onBack }: SameGameProps) {
     setScore(total);
     setStatus("finished");
     saveBest(total);
-    setMessage(bonus > 0 ? `全消しボーナス！合計${total}点です。` : `手詰まりです。合計${total}点でした。`);
+    setMessage(bonus > 0 ? `全消しボーナス！合計${total}点です。` : `手詰まりです。合計${total}点でした。`, bonus > 0 ? `Board clear bonus! Total: ${total} points.` : `No groups left. Total: ${total} points.`);
   };
 
   const startGame = (nextDifficulty = difficulty) => {
@@ -203,7 +210,7 @@ export function SameGame({ onBack }: SameGameProps) {
     setScore(0);
     scoreRef.current = 0;
     setLastRemoved(0);
-    setMessage("大きい塊を残すように消すと高得点を狙えます。");
+    setMessage("大きい塊を残すように消すと高得点を狙えます。", "Build larger groups for a higher score.");
   };
 
   const selectCell = (index: number) => {
@@ -214,7 +221,7 @@ export function SameGame({ onBack }: SameGameProps) {
     const group = getGroup(board, index, settings.columns, settings.rows);
 
     if (group.size < 2) {
-      setMessage("1個だけのブロックは消せません。2個以上つながった塊を選びましょう。");
+      setMessage("1個だけのブロックは消せません。2個以上つながった塊を選びましょう。", "A single block cannot be removed. Choose a group of at least two.");
       return;
     }
 
@@ -231,23 +238,24 @@ export function SameGame({ onBack }: SameGameProps) {
       return;
     }
 
-    setMessage(`${group.size}個消して${addScore}点。まだ消せる塊があります。`);
+    setMessage(`${group.size}個消して${addScore}点。まだ消せる塊があります。`, `Removed ${group.size} blocks for ${addScore} points. More groups remain.`);
   };
 
   const resetBest = () => {
+    if (!confirmRecordReset()) return;
     safeStorage.removeItem(BEST_KEY);
     setBestByDifficulty({ small: undefined, normal: undefined, large: undefined });
   };
 
   return (
-    <section className="puzzle-shell same-shell" aria-labelledby="same-title">
+    <section className="puzzle-shell same-shell" aria-labelledby="same-title" data-native-i18n>
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">PUZZLE / INTERNAL GAME</p>
-          <h1 id="same-title">さめがめ</h1>
+          <h1 id="same-title">{text("さめがめ", "SameGame")}</h1>
           <p className="lead">{message}</p>
         </div>
-        <div className="score-panel same-score" aria-label="さめがめの状態">
+        <div className="score-panel same-score" aria-label={text("さめがめの状態", "SameGame status")}>
           <div>
             <span>Score</span>
             <strong>{score}</strong>
@@ -268,7 +276,7 @@ export function SameGame({ onBack }: SameGameProps) {
           <div
             className="same-board"
             style={{ "--same-columns": settings.columns, "--same-rows": settings.rows } as CSSProperties}
-            aria-label="さめがめ盤面"
+            aria-label={text("さめがめ盤面", "SameGame board")}
           >
             {board.map((cell, index) =>
               cell ? (
@@ -278,7 +286,7 @@ export function SameGame({ onBack }: SameGameProps) {
                   key={`${index}-${cell}`}
                   type="button"
                   onClick={() => selectCell(index)}
-                  aria-label={`${index + 1}番目のブロック ${colorLabels[cell]}`}
+                  aria-label={text(`${index + 1}番目のブロック ${colorLabels[cell]}`, `Block ${index + 1}: ${cell}`)}
                 />
               ) : (
                 <span className="same-cell is-empty" key={`${index}-empty`} />
@@ -289,14 +297,14 @@ export function SameGame({ onBack }: SameGameProps) {
 
         <aside className="puzzle-side same-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{text("遊び方", "How to Play")}</h2>
             <p>
-              上下左右につながった同じ色のブロックを2個以上まとめて消します。消した数が多いほど得点が伸び、
-              列が空くと右側の列が左へ詰まります。全消しできるとボーナスです。
+              {text("上下左右につながった同じ色のブロックを2個以上まとめて消します。消した数が多いほど得点が伸び、列が空くと右側の列が左へ詰まります。全消しできるとボーナスです。",
+                "Remove groups of at least two adjacent blocks of the same color. Larger groups score more; columns shift left when emptied. Clear the whole board for a bonus.")}
             </p>
           </div>
 
-          <div className="same-options" aria-label="盤面サイズ">
+          <div className="same-options" aria-label={text("盤面サイズ", "Board size")}>
             {(Object.keys(difficultySettings) as SameGameDifficulty[]).map((level) => (
               <button
                 className={difficulty === level ? "is-selected" : ""}
@@ -305,41 +313,41 @@ export function SameGame({ onBack }: SameGameProps) {
                 type="button"
                 onClick={() => startGame(level)}
               >
-                <span>{difficultySettings[level].label}</span>
-                <small>{difficultySettings[level].description}</small>
+                <span>{isEnglish ? { small: "Small", normal: "Normal", large: "Large" }[level] : difficultySettings[level].label}</span>
+                <small>{isEnglish ? { small: "8×8, a quick introduction.", normal: "10×10, standard board.", large: "12×10, aim for a high score." }[level] : difficultySettings[level].description}</small>
               </button>
             ))}
           </div>
 
           <div className="same-progress">
-            <span>現在: {status === "playing" ? "プレイ中" : status === "finished" ? "終了" : "待機中"}</span>
-            <span>消せる塊: {movesAvailable ? "あり" : "なし"}</span>
-            <span>ベスト: {currentBest ? `${currentBest.score}点` : "まだ記録なし"}</span>
+            <span>{text("現在", "Status")}: {status === "playing" ? text("プレイ中", "Playing") : status === "finished" ? text("終了", "Finished") : text("待機中", "Ready")}</span>
+            <span>{text("消せる塊", "Available groups")}: {movesAvailable ? text("あり", "Yes") : text("なし", "None")}</span>
+            <span>{text("ベスト", "Best")}: {currentBest ? text(`${currentBest.score}点`, `${currentBest.score} pts`) : text("まだ記録なし", "No record yet")}</span>
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "finished" ? { score, display: `${score}点`, meta: `${settings.label} / 残り${blocksLeft}個` } : null}
+            pendingScore={status === "finished" ? { score, display: text(`${score}点`, `${score} pts`), meta: text(`${settings.label} / 残り${blocksLeft}個`, `${{ small: "Small", normal: "Normal", large: "Large" }[difficulty]} / ${blocksLeft} left`) } : null}
           />
 
           <div className="same-hint">
             <Eraser aria-hidden="true" />
-            小さい塊を急いで消しすぎると孤立ブロックが残りがちです。大きな塊を育てる感じでどうぞ。
+            {text("小さい塊を急いで消しすぎると孤立ブロックが残りがちです。大きな塊を育てる感じでどうぞ。", "Removing small groups too early can strand single blocks. Try to build larger groups.")}
           </div>
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => startGame()}>
               <Sparkles aria-hidden="true" />
-              新しく始める
+              {text("新しく始める", "New game")}
             </button>
             <button className="ghost-button" type="button" onClick={resetBest}>
               <RotateCcw aria-hidden="true" />
-              ベスト削除
+              {text("ベスト削除", "Clear best")}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {text("棚へ戻る", "Back to shelf")}
           </button>
         </aside>
       </div>

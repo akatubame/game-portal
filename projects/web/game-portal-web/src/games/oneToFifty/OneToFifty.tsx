@@ -1,3 +1,5 @@
+import { useLocalizedMessage } from "../useLocalizedMessage";
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { RotateCcw, Sparkles, Timer, Trophy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -45,29 +47,8 @@ function formatTime(ms: number | null) {
   return (ms / 1000).toFixed(2);
 }
 
-function translateOneToFiftyMessage(message: string) {
-  const clearMatch = message.match(/^クリア！ タイムは (.+) 秒、ミスは (\d+) 回でした。$/);
-  if (clearMatch) {
-    return `Cleared! Time: ${clearMatch[1]} sec, misses: ${clearMatch[2]}.`;
-  }
-  const wrongMatch = message.match(/^(\d+) を探してください。違う数字を押すとミスになります。$/);
-  if (wrongMatch) {
-    return `Find ${wrongMatch[1]}. Tapping a different number counts as a miss.`;
-  }
-  const nextMatch = message.match(/^(\d+) を探しましょう。$/);
-  if (nextMatch) {
-    return `Find ${nextMatch[1]}.`;
-  }
-  if (message.includes("1から50まで")) {
-    return "Tap the numbers from 1 to 50 in order. Press Start first.";
-  }
-  if (message.includes("1から順番")) {
-    return "Tap in order from 1. When you tap 1–25, the next number appears in the same cell.";
-  }
-  return message;
-}
-
 export function OneToFifty({ onBack }: OneToFiftyProps) {
+  const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
   const [board, setBoard] = useState<OneToFiftyCell[]>(() => createBoard());
@@ -78,7 +59,7 @@ export function OneToFifty({ onBack }: OneToFiftyProps) {
   const [elapsedMs, setElapsedMs] = useState(0);
   const [targetChangedAt, setTargetChangedAt] = useState<number | null>(null);
   const [record, setRecord] = useState<OneToFiftyRecord>(() => readRecord());
-  const [message, setMessage] = useState("1から50まで、数字を順番にタッチしましょう。まずは「開始」を押してください。");
+  const [message, setMessage] = useLocalizedMessage("1から50まで、数字を順番にタッチしましょう。まずは「開始」を押してください。", "Tap numbers from 1 to 50 in order. Press Start first.");
   const ranking = useRanking({ gameId: "one-to-fifty-time", metricLabel: "Time", mode: "lower" });
 
   useEffect(() => {
@@ -97,7 +78,7 @@ export function OneToFifty({ onBack }: OneToFiftyProps) {
 
   const progress = useMemo(() => Math.min(nextNumber - 1, FINAL_NUMBER), [nextNumber]);
   const showHint = status === "playing" && targetChangedAt !== null && Date.now() - targetChangedAt >= HINT_DELAY_MS;
-  const visibleMessage = isEnglish ? translateOneToFiftyMessage(message) : message;
+  const visibleMessage = message;
 
   const startGame = () => {
     setBoard(createBoard());
@@ -108,7 +89,7 @@ export function OneToFifty({ onBack }: OneToFiftyProps) {
     const now = Date.now();
     setStartedAt(now);
     setTargetChangedAt(now);
-    setMessage("1から順番にタッチ。25以下を押すと、同じマスに次の数字が出ます。");
+    setMessage("1から順番にタッチ。25以下を押すと、同じマスに次の数字が出ます。", "Tap in order from 1. Tapping 1–25 reveals numbers 26–50 in the same cells.");
   };
 
   const finishGame = (finishedMs: number) => {
@@ -123,7 +104,7 @@ export function OneToFifty({ onBack }: OneToFiftyProps) {
     setStartedAt(null);
     setTargetChangedAt(null);
     setElapsedMs(finishedMs);
-    setMessage(`クリア！ タイムは ${formatTime(finishedMs)} 秒、ミスは ${mistakes} 回でした。`);
+    setMessage(`クリア！ タイムは ${formatTime(finishedMs)} 秒、ミスは ${mistakes} 回でした。`, `Cleared! Time: ${formatTime(finishedMs)} sec, misses: ${mistakes}.`);
   };
 
   const handleCellClick = (cellId: number) => {
@@ -135,7 +116,7 @@ export function OneToFifty({ onBack }: OneToFiftyProps) {
 
     if (!cell || cell.value !== nextNumber) {
       setMistakes((current) => current + 1);
-      setMessage(`${nextNumber} を探してください。違う数字を押すとミスになります。`);
+      setMessage(`${nextNumber} を探してください。違う数字を押すとミスになります。`, `Find ${nextNumber}. Tapping a different number counts as a miss.`);
       return;
     }
 
@@ -159,17 +140,18 @@ export function OneToFifty({ onBack }: OneToFiftyProps) {
       return;
     }
 
-    setMessage(`${nextTarget} を探しましょう。`);
+    setMessage(`${nextTarget} を探しましょう。`, `Find ${nextTarget}.`);
   };
 
   const resetRecord = () => {
+    if (!confirmRecordReset()) return;
     const emptyRecord = { bestTimeMs: null, plays: 0 };
     setRecord(emptyRecord);
     safeStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
   };
 
   return (
-    <section className="puzzle-shell one50-shell" aria-labelledby="one50-title">
+    <section data-native-i18n className="puzzle-shell one50-shell" aria-labelledby="one50-title">
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">SPEED PUZZLE / INTERNAL GAME</p>
@@ -231,7 +213,7 @@ export function OneToFifty({ onBack }: OneToFiftyProps) {
             <div>
               <Timer aria-hidden="true" />
               <span>Play</span>
-              <strong>{record.plays} 回</strong>
+              <strong>{isEnglish ? `${record.plays} plays` : `${record.plays} 回`}</strong>
             </div>
           </div>
 
@@ -247,7 +229,7 @@ export function OneToFifty({ onBack }: OneToFiftyProps) {
             </button>
             <button className="ghost-button" type="button" onClick={resetRecord}>
               <RotateCcw aria-hidden="true" />
-              記録リセット
+              {isEnglish ? "Reset records" : "記録リセット"}
             </button>
           </div>
 

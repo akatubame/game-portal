@@ -1,3 +1,5 @@
+import { useLocalizedMessage } from "../useLocalizedMessage";
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { Delete, Keyboard, RotateCcw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -167,29 +169,8 @@ function updateRecord(record: WordGuessRecord, result: "win" | "loss"): WordGues
   };
 }
 
-function translateWordGuessMessage(message: string) {
-  const winMatch = message.match(/^(\d+)回で正解！$/);
-  if (winMatch) {
-    return `Correct! Solved in ${winMatch[1]} tries.`;
-  }
-  const lostMatch = message.match(/^残念。答えは (.+) でした。$/);
-  if (lostMatch) {
-    return `So close. The answer was ${lostMatch[1]}.`;
-  }
-  const leftMatch = message.match(/^判定しました。残り(\d+)回です。$/);
-  if (leftMatch) {
-    return `Guess checked. ${leftMatch[1]} tries left.`;
-  }
-  const exact: Record<string, string> = {
-    "5文字の英単語を6回以内に当てましょう。緑は位置も一致、黄は文字だけ一致です。": "Guess the five-letter English word in six tries. Green means the right letter in the right place; yellow means the letter exists elsewhere.",
-    "キーボードまたは画面のキーで5文字を入力して、判定しましょう。候補リストは右側にあります。": "Enter five letters with your keyboard or the on-screen keys, then submit your guess. The candidate list is on the right.",
-    "5文字そろえてから判定しましょう。": "Enter all five letters before submitting.",
-    "候補リストにある英単語を入力してください。候補リストは右側の「候補リスト」を開くと確認できます。": "Enter an English word from the candidate list. Open Candidate list on the right to check available words."
-  };
-  return exact[message] ?? message;
-}
-
 export function WordGuess({ onBack }: WordGuessProps) {
+  const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
   const [answer, setAnswer] = useState(() => pickWord());
@@ -197,28 +178,31 @@ export function WordGuess({ onBack }: WordGuessProps) {
   const [input, setInput] = useState("");
   const [attempts, setAttempts] = useState<WordGuessAttempt[]>([]);
   const [record, setRecord] = useState<WordGuessRecord>(() => readRecord());
-  const [message, setMessage] = useState("5文字の英単語を6回以内に当てましょう。緑は位置も一致、黄は文字だけ一致です。");
+  const [completedRecord, setCompletedRecord] = useState<Readonly<WordGuessRecord> | null>(null);
+  const [message, setMessage] = useLocalizedMessage("5文字の英単語を6回以内に当てましょう。緑は位置も一致、黄は文字だけ一致です。", "Guess the five-letter English word in six tries. Green means the right letter and position; yellow means the letter is elsewhere.");
 
   const keyStates = useMemo(() => getKeyStates(attempts), [attempts]);
   const attemptsLeft = MAX_ATTEMPTS - attempts.length;
   const ranking = useRanking({ gameId: "word-guess-attempts", metricLabel: "Attempts", mode: "lower" });
-  const visibleMessage = isEnglish ? translateWordGuessMessage(message) : message;
+  const visibleMessage = message;
 
   const startGame = useCallback(() => {
+    setCompletedRecord(null);
     setAnswer(pickWord());
     setStatus("playing");
     setInput("");
     setAttempts([]);
-    setMessage("キーボードまたは画面のキーで5文字を入力して、判定しましょう。候補リストは右側にあります。");
-  }, []);
+    setMessage("キーボードまたは画面のキーで5文字を入力して、判定しましょう。「候補リスト」を開くと使える単語を確認できます。", "Enter five letters using your keyboard or the on-screen keys, then submit. Open Candidate list to see the available words.");
+  }, [setMessage]);
 
   const finish = useCallback((result: "win" | "loss", nextAttempts: WordGuessAttempt[]) => {
     const nextRecord = updateRecord(record, result);
     setRecord(nextRecord);
+    setCompletedRecord({ ...nextRecord });
     safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus(result === "win" ? "won" : "lost");
-    setMessage(result === "win" ? `${nextAttempts.length}回で正解！` : `残念。答えは ${answer} でした。`);
-  }, [answer, record]);
+    setMessage(result === "win" ? `${nextAttempts.length}回で正解！` : `残念。答えは ${answer} でした。`, result === "win" ? `Correct! Solved in ${nextAttempts.length} ${nextAttempts.length === 1 ? "try" : "tries"}.` : `The answer was ${answer}. Try again!`);
+  }, [answer, record, setMessage]);
 
   const addLetter = useCallback((letter: string) => {
     if (status !== "playing") {
@@ -242,12 +226,12 @@ export function WordGuess({ onBack }: WordGuessProps) {
     }
 
     if (input.length < WORD_LENGTH) {
-      setMessage("5文字そろえてから判定しましょう。");
+      setMessage("5文字そろえてから判定しましょう。", "Enter all five letters before submitting.");
       return;
     }
 
     if (!WORDS.includes(input)) {
-      setMessage("候補リストにある英単語を入力してください。候補リストは右側の「候補リスト」を開くと確認できます。");
+      setMessage("候補リストにある英単語を入力してください。「候補リスト」を開くと確認できます。", "Enter a word from the candidate list. Open Candidate list to see the available words.");
       return;
     }
 
@@ -269,14 +253,16 @@ export function WordGuess({ onBack }: WordGuessProps) {
       return;
     }
 
-    setMessage(`判定しました。残り${MAX_ATTEMPTS - nextAttempts.length}回です。`);
-  }, [answer, attempts, finish, input, status]);
+    setMessage(`判定しました。残り${MAX_ATTEMPTS - nextAttempts.length}回です。`, `Guess checked. ${MAX_ATTEMPTS - nextAttempts.length} ${MAX_ATTEMPTS - nextAttempts.length === 1 ? "try" : "tries"} left.`);
+  }, [answer, attempts, finish, input, status, setMessage]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (status !== "playing") {
         return;
       }
+
+      if (event.target instanceof HTMLElement && event.target.closest("input, textarea, select, [contenteditable=true]")) return;
 
       if (/^[a-zA-Z]$/.test(event.key)) {
         event.preventDefault();
@@ -301,6 +287,7 @@ export function WordGuess({ onBack }: WordGuessProps) {
   }, [addLetter, deleteLetter, status, submitGuess]);
 
   const resetRecord = () => {
+    if (!confirmRecordReset()) return;
     const emptyRecord = { wins: 0, losses: 0, streak: 0, bestStreak: 0 };
     setRecord(emptyRecord);
     safeStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
@@ -314,7 +301,7 @@ export function WordGuess({ onBack }: WordGuessProps) {
   });
 
   return (
-    <section className="puzzle-shell wordguess-shell" aria-labelledby="wordguess-title">
+    <section data-native-i18n className="puzzle-shell wordguess-shell" aria-labelledby="wordguess-title">
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">WORD GAME / INTERNAL GAME</p>
@@ -407,7 +394,7 @@ export function WordGuess({ onBack }: WordGuessProps) {
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "won" ? { score: attempts.length, display: isEnglish ? `${attempts.length} tries` : `${attempts.length}回`, meta: isEnglish ? `Streak ${record.streak} / ${answer}` : `連勝${record.streak} / ${answer}` } : null}
+            pendingScore={status === "won" && completedRecord ? { score: attempts.length, display: isEnglish ? `${attempts.length} ${attempts.length === 1 ? "try" : "tries"}` : `${attempts.length}回`, meta: isEnglish ? `Streak ${completedRecord.streak} / ${answer}` : `連勝${completedRecord.streak} / ${answer}` } : null}
           />
 
           <div className="control-row">

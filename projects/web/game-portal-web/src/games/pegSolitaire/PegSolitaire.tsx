@@ -1,7 +1,10 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { CircleDot, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { useLocalizedMessage } from "../useLocalizedMessage";
 import type { PegBest, PegCell, PegPosition, PegStatus } from "./types";
 
 type PegSolitaireProps = {
@@ -122,12 +125,16 @@ function isBetterBest(currentBest: PegBest | null, remaining: number, moves: num
 }
 
 export function PegSolitaire({ onBack }: PegSolitaireProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
+  const text = (ja: string, en: string) => isEnglish ? en : ja;
+  const confirmRecordReset = useConfirmRecordReset();
   const [board, setBoard] = useState<PegCell[]>(() => createBoard());
   const [status, setStatus] = useState<PegStatus>("idle");
   const [selected, setSelected] = useState<PegPosition | null>(null);
   const [moves, setMoves] = useState(0);
   const [best, setBest] = useState<PegBest | null>(() => readBest());
-  const [message, setMessage] = useState("ペグを選び、隣のペグを飛び越えて空きマスへ移動します。飛び越えたペグは取り除かれます。");
+  const [message, setMessage] = useLocalizedMessage("ペグを選び、隣のペグを飛び越えて空きマスへ移動します。飛び越えたペグは取り除かれます。", "Jump one peg over another into an empty space. The peg you jump over is removed.");
 
   const remaining = countPegs(board);
   const ranking = useRanking({ gameId: "peg-solitaire-result", metricLabel: "Result", mode: "lower" });
@@ -152,7 +159,7 @@ export function PegSolitaire({ onBack }: PegSolitaireProps) {
     setStatus("playing");
     setSelected(null);
     setMoves(0);
-    setMessage("ペグをクリックして選択し、光った移動先をクリックしましょう。");
+    setMessage("ペグをクリックして選択し、光った移動先をクリックしましょう。", "Select a peg, then choose one of the highlighted landing spaces.");
   };
 
   const finishIfNeeded = (nextBoard: PegCell[], nextMoves: number) => {
@@ -160,14 +167,14 @@ export function PegSolitaire({ onBack }: PegSolitaireProps) {
 
     if (nextRemaining === 1) {
       setStatus("cleared");
-      setMessage("クリア！最後の1本まで絞り切りました。これは気持ちいいやつです。");
+      setMessage("クリア！最後の1本まで絞り切りました。これは気持ちいいやつです。", "Solved! Only one peg remains.");
       saveBest(nextRemaining, nextMoves);
       return;
     }
 
     if (!hasLegalMove(nextBoard)) {
       setStatus("stuck");
-      setMessage(`手詰まりです。残り${nextRemaining}本でした。`);
+      setMessage(`手詰まりです。残り${nextRemaining}本でした。`, `No moves left. ${nextRemaining} pegs remain.`);
       saveBest(nextRemaining, nextMoves);
     }
   };
@@ -194,7 +201,7 @@ export function PegSolitaire({ onBack }: PegSolitaireProps) {
       setBoard(nextBoard);
       setMoves(nextMoves);
       setSelected(null);
-      setMessage("ジャンプ成功。次の一手を探しましょう。");
+      setMessage("ジャンプ成功。次の一手を探しましょう。", "Good jump! Find the next move.");
       finishIfNeeded(nextBoard, nextMoves);
       return;
     }
@@ -205,35 +212,36 @@ export function PegSolitaire({ onBack }: PegSolitaireProps) {
 
       if (targets.size === 0) {
         setSelected(null);
-        setMessage("そのペグから動ける場所はありません。別のペグを選びましょう。");
+        setMessage("そのペグから動ける場所はありません。別のペグを選びましょう。", "That peg has no legal moves. Choose another.");
         return;
       }
 
       setSelected(nextSelected);
-      setMessage("移動先の空きマスを選んでください。");
+      setMessage("移動先の空きマスを選んでください。", "Choose an empty landing space.");
       return;
     }
 
     if (cell === "empty") {
       setSelected(null);
-      setMessage("空きマスへ移動するには、先に動かすペグを選んでください。");
+      setMessage("空きマスへ移動するには、先に動かすペグを選んでください。", "Select a peg before choosing an empty space.");
     }
   };
 
   const resetBest = () => {
+    if (!confirmRecordReset()) return;
     safeStorage.removeItem(BEST_KEY);
     setBest(null);
   };
 
   return (
-    <section className="puzzle-shell peg-shell" aria-labelledby="peg-title">
+    <section className="puzzle-shell peg-shell" aria-labelledby="peg-title" data-native-i18n>
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">PUZZLE / INTERNAL GAME</p>
-          <h1 id="peg-title">ペグ・ソリティア</h1>
+          <h1 id="peg-title">{text("ペグ・ソリティア", "Peg Solitaire")}</h1>
           <p className="lead">{message}</p>
         </div>
-        <div className="score-panel peg-score" aria-label="ペグ・ソリティアの状態">
+        <div className="score-panel peg-score" aria-label={text("ペグ・ソリティアの状態", "Peg Solitaire status")}>
           <div>
             <span>Pegs</span>
             <strong>{remaining}</strong>
@@ -251,7 +259,7 @@ export function PegSolitaire({ onBack }: PegSolitaireProps) {
 
       <div className="puzzle-layout peg-layout">
         <div className="peg-play-area">
-          <div className="peg-board" aria-label="ペグ・ソリティア盤面">
+          <div className="peg-board" aria-label={text("ペグ・ソリティア盤面", "Peg Solitaire board")}>
             {board.map((cell, index) => {
               const row = Math.floor(index / BOARD_SIZE);
               const column = index % BOARD_SIZE;
@@ -265,7 +273,7 @@ export function PegSolitaire({ onBack }: PegSolitaireProps) {
                   key={index}
                   type="button"
                   onClick={() => selectCell(row, column)}
-                  aria-label={`${row + 1}行${column + 1}列 ${cell === "peg" ? "ペグ" : cell === "empty" ? "空き" : "盤外"}`}
+                  aria-label={text(`${row + 1}行${column + 1}列 ${cell === "peg" ? "ペグ" : cell === "empty" ? "空き" : "盤外"}`, `Row ${row + 1}, column ${column + 1}: ${cell === "peg" ? "peg" : cell === "empty" ? "empty" : "outside board"}`)}
                 >
                   {cell === "peg" && <span />}
                 </button>
@@ -276,42 +284,42 @@ export function PegSolitaire({ onBack }: PegSolitaireProps) {
 
         <aside className="puzzle-side peg-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{text("遊び方", "How to Play")}</h2>
             <p>
-              ペグは上下左右に2マス先の空きマスへジャンプできます。間にあるペグは取り除かれます。
-              これを繰り返して、最後の1本を目指しましょう。
+              {text("ペグは上下左右に2マス先の空きマスへジャンプできます。間にあるペグは取り除かれます。これを繰り返して、最後の1本を目指しましょう。",
+                "Jump a peg two spaces horizontally or vertically into an empty hole. Remove the peg you jumped over. Try to finish with one peg.")}
             </p>
           </div>
 
           <div className="peg-progress">
-            <span>現在: {status === "playing" ? "プレイ中" : status === "cleared" ? "クリア" : status === "stuck" ? "手詰まり" : "待機中"}</span>
-            <span>ベスト: {best ? `残り${best.remaining}本 / ${best.moves}手` : "まだ記録なし"}</span>
-            <span>目標: 最後の1本</span>
+            <span>{text("現在", "Status")}: {status === "playing" ? text("プレイ中", "Playing") : status === "cleared" ? text("クリア", "Solved") : status === "stuck" ? text("手詰まり", "No moves") : text("待機中", "Ready")}</span>
+            <span>{text("ベスト", "Best")}: {best ? text(`残り${best.remaining}本 / ${best.moves}手`, `${best.remaining} left / ${best.moves} moves`) : text("まだ記録なし", "No record yet")}</span>
+            <span>{text("目標: 最後の1本", "Goal: one peg left")}</span>
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "cleared" || status === "stuck" ? { score: remaining * 1000 + moves, display: `残り${remaining}本 / ${moves}手`, meta: status === "cleared" ? "クリア" : "手詰まり" } : null}
+            pendingScore={status === "cleared" || status === "stuck" ? { score: remaining * 1000 + moves, display: text(`残り${remaining}本 / ${moves}手`, `${remaining} left / ${moves} moves`), meta: status === "cleared" ? text("クリア", "Solved") : text("手詰まり", "No moves") } : null}
           />
 
           <div className="peg-hint">
             <CircleDot aria-hidden="true" />
-            端から適当に消すと詰まりやすいです。中央へ戻す道を残すと、ちょっと見通しが良くなります。
+            {text("端から適当に消すと詰まりやすいです。中央へ戻す道を残すと、ちょっと見通しが良くなります。", "Removing edge pegs at random can leave you stuck. Keep a path back toward the center.")}
           </div>
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startGame}>
               <Sparkles aria-hidden="true" />
-              新しく始める
+              {text("新しく始める", "New game")}
             </button>
             <button className="ghost-button" type="button" onClick={resetBest}>
               <RotateCcw aria-hidden="true" />
-              ベスト削除
+              {text("ベスト削除", "Clear best")}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {text("棚へ戻る", "Back to shelf")}
           </button>
         </aside>
       </div>

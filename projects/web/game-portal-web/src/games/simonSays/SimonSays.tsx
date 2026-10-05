@@ -1,3 +1,4 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { Brain, Play, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -54,6 +55,7 @@ function getMessage(status: SimonStatus, level: number, inputIndex: number) {
 }
 
 export function SimonSays({ onBack }: SimonSaysProps) {
+  const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
   const [status, setStatus] = useState<SimonStatus>("idle");
@@ -179,12 +181,13 @@ export function SimonSays({ onBack }: SimonSaysProps) {
   };
 
   const resetBest = () => {
+    if (!confirmRecordReset()) return;
     safeStorage.removeItem(BEST_KEY);
     setBest(null);
   };
 
   return (
-    <section className="puzzle-shell simon-shell" aria-labelledby="simon-title">
+    <section className="puzzle-shell simon-shell" aria-labelledby="simon-title" data-native-i18n>
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">MEMORY / INTERNAL GAME</p>

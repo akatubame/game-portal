@@ -1,3 +1,6 @@
+import { useI18n } from "../../i18n";
+import { useLocalizedMessage } from "../useLocalizedMessage";
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { useCountdown } from "../useCountdown";
 import { safeStorage } from "../../safeStorage";
 import { Crosshair, RotateCcw, Target } from "lucide-react";
@@ -41,6 +44,9 @@ function calculateScore(hits: number, misses: number, bestStreak: number) {
 }
 
 export function AimTrainer({ onBack }: AimTrainerProps) {
+  const confirmRecordReset = useConfirmRecordReset();
+  const { language } = useI18n();
+  const text = (ja: string, en: string) => language === "en" ? en : ja;
   const [status, setStatus] = useState<AimTrainerStatus>("idle");
   const [target, setTarget] = useState<AimTarget>(() => createTarget());
   const { timeLeft, resetCountdown, hasExpired } = useCountdown(status === "playing", ROUND_SECONDS);
@@ -48,7 +54,7 @@ export function AimTrainer({ onBack }: AimTrainerProps) {
   const [misses, setMisses] = useState(0);
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
-  const [message, setMessage] = useState("スタートを押して、30秒間のエイム練習を始めましょう。");
+  const [message, setMessage] = useLocalizedMessage("スタートを押して、30秒間のエイム練習を始めましょう。", "Press Challenge to begin 30 seconds of aim practice.");
   const [bestResult, setBestResult] = useState<AimTrainerResult | null>(() => readBestResult());
 
   const accuracy = useMemo(() => calculateAccuracy(hits, misses), [hits, misses]);
@@ -70,12 +76,12 @@ export function AimTrainer({ onBack }: AimTrainerProps) {
     setMisses(0);
     setStreak(0);
     setBestStreak(0);
-    setMessage("丸いターゲットをクリック。空振りするとミスになります。");
+    setMessage("丸いターゲットをクリック。空振りするとミスになります。", "Click the round target. Clicking outside it counts as a miss.");
   };
 
   const finishRound = () => {
     setStatus("finished");
-    setMessage("終了です。次はもっと素早く、でも正確に狙ってみましょう。");
+    setMessage("終了です。次はもっと素早く、でも正確に狙ってみましょう。", "Finished. Try again for faster, more accurate hits.");
 
     const result: AimTrainerResult = {
       score,
@@ -104,7 +110,7 @@ export function AimTrainer({ onBack }: AimTrainerProps) {
     setStreak(nextStreak);
     setBestStreak((current) => Math.max(current, nextStreak));
     setTarget(createTarget());
-    setMessage(nextStreak >= 8 ? `${nextStreak}連続ヒット。かなりいいリズムです。` : "ヒット！次のターゲットへ。");
+    setMessage(nextStreak >= 8 ? `${nextStreak}連続ヒット。かなりいいリズムです。` : "ヒット！次のターゲットへ。", nextStreak >= 8 ? `${nextStreak} hits in a row. Great rhythm!` : "Hit! On to the next target.");
   };
 
   const missTarget = () => {
@@ -114,23 +120,24 @@ export function AimTrainer({ onBack }: AimTrainerProps) {
 
     setMisses((current) => current + 1);
     setStreak(0);
-    setMessage("ミス。落ち着いて中心を狙いましょう。");
+    setMessage("ミス。落ち着いて中心を狙いましょう。", "Miss! Take your time and aim at the center.");
   };
 
   const resetBest = () => {
+    if (!confirmRecordReset()) return;
     safeStorage.removeItem(BEST_KEY);
     setBestResult(null);
   };
 
   return (
-    <section className="puzzle-shell aim-shell" aria-labelledby="aim-title">
+    <section data-native-i18n className="puzzle-shell aim-shell" aria-labelledby="aim-title">
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">SCORE ATTACK / INTERNAL GAME</p>
-          <h1 id="aim-title">エイム練習</h1>
+          <h1 id="aim-title">{text("エイム練習", "Aim Trainer")}</h1>
           <p className="lead">{message}</p>
         </div>
-        <div className="score-panel aim-stats" aria-label="エイム練習の状態">
+        <div className="score-panel aim-stats" aria-label={text("エイム練習の状態", "Aim Trainer status")}>
           <div>
             <span>Score</span>
             <strong>{score}</strong>
@@ -147,7 +154,7 @@ export function AimTrainer({ onBack }: AimTrainerProps) {
           className={`aim-arena is-${status}`}
           onClick={missTarget}
           role="presentation"
-          aria-label="エイム練習エリア"
+          aria-label={text("エイム練習エリア", "Aim practice area")}
         >
           {status === "playing" ? (
             <button
@@ -160,63 +167,63 @@ export function AimTrainer({ onBack }: AimTrainerProps) {
                 width: `${target.size}px`,
                 height: `${target.size}px`
               }}
-              aria-label="ターゲット"
+              aria-label={text("ターゲット", "Target")}
             >
               <span />
             </button>
           ) : (
             <div className="aim-idle-card">
               <Crosshair aria-hidden="true" />
-              <p>{status === "finished" ? "もう一度挑戦できます" : "スタート待機中"}</p>
+              <p>{status === "finished" ? text("もう一度挑戦できます", "Ready to try again") : text("スタート待機中", "Ready to start")}</p>
             </div>
           )}
         </div>
 
         <aside className="puzzle-side aim-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{text("遊び方", "How to Play")}</h2>
             <p>
-              30秒間、出現するターゲットをクリックしてスコアを伸ばします。空振りはミスになり、連続ヒットが途切れます。
+              {text("30秒間、出現するターゲットをクリックしてスコアを伸ばします。空振りはミスになり、連続ヒットが途切れます。", "Click targets to score during a 30-second round. Clicking outside a target counts as a miss and breaks your streak.")}
             </p>
           </div>
 
           <div className="aim-progress">
-            <span>ヒット: {hits}</span>
-            <span>ミス: {misses}</span>
-            <span>命中率: {accuracy}%</span>
-            <span>連続ヒット: {streak}</span>
-            <span>最高連続: {bestStreak}</span>
+            <span>{text("ヒット", "Hits")}: {hits}</span>
+            <span>{text("ミス", "Misses")}: {misses}</span>
+            <span>{text("命中率", "Accuracy")}: {accuracy}%</span>
+            <span>{text("連続ヒット", "Hit streak")}: {streak}</span>
+            <span>{text("最高連続", "Best streak")}: {bestStreak}</span>
           </div>
 
           <div className="aim-best">
-            <h2>ベスト</h2>
+            <h2>{text("ベスト", "Best")}</h2>
             {bestResult ? (
               <p>
-                {bestResult.score}点 / {bestResult.hits}ヒット / 命中率{bestResult.accuracy}%
+                {text(`${bestResult.score}点 / ${bestResult.hits}ヒット / 命中率${bestResult.accuracy}%`, `${bestResult.score} pts / ${bestResult.hits} hits / Accuracy ${bestResult.accuracy}%`)}
               </p>
             ) : (
-              <p>まだ記録がありません。</p>
+              <p>{text("まだ記録がありません。", "No record yet.")}</p>
             )}
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "finished" ? { score, display: `${score}点`, meta: `${hits}ヒット / 命中率${accuracy}%` } : null}
+            pendingScore={status === "finished" ? { score, display: text(`${score}点`, `${score} pts`), meta: text(`${hits}ヒット / 命中率${accuracy}%`, `${hits} hits / Accuracy ${accuracy}%`) } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startRound}>
               <Target aria-hidden="true" />
-              挑戦
+              {text("挑戦", "Challenge")}
             </button>
             <button className="ghost-button" type="button" onClick={resetBest}>
               <RotateCcw aria-hidden="true" />
-              ベスト削除
+              {text("ベスト削除", "Clear best")}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {text("棚へ戻る", "Back to shelf")}
           </button>
         </aside>
       </div>

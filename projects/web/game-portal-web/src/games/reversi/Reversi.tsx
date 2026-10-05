@@ -1,7 +1,10 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { useLocalizedMessage } from "../useLocalizedMessage";
 import type { ReversiDifficulty, ReversiDisc, ReversiMove, ReversiOutcome, ReversiPlayer, ReversiRecord, ReversiStatus } from "./types";
 
 type ReversiProps = {
@@ -161,12 +164,17 @@ function updateRecord(record: ReversiRecord, outcome: ReversiOutcome): ReversiRe
 }
 
 export function Reversi({ onBack }: ReversiProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
+  const text = (ja: string, en: string) => isEnglish ? en : ja;
+  const difficultyName = (level: ReversiDifficulty) => text(difficultyLabels[level], { easy: "Easy", normal: "Normal", hard: "Hard" }[level]);
+  const confirmRecordReset = useConfirmRecordReset();
   const [board, setBoard] = useState<ReversiDisc[]>(() => createInitialBoard());
   const [status, setStatus] = useState<ReversiStatus>("idle");
   const [turn, setTurn] = useState<ReversiPlayer>("black");
   const [difficulty, setDifficulty] = useState<ReversiDifficulty>("normal");
   const [record, setRecord] = useState<ReversiRecord>(() => readRecord());
-  const [message, setMessage] = useState("黒があなた、白がCOMです。難易度を選んで始めましょう。");
+  const [message, setMessage] = useLocalizedMessage("黒があなた、白がCOMです。難易度を選んで始めましょう。", "You play black and the CPU plays white. Choose a difficulty to begin.");
   const [lastMove, setLastMove] = useState<number | null>(null);
 
   const score = useMemo(() => countDiscs(board), [board]);
@@ -186,11 +194,11 @@ export function Reversi({ onBack }: ReversiProps) {
     setTurn("black");
 
     if (outcome === "win") {
-      setMessage(`勝利！ ${finalScore.black} 対 ${finalScore.white} で黒の勝ちです。`);
+      setMessage(`勝利！ ${finalScore.black} 対 ${finalScore.white} で黒の勝ちです。`, `You win! Black ${finalScore.black}, white ${finalScore.white}.`);
     } else if (outcome === "lose") {
-      setMessage(`COMの勝ちです。 ${finalScore.black} 対 ${finalScore.white}。角を取らせないのが大事です。`);
+      setMessage(`COMの勝ちです。 ${finalScore.black} 対 ${finalScore.white}。角を取らせないのが大事です。`, `CPU wins ${finalScore.white}–${finalScore.black}. Try to protect the corners.`);
     } else {
-      setMessage(`引き分けです。 ${finalScore.black} 対 ${finalScore.white} の接戦でした。`);
+      setMessage(`引き分けです。 ${finalScore.black} 対 ${finalScore.white} の接戦でした。`, `Draw! Black ${finalScore.black}, white ${finalScore.white}.`);
     }
   };
 
@@ -206,13 +214,13 @@ export function Reversi({ onBack }: ReversiProps) {
 
     if (turn === "black" && playerMoves.length === 0) {
       setTurn("white");
-      setMessage("あなたは置ける場所がないためパスです。COMの番です。");
+      setMessage("あなたは置ける場所がないためパスです。COMの番です。", "You have no legal move and must pass. CPU's turn.");
       return;
     }
 
     if (turn === "white" && cpuMoves.length === 0) {
       setTurn("black");
-      setMessage("COMは置ける場所がないためパスです。あなたの番です。");
+      setMessage("COMは置ける場所がないためパスです。あなたの番です。", "CPU has no legal move and must pass. Your turn.");
     }
   }, [board, cpuMoves.length, playerMoves.length, status, turn]);
 
@@ -227,7 +235,7 @@ export function Reversi({ onBack }: ReversiProps) {
       setBoard(nextBoard);
       setLastMove(move.index);
       setTurn("black");
-      setMessage(`${move.flips.length}枚返されました。あなたの番です。`);
+      setMessage(`${move.flips.length}枚返されました。あなたの番です。`, `CPU flipped ${move.flips.length} discs. Your turn.`);
     }, 520);
 
     return () => {
@@ -240,7 +248,7 @@ export function Reversi({ onBack }: ReversiProps) {
     setStatus("playing");
     setTurn("black");
     setLastMove(null);
-    setMessage("あなたの番です。薄く光るマスに黒石を置けます。");
+    setMessage("あなたの番です。薄く光るマスに黒石を置けます。", "Your turn. Place a black disc on a highlighted square.");
   };
 
   const playMove = (index: number) => {
@@ -250,7 +258,7 @@ export function Reversi({ onBack }: ReversiProps) {
 
     const move = getMove(board, index, "black");
     if (!move) {
-      setMessage("そこには置けません。光っているマスを選びましょう。");
+      setMessage("そこには置けません。光っているマスを選びましょう。", "Illegal move. Choose a highlighted square.");
       return;
     }
 
@@ -258,24 +266,25 @@ export function Reversi({ onBack }: ReversiProps) {
     setBoard(nextBoard);
     setLastMove(index);
     setTurn("white");
-    setMessage(`${move.flips.length}枚返しました。COMが考えています……`);
+    setMessage(`${move.flips.length}枚返しました。COMが考えています……`, `You flipped ${move.flips.length} discs. CPU is thinking…`);
   };
 
   const resetRecord = () => {
+    if (!confirmRecordReset()) return;
     const emptyRecord = { wins: 0, losses: 0, draws: 0 };
     setRecord(emptyRecord);
     safeStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
   };
 
   return (
-    <section className="puzzle-shell reversi-shell" aria-labelledby="reversi-title">
+    <section className="puzzle-shell reversi-shell" aria-labelledby="reversi-title" data-native-i18n>
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">BOARD GAME / INTERNAL GAME</p>
-          <h1 id="reversi-title">オセロ / リバーシ</h1>
+          <h1 id="reversi-title">{text("オセロ / リバーシ", "Reversi")}</h1>
           <p className="lead">{message}</p>
         </div>
-        <div className="score-panel reversi-score" aria-label="オセロの石数">
+        <div className="score-panel reversi-score" aria-label={text("オセロの石数", "Reversi disc count")}>
           <div>
             <span>Black</span>
             <strong>{score.black}</strong>
@@ -288,7 +297,7 @@ export function Reversi({ onBack }: ReversiProps) {
       </div>
 
       <div className="puzzle-layout reversi-layout">
-        <div className="reversi-board" aria-label="オセロ盤面">
+        <div className="reversi-board" aria-label={text("オセロ盤面", "Reversi board")}>
           {board.map((disc, index) => (
             <button
               className={`reversi-cell${legalMoveIndexes.has(index) && status === "playing" && turn === "black" ? " is-legal" : ""}${
@@ -297,15 +306,10 @@ export function Reversi({ onBack }: ReversiProps) {
               key={index}
               type="button"
               onClick={() => playMove(index)}
-              aria-label={`${Math.floor(index / SIZE) + 1}行${(index % SIZE) + 1}列${
-                disc
-                  ? disc === "black"
-                    ? " 黒石"
-                    : " 白石"
-                  : status === "playing" && turn === "black" && legalMoveIndexes.has(index)
-                    ? " 置けるマス"
-                    : " 空きマス"
-              }`}
+              aria-label={text(
+                `${Math.floor(index / SIZE) + 1}行${(index % SIZE) + 1}列 ${disc === "black" ? "黒石" : disc === "white" ? "白石" : status === "playing" && turn === "black" && legalMoveIndexes.has(index) ? "置けるマス" : "空きマス"}`,
+                `Row ${Math.floor(index / SIZE) + 1}, column ${(index % SIZE) + 1}: ${disc === "black" ? "black disc" : disc === "white" ? "white disc" : status === "playing" && turn === "black" && legalMoveIndexes.has(index) ? "legal move" : "empty"}`
+              )}
             >
               {disc && <span className={`reversi-disc is-${disc}`} />}
             </button>
@@ -314,14 +318,14 @@ export function Reversi({ onBack }: ReversiProps) {
 
         <aside className="puzzle-side reversi-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{text("遊び方", "How to Play")}</h2>
             <p>
-              あなたは黒石、COMは白石です。相手の石をはさめる場所に置くと、その間の石を自分の色にできます。
-              置ける場所は盤面上で薄く光ります。
+              {text("あなたは黒石、COMは白石です。相手の石をはさめる場所に置くと、その間の石を自分の色にできます。置ける場所は盤面上で薄く光ります。",
+                "You play black against the white CPU. Trap white discs between your new disc and another black disc to flip them. Legal squares are highlighted.")}
             </p>
           </div>
 
-          <div className="reversi-difficulty" aria-label="難易度">
+          <div className="reversi-difficulty" aria-label={text("難易度", "Difficulty")}>
             {(Object.keys(difficultyLabels) as ReversiDifficulty[]).map((level) => (
               <button
                 className={difficulty === level ? "is-selected" : ""}
@@ -330,37 +334,37 @@ export function Reversi({ onBack }: ReversiProps) {
                 type="button"
                 onClick={() => { if (level !== difficulty) { setDifficulty(level); startGame(); } }}
               >
-                <span>{difficultyLabels[level]}</span>
-                <small>{difficultyDescriptions[level]}</small>
+                <span>{difficultyName(level)}</span>
+                <small>{isEnglish ? { easy: "CPU moves with little regard for disc count.", normal: "CPU considers corners and chooses balanced moves.", hard: "CPU favors corners, edges, and strong flips." }[level] : difficultyDescriptions[level]}</small>
               </button>
             ))}
           </div>
 
           <div className="reversi-record">
-            <span>勝ち: {record.wins}</span>
-            <span>引き分け: {record.draws}</span>
-            <span>負け: {record.losses}</span>
-            <span>現在: {status === "playing" ? (turn === "black" ? "あなたの番" : "COMの番") : "待機中"}</span>
+            <span>{text("勝ち", "Wins")}: {record.wins}</span>
+            <span>{text("引き分け", "Draws")}: {record.draws}</span>
+            <span>{text("負け", "Losses")}: {record.losses}</span>
+            <span>{text("現在", "Status")}: {status === "playing" ? (turn === "black" ? text("あなたの番", "Your turn") : text("COMの番", "CPU's turn")) : status === "finished" ? text("対局終了", "Finished") : text("待機中", "Ready")}</span>
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "finished" && score.black > score.white ? { score: score.black - score.white, display: `${score.black}-${score.white}`, meta: difficultyLabels[difficulty] } : null}
+            pendingScore={status === "finished" && score.black > score.white ? { score: score.black - score.white, display: `${score.black}-${score.white}`, meta: difficultyName(difficulty) } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startGame}>
               <Sparkles aria-hidden="true" />
-              新しく始める
+              {text("新しく始める", "New game")}
             </button>
             <button className="ghost-button" type="button" onClick={resetRecord}>
               <RotateCcw aria-hidden="true" />
-              戦績リセット
+              {text("戦績リセット", "Clear record")}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {text("棚へ戻る", "Back to shelf")}
           </button>
         </aside>
       </div>

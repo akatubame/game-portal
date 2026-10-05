@@ -1,3 +1,5 @@
+import { useLocalizedMessage } from "../useLocalizedMessage";
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { useCountdown } from "../useCountdown";
 import { safeStorage } from "../../safeStorage";
 import { Check, RotateCcw, X } from "lucide-react";
@@ -53,6 +55,7 @@ function calculateScore(correct: number, mistakes: number, bestCombo: number) {
 }
 
 export function ColorJudge({ onBack }: ColorJudgeProps) {
+  const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
   const [status, setStatus] = useState<ColorJudgeStatus>("idle");
@@ -62,24 +65,14 @@ export function ColorJudge({ onBack }: ColorJudgeProps) {
   const [mistakes, setMistakes] = useState(0);
   const [combo, setCombo] = useState(0);
   const [bestCombo, setBestCombo] = useState(0);
-  const [message, setMessage] = useState("文字の意味と文字色が一致しているか、素早く判定しましょう。");
+  const [message, setMessage] = useLocalizedMessage("文字の意味と文字色が一致しているか、素早く判定しましょう。", "Quickly judge whether the word matches its text color.");
   const [best, setBest] = useState<ColorJudgeBest | null>(() => readBest());
   const resultSavedRef = useRef(false);
 
   const score = useMemo(() => calculateScore(correct, mistakes, bestCombo), [bestCombo, correct, mistakes]);
   const ranking = useRanking({ gameId: "color-judge-score", metricLabel: "Score", mode: "higher" });
   const isMatch = question.textColor.name === question.wordColor.name;
-  const visibleMessage = isEnglish
-    ? status === "idle"
-      ? "Quickly judge whether the word meaning matches its text color."
-      : status === "playing"
-        ? "Ignore the word meaning and focus on the text color."
-        : message.includes("更新")
-          ? "Finished! You set a new best score."
-          : message.includes("終了")
-            ? "Finished! Try again and aim for a new best score."
-            : message
-    : message;
+  const visibleMessage = message;
 
 
   useEffect(() => {
@@ -99,9 +92,9 @@ export function ColorJudge({ onBack }: ColorJudgeProps) {
     if (!best || result.score > best.score) {
       setBest(result);
       safeStorage.setItem(BEST_KEY, JSON.stringify(result));
-      setMessage("終了！ベストスコアを更新しました。");
+      setMessage("終了！ベストスコアを更新しました。", "Finished! You set a new best score.");
     } else {
-      setMessage("終了！もう一度挑戦してベスト更新を狙いましょう。");
+      setMessage("終了！もう一度挑戦してベスト更新を狙いましょう。", "Finished! Try again and aim for a new best score.");
     }
 
     setStatus("finished");
@@ -116,7 +109,7 @@ export function ColorJudge({ onBack }: ColorJudgeProps) {
     setMistakes(0);
     setCombo(0);
     setBestCombo(0);
-    setMessage("意味ではなく、文字色との一致を見ましょう。");
+    setMessage("文字の意味と文字色が一致するか見ましょう。", "Check whether the word matches its text color.");
   };
 
   const answer = (answerIsMatch: boolean) => {
@@ -129,23 +122,24 @@ export function ColorJudge({ onBack }: ColorJudgeProps) {
       setCorrect((current) => current + 1);
       setCombo(nextCombo);
       setBestCombo((current) => Math.max(current, nextCombo));
-      setMessage(nextCombo >= 5 ? `${nextCombo}コンボ！いい集中です。` : "正解！");
+      setMessage(nextCombo >= 5 ? `${nextCombo}コンボ！いい集中です。` : "正解！", nextCombo >= 5 ? `${nextCombo} combo! Great focus.` : "Correct!");
     } else {
       setMistakes((current) => current + 1);
       setCombo(0);
-      setMessage("ミス。文字の意味と色を分けて見ましょう。");
+      setMessage("ミス。文字の意味と色を分けて見ましょう。", "Incorrect. Compare the word with its text color.");
     }
 
     setQuestion((current) => createQuestion(current));
   };
 
   const resetBest = () => {
+    if (!confirmRecordReset()) return;
     safeStorage.removeItem(BEST_KEY);
     setBest(null);
   };
 
   return (
-    <section className="puzzle-shell color-shell" aria-labelledby="color-title">
+    <section data-native-i18n className="puzzle-shell color-shell" aria-labelledby="color-title">
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">BRAIN TRAINING / INTERNAL GAME</p>

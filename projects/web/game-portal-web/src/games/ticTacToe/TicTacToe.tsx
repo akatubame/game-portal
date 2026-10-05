@@ -1,4 +1,6 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
+import { useI18n } from "../../i18n";
 import { Brain, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
@@ -181,16 +183,38 @@ function updateRecord(record: TicTacToeRecord, outcome: TicTacToeOutcome): TicTa
 }
 
 export function TicTacToe({ onBack }: TicTacToeProps) {
+  const confirmRecordReset = useConfirmRecordReset();
+  const { language } = useI18n();
+  const en = language === "en";
+  const text = (ja: string, english: string) => en ? english : ja;
+  const labels = en ? { easy: "Easy", normal: "Normal", hard: "Hard" } : difficultyLabels;
+  const descriptions = en ? {
+    easy: "The CPU often plays randomly. A good place to start.",
+    normal: "The CPU looks for wins and blocks, but sometimes makes mistakes.",
+    hard: "The CPU plays optimally and can always secure at least a draw."
+  } : difficultyDescriptions;
   const [board, setBoard] = useState<TicTacToeCell[]>(EMPTY_BOARD);
   const [status, setStatus] = useState<TicTacToeStatus>("idle");
   const [turn, setTurn] = useState<TicTacToePlayer>("X");
   const [difficulty, setDifficulty] = useState<TicTacToeDifficulty>("normal");
   const [record, setRecord] = useState<TicTacToeRecord>(() => readRecord());
-  const [message, setMessage] = useState("難易度を選んで、3つ並べる勝負を始めましょう。");
+  const [completedRecord, setCompletedRecord] = useState<Readonly<TicTacToeRecord> | null>(null);
+
 
   const line = useMemo(() => findLine(board), [board]);
   const winningLine = line?.line ?? [];
   const outcome = getOutcome(line, board);
+  const message = status === "idle"
+    ? text("難易度を選んで、3つ並べる勝負を始めましょう。", "Choose a difficulty and get three marks in a row.")
+    : outcome === "win"
+      ? text("勝利！読み勝ちです。もう一局いきましょう。", "You win! Ready for another round?")
+      : outcome === "lose"
+        ? text("COMの勝ちです。次は中央と角を意識すると戦いやすいです。", "The CPU wins. Try using the center and corners next time.")
+        : outcome === "draw"
+          ? text("引き分け。かなり良い勝負でした。", "A draw! That was a close game.")
+          : turn === "O"
+            ? text("COMが考えています……", "CPU is thinking...")
+            : text("あなたの番です。Xを3つ並べましょう。", "Your turn. Get three Xs in a row.");
   const ranking = useRanking({ gameId: `tic-tac-toe-${difficulty}`, metricLabel: "Wins", mode: "higher" });
 
   useEffect(() => {
@@ -200,16 +224,11 @@ export function TicTacToe({ onBack }: TicTacToeProps) {
 
     const nextRecord = updateRecord(record, outcome);
     setRecord(nextRecord);
+    setCompletedRecord({ ...nextRecord });
     safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus("finished");
 
-    if (outcome === "win") {
-      setMessage("勝利！読み勝ちです。もう一局いきましょう。");
-    } else if (outcome === "lose") {
-      setMessage("COMの勝ちです。次は中央と角を意識すると戦いやすいです。");
-    } else {
-      setMessage("引き分け。かなり良い勝負でした。");
-    }
+
   }, [outcome, record, status]);
 
   useEffect(() => {
@@ -226,7 +245,7 @@ export function TicTacToe({ onBack }: TicTacToeProps) {
 
       setBoard((current) => place(current, move, "O"));
       setTurn("X");
-      setMessage("あなたの番です。Xを3つ並べましょう。");
+
     }, 420);
 
     return () => {
@@ -235,10 +254,11 @@ export function TicTacToe({ onBack }: TicTacToeProps) {
   }, [board, difficulty, outcome, status, turn]);
 
   const startGame = () => {
+    setCompletedRecord(null);
     setBoard(EMPTY_BOARD);
     setStatus("playing");
     setTurn("X");
-    setMessage("あなたの番です。先手はXです。");
+
   };
 
   const playCell = (index: number) => {
@@ -248,24 +268,25 @@ export function TicTacToe({ onBack }: TicTacToeProps) {
 
     setBoard((current) => place(current, index, "X"));
     setTurn("O");
-    setMessage("COMが考えています……");
+
   };
 
   const resetRecord = () => {
+    if (!confirmRecordReset()) return;
     const emptyRecord = { wins: 0, losses: 0, draws: 0, streak: 0 };
     setRecord(emptyRecord);
     safeStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
   };
 
   return (
-    <section className="puzzle-shell tic-shell" aria-labelledby="tic-title">
+    <section data-native-i18n className="puzzle-shell tic-shell" aria-labelledby="tic-title">
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">BOARD GAME / INTERNAL GAME</p>
-          <h1 id="tic-title">三目並べ</h1>
+          <h1 id="tic-title">{text("三目並べ", "Tic-Tac-Toe")}</h1>
           <p className="lead">{message}</p>
         </div>
-        <div className="score-panel tic-score" aria-label="三目並べの戦績">
+        <div className="score-panel tic-score" aria-label={text("三目並べの戦績", "Tic-Tac-Toe records")}>
           <div>
             <span>Win</span>
             <strong>{record.wins}</strong>
@@ -282,7 +303,7 @@ export function TicTacToe({ onBack }: TicTacToeProps) {
       </div>
 
       <div className="puzzle-layout tic-layout">
-        <div className="tic-board" aria-label="三目並べ盤面">
+        <div className="tic-board" aria-label={text("三目並べ盤面", "Tic-Tac-Toe board")}>
           {board.map((cell, index) => (
             <button
               className={`tic-cell${cell ? ` is-${cell.toLowerCase()}` : ""}${
@@ -292,7 +313,7 @@ export function TicTacToe({ onBack }: TicTacToeProps) {
               key={index}
               type="button"
               onClick={() => playCell(index)}
-              aria-label={cell ? `${cell} のマス` : `${index + 1}番の空きマス`}
+              aria-label={text(cell ? `${index + 1}番のマス ${cell}` : `${index + 1}番の空きマス`, `Cell ${index + 1}: ${cell ?? "empty"}`)}
             >
               {cell}
             </button>
@@ -301,14 +322,13 @@ export function TicTacToe({ onBack }: TicTacToeProps) {
 
         <aside className="puzzle-side tic-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{text("遊び方", "How to Play")}</h2>
             <p>
-              あなたはX、COMはOです。縦・横・斜めのどれかに先に3つ並べると勝ちです。
-              「本気」はかなり堅いので、まずは「ふつう」がおすすめです。
+              {text("あなたはX、COMはOです。縦・横・斜めのどれかに先に3つ並べると勝ちです。「本気」はかなり堅いので、まずは「ふつう」がおすすめです。", "You play X and the CPU plays O. Get three marks in a row, column, or diagonal to win. Try Normal before challenging Hard.")}
             </p>
           </div>
 
-          <div className="tic-difficulty" aria-label="難易度">
+          <div className="tic-difficulty" aria-label={text("難易度", "Difficulty")}>
             {(Object.keys(difficultyLabels) as TicTacToeDifficulty[]).map((level) => (
               <button
                 className={difficulty === level ? "is-selected" : ""}
@@ -324,41 +344,41 @@ export function TicTacToe({ onBack }: TicTacToeProps) {
                   startGame();
                 }}
               >
-                <span>{difficultyLabels[level]}</span>
-                <small>{difficultyDescriptions[level]}</small>
+                <span>{labels[level]}</span>
+                <small>{descriptions[level]}</small>
               </button>
             ))}
           </div>
 
           <div className="tic-record">
-            <span>連勝: {record.streak}</span>
-            <span>現在: {status === "playing" ? (turn === "X" ? "あなたの番" : "COMの番") : "待機中"}</span>
-            <span>難易度: {difficultyLabels[difficulty]}</span>
+            <span>{text("連勝", "Win streak")}: {record.streak}</span>
+            <span>{text("現在", "Status")}: {status === "finished" ? text("対局終了", "Finished") : status === "playing" ? (turn === "X" ? text("あなたの番", "Your turn") : text("COMの番", "CPU turn")) : text("待機中", "Idle")}</span>
+            <span>{text("難易度", "Difficulty")}: {labels[difficulty]}</span>
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "finished" && outcome === "win" ? { score: record.streak, display: `${record.streak}連勝`, meta: difficultyLabels[difficulty] } : null}
+            pendingScore={status === "finished" && outcome === "win" && completedRecord ? { score: completedRecord.streak, display: text(`${completedRecord.streak}連勝`, `${completedRecord.streak}-win streak`), meta: labels[difficulty] } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startGame}>
               <Sparkles aria-hidden="true" />
-              新しく始める
+              {text("新しく始める", "New game")}
             </button>
             <button className="ghost-button" type="button" onClick={resetRecord}>
               <RotateCcw aria-hidden="true" />
-              戦績リセット
+              {text("戦績リセット", "Reset records")}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {text("棚へ戻る", "Back to shelf")}
           </button>
 
           <div className="tic-hint">
             <Brain aria-hidden="true" />
-            中央を取る、相手のリーチを止める、角を活かす。この3つでぐっと勝ちやすくなります。
+            {text("中央を取る、相手のリーチを止める、角を活かす。この3つでぐっと勝ちやすくなります。", "Take the center, block immediate threats, and use the corners to improve your chances.")}
           </div>
         </aside>
       </div>

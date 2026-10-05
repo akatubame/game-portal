@@ -1,3 +1,4 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { useStopwatch } from "../useStopwatch";
 import { safeStorage } from "../../safeStorage";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, RotateCcw, Sparkles } from "lucide-react";
@@ -14,6 +15,7 @@ type MazeEscapeProps = {
 type Direction = "top" | "right" | "bottom" | "left";
 
 const BEST_KEY = "game-shelf-maze-escape-best";
+const TIME_KEY = "game-shelf-maze-escape-time-best";
 
 const difficultySettings: Record<MazeDifficulty, { label: string; size: number; description: string }> = {
   small: { label: "小さめ", size: 9, description: "まずは軽く遊べる9×9迷路。" },
@@ -84,8 +86,8 @@ function generateMaze(size: number) {
   return maze.map((cell) => ({ ...cell, visited: false }));
 }
 
-function readBest(): Record<string, MazeBest> {
-  const stored = safeStorage.getItem(BEST_KEY);
+function readBest(key = BEST_KEY): Record<string, MazeBest> {
+  const stored = safeStorage.getItem(key);
   return stored ? (JSON.parse(stored) as Record<string, MazeBest>) : {};
 }
 
@@ -96,6 +98,7 @@ function formatTime(seconds: number) {
 }
 
 export function MazeEscape({ onBack }: MazeEscapeProps) {
+  const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
   const [difficulty, setDifficulty] = useState<MazeDifficulty>("normal");
@@ -104,13 +107,24 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
   const [status, setStatus] = useState<MazeStatus>("idle");
   const [moves, setMoves] = useState(0);
   const { seconds, resetTimer, stopTimer } = useStopwatch();
-  const [message, setMessage] = useState("ランダム迷路を進んで、右下のゴールを目指しましょう。");
+  const [message, setMessage] = useState<"idle" | "start" | "wall" | "moving" | "clear">("idle");
+  const [result, setResult] = useState<(MazeBest & { improved: boolean }) | null>(null);
+  const [timeBySize, setTimeBySize] = useState<Record<string, MazeBest>>(() => readBest(TIME_KEY));
   const [bestBySize, setBestBySize] = useState<Record<string, MazeBest>>(() => readBest());
 
   const size = difficultySettings[difficulty].size;
   const ranking = useRanking({ gameId: `maze-escape-${size}`, metricLabel: "Time", mode: "lower" });
   const goalIndex = size * size - 1;
   const currentBest = bestBySize[String(size)];
+  const currentTime = timeBySize[String(size)];
+  const text = (ja: string, en: string) => isEnglish ? en : ja;
+  const messages = {
+    idle: text("ランダム迷路を進んで、右下のゴールを目指しましょう。", "Find your way through a random maze to the bottom-right goal."),
+    start: text("矢印キー、または画面ボタンで移動できます。", "Move with the arrow keys or on-screen buttons."),
+    wall: text("そちらには壁があります。別の道を探しましょう。", "A wall blocks that direction. Try another way."),
+    moving: text("いい感じです。ゴールまで進みましょう。", "Keep going toward the goal."),
+    clear: result ? text(`脱出成功！${result.moves}手 / ${formatTime(result.seconds)} でした。`, `Escaped! ${result.moves} moves / ${formatTime(result.seconds)}.`) + (result.improved ? text(" ベスト更新！", " New best!") : "") : ""
+  };
   const visitedPath = useMemo(() => {
     const visited = new Set<number>();
     visited.add(0);
@@ -125,8 +139,9 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
     setPlayerIndex(0);
     setStatus("playing");
     setMoves(0);
+    setResult(null);
     resetTimer(true);
-    setMessage("矢印キー、または画面ボタンで移動できます。");
+    setMessage("start");
   };
 
   const clearMaze = (nextMoves: number, nextSeconds: number) => {
@@ -138,16 +153,23 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
       recordedAt: new Date().toISOString()
     };
     const current = bestBySize[key];
+    const currentTime = timeBySize[key];
+    const improvedMoves = !current || nextMoves < current.moves || (nextMoves === current.moves && nextSeconds < current.seconds);
+    const improvedTime = !currentTime || nextSeconds < currentTime.seconds || (nextSeconds === currentTime.seconds && nextMoves < currentTime.moves);
 
-    if (!current || nextMoves < current.moves || (nextMoves === current.moves && nextSeconds < current.seconds)) {
+    if (improvedMoves) {
       const nextBest = { ...bestBySize, [key]: result };
       setBestBySize(nextBest);
       safeStorage.setItem(BEST_KEY, JSON.stringify(nextBest));
-      setMessage(`脱出成功！${nextMoves}手 / ${formatTime(nextSeconds)} でベスト更新です。`);
-    } else {
-      setMessage(`脱出成功！${nextMoves}手 / ${formatTime(nextSeconds)} でした。`);
     }
 
+    if (improvedTime) {
+      const nextTimes = { ...timeBySize, [key]: result };
+      setTimeBySize(nextTimes);
+      safeStorage.setItem(TIME_KEY, JSON.stringify(nextTimes));
+    }
+    setResult({ ...result, improved: improvedMoves || improvedTime });
+    setMessage("clear");
     setStatus("cleared");
   };
 
@@ -158,7 +180,7 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
 
     const currentCell = maze[playerIndex];
     if (currentCell.walls[direction]) {
-      setMessage("そちらには壁があります。別の道を探しましょう。");
+      setMessage("wall");
       return;
     }
 
@@ -171,7 +193,7 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
 
     setPlayerIndex(nextIndex);
     setMoves(nextMoves);
-    setMessage("いい感じです。ゴールまで進みましょう。");
+    setMessage("moving");
 
     if (nextIndex === goalIndex) {
       clearMaze(nextMoves, nextSeconds);
@@ -184,6 +206,7 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
         return;
       }
 
+      if (event.target instanceof HTMLElement && event.target.closest("input, textarea, select, [contenteditable=true]")) return;
       event.preventDefault();
       if (event.key === "ArrowUp") movePlayer("top");
       if (event.key === "ArrowRight") movePlayer("right");
@@ -196,19 +219,22 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
   });
 
   const resetBest = () => {
+    if (!confirmRecordReset()) return;
     safeStorage.removeItem(BEST_KEY);
     setBestBySize({});
+    safeStorage.removeItem(TIME_KEY);
+    setTimeBySize({});
   };
 
   return (
-    <section className="puzzle-shell maze-shell" aria-labelledby="maze-title">
+    <section data-native-i18n className="puzzle-shell maze-shell" aria-labelledby="maze-title">
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">PUZZLE / INTERNAL GAME</p>
-          <h1 id="maze-title">迷路脱出</h1>
-          <p className="lead">{message}</p>
+          <h1 id="maze-title">{text("迷路脱出", "Maze Escape")}</h1>
+          <p className="lead">{messages[message]}</p>
         </div>
-        <div className="score-panel maze-score" aria-label="迷路脱出の状態">
+        <div className="score-panel maze-score" aria-label={text("迷路脱出の状態", "Maze status")}>
           <div>
             <span>Moves</span>
             <strong>{moves}</strong>
@@ -226,7 +252,7 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
 
       <div className="puzzle-layout maze-layout">
         <div className="maze-play-area">
-          <div className="maze-board" style={{ "--maze-size": size } as CSSProperties} aria-label="迷路盤面">
+          <div className="maze-board" style={{ "--maze-size": size } as CSSProperties} aria-label={text("迷路盤面", "Maze board")}>
             {maze.map((cell, index) => (
               <span
                 className={`maze-cell${index === playerIndex ? " is-player" : ""}${index === goalIndex ? " is-goal" : ""}${
@@ -243,17 +269,17 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
             ))}
           </div>
 
-          <div className="maze-controls" aria-label="移動ボタン">
-            <button type="button" onClick={() => movePlayer("top")} disabled={status !== "playing"} aria-label="上へ">
+          <div className="maze-controls" aria-label={text("移動ボタン", "Movement controls")}>
+            <button type="button" onClick={() => movePlayer("top")} disabled={status !== "playing"} aria-label={text("上へ", "Move up")}>
               <ArrowUp aria-hidden="true" />
             </button>
-            <button type="button" onClick={() => movePlayer("left")} disabled={status !== "playing"} aria-label="左へ">
+            <button type="button" onClick={() => movePlayer("left")} disabled={status !== "playing"} aria-label={text("左へ", "Move left")}>
               <ArrowLeft aria-hidden="true" />
             </button>
-            <button type="button" onClick={() => movePlayer("bottom")} disabled={status !== "playing"} aria-label="下へ">
+            <button type="button" onClick={() => movePlayer("bottom")} disabled={status !== "playing"} aria-label={text("下へ", "Move down")}>
               <ArrowDown aria-hidden="true" />
             </button>
-            <button type="button" onClick={() => movePlayer("right")} disabled={status !== "playing"} aria-label="右へ">
+            <button type="button" onClick={() => movePlayer("right")} disabled={status !== "playing"} aria-label={text("右へ", "Move right")}>
               <ArrowRight aria-hidden="true" />
             </button>
           </div>
@@ -261,45 +287,46 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
 
         <aside className="puzzle-side maze-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{text("遊び方", "How to Play")}</h2>
             <p>
-              左上からスタートし、右下のゴールを目指します。壁のない方向へだけ進めます。
-              矢印キーでも画面ボタンでも操作できます。
+              {text("左上からスタートし、右下のゴールを目指します。壁のない方向へだけ進めます。矢印キーでも画面ボタンでも操作できます。", "Start at the top left and reach the bottom-right goal. Move through openings using the arrow keys or on-screen buttons.")}
             </p>
           </div>
 
-          <div className="maze-options" aria-label="迷路サイズ">
+          <div className="maze-options" aria-label={text("迷路サイズ", "Maze size")}>
             {(Object.keys(difficultySettings) as MazeDifficulty[]).map((level) => (
               <button className={difficulty === level ? "is-selected" : ""} key={level} type="button" onClick={() => startGame(level)}>
-                <span>{difficultySettings[level].label}</span>
-                <small>{difficultySettings[level].description}</small>
+                <span>{isEnglish ? ({ small: "Small", normal: "Normal", large: "Large" }[level]) : difficultySettings[level].label}</span>
+                <small>{isEnglish ? `${difficultySettings[level].size}×${difficultySettings[level].size} random maze` : difficultySettings[level].description}</small>
               </button>
             ))}
           </div>
 
           <div className="maze-progress">
             <span>{isEnglish ? "Current" : "現在"}: {status === "playing" ? (isEnglish ? "Exploring" : "探索中") : status === "cleared" ? (isEnglish ? "Escaped" : "脱出成功") : (isEnglish ? "Idle" : "待機中")}</span>
-            <span>{isEnglish ? "Best" : "ベスト"}: {currentBest ? (isEnglish ? `${currentBest.moves} moves / ${formatTime(currentBest.seconds)}` : `${currentBest.moves}手 / ${formatTime(currentBest.seconds)}`) : (isEnglish ? "No record yet" : "まだ記録なし")}</span>
+            <span data-maze-best="moves">{text("最短手数", "Fewest moves")}: {currentBest ? text(`${currentBest.moves}手`, `${currentBest.moves} moves`) : text("まだ記録なし", "No record yet")}</span>
+            <span data-maze-best="time">{text("最短時間", "Fastest time")}: {currentTime ? formatTime(currentTime.seconds) : text("まだ記録なし", "No record yet")}</span>
+            <small>{text("最短時間はこの更新以降のプレイから記録します。迷路は毎回ランダムです。", "Time records start with this update. A new random maze is generated for each game.")}</small>
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "cleared" ? { score: seconds, display: formatTime(seconds), meta: isEnglish ? `${size}×${size} / ${moves} moves` : `${size}×${size} / ${moves}手` } : null}
+            pendingScore={result ? { score: result.seconds, display: formatTime(result.seconds), meta: text(`${result.size}×${result.size} / ${result.moves}手`, `${result.size}×${result.size} / ${result.moves} moves`) } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => startGame()}>
               <Sparkles aria-hidden="true" />
-              新しく始める
+              {text("新しく始める", "New game")}
             </button>
             <button className="ghost-button" type="button" onClick={resetBest}>
               <RotateCcw aria-hidden="true" />
-              ベスト削除
+              {text("ベスト削除", "Reset best records")}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {text("棚へ戻る", "Back to shelf")}
           </button>
         </aside>
       </div>

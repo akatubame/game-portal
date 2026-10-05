@@ -1,3 +1,5 @@
+import { useLocalizedMessage } from "../useLocalizedMessage";
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { useCountdown } from "../useCountdown";
 import { safeStorage } from "../../safeStorage";
 import { Calculator, RotateCcw, Send } from "lucide-react";
@@ -43,29 +45,8 @@ function calculateScore(solved: number, mistakes: number, bestStreak: number) {
   return Math.max(0, solved * 120 + bestStreak * 40 - mistakes * 35);
 }
 
-function translateMentalMathMessage(message: string) {
-  const streakMatch = message.match(/(\d+).*?(連続|騾｣邯|streak)/);
-  if (streakMatch && (message.includes("正解") || message.includes("豁｣隗｣"))) {
-    return `Correct! ${streakMatch[1]} in a row. Nice streak.`;
-  }
-
-  if (message.includes("スタート") || message.includes("繧ｹ繧ｿ繝ｼ繝・")) {
-    return "Press Start to begin a 60-second mental math challenge.";
-  }
-  if (message.includes("Enter") || message.includes("入力") || message.includes("蜈･蜉・")) {
-    return "Enter your answer and press Enter, or use the answer button.";
-  }
-  if (message.includes("次の問題") || message.includes("蝠城｡後")) {
-    return "Correct. On to the next problem!";
-  }
-  if (message.includes("終了") || message.includes("邨ゆｺ・")) {
-    return "Finished. Try again and aim for a new best score.";
-  }
-
-  return message;
-}
-
 export function MentalMath({ onBack }: MentalMathProps) {
+  const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
   const [status, setStatus] = useState<MentalMathStatus>("idle");
@@ -76,13 +57,13 @@ export function MentalMath({ onBack }: MentalMathProps) {
   const [mistakes, setMistakes] = useState(0);
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
-  const [message, setMessage] = useState("スタートを押して、60秒の暗算チャレンジを始めましょう。");
+  const [message, setMessage] = useLocalizedMessage("スタートを押して、60秒の暗算チャレンジを始めましょう。", "Press Start to begin a 60-second mental math challenge.");
   const [bestResult, setBestResult] = useState<MentalMathResult | null>(() => readBestResult());
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const score = useMemo(() => calculateScore(solved, mistakes, bestStreak), [bestStreak, mistakes, solved]);
   const ranking = useRanking({ gameId: "mental-math-score", metricLabel: "Score", mode: "higher" });
-  const visibleMessage = isEnglish ? translateMentalMathMessage(message) : message;
+  const visibleMessage = message;
 
 
   useEffect(() => {
@@ -102,14 +83,14 @@ export function MentalMath({ onBack }: MentalMathProps) {
     setMistakes(0);
     setStreak(0);
     setBestStreak(0);
-    setMessage("答えを入力してEnter、または回答ボタンで送信します。");
+    setMessage("答えを入力してEnter、または回答ボタンで送信します。", "Enter your answer and press Enter, or use the Answer button.");
     window.setTimeout(() => inputRef.current?.focus(), 0);
   };
 
   const finishRound = () => {
     setStatus("finished");
     setAnswer("");
-    setMessage("終了です。もう一度挑戦して、ベストスコア更新を狙いましょう。");
+    setMessage("終了です。もう一度挑戦して、ベストスコア更新を狙いましょう。", "Finished. Try again and aim for a new best score.");
 
     const result: MentalMathResult = {
       score,
@@ -139,31 +120,32 @@ export function MentalMath({ onBack }: MentalMathProps) {
       setBestStreak((current) => Math.max(current, nextStreak));
       setProblem(createProblem());
       setAnswer("");
-      setMessage(nextStreak >= 5 ? `正解！ ${nextStreak}連続正解です。いい流れ。` : "正解です。次の問題へ！");
+      setMessage(nextStreak >= 5 ? `正解！ ${nextStreak}連続正解です。いい流れ。` : "正解です。次の問題へ！", nextStreak >= 5 ? `Correct! ${nextStreak} in a row. Nice streak!` : "Correct! On to the next problem.");
       return;
     }
 
     setMistakes((current) => current + 1);
     setStreak(0);
     setAnswer("");
-    setMessage(`惜しいです。正解は ${problem.answer} でした。次で取り返しましょう。`);
+    setMessage(`惜しいです。正解は ${problem.answer} でした。次で取り返しましょう。`, `Not quite. The answer was ${problem.answer}. Try the next problem!`);
     setProblem(createProblem());
   };
 
   const resetBest = () => {
+    if (!confirmRecordReset()) return;
     safeStorage.removeItem(BEST_KEY);
     setBestResult(null);
   };
 
   return (
-    <section className="puzzle-shell mental-math-shell" aria-labelledby="mental-math-title">
+    <section data-native-i18n className="puzzle-shell mental-math-shell" aria-labelledby="mental-math-title">
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">SCORE ATTACK / INTERNAL GAME</p>
           <h1 id="mental-math-title">{isEnglish ? "Mental Math" : "計算ゲーム"}</h1>
           <p className="lead">{visibleMessage}</p>
         </div>
-        <div className="score-panel mental-math-stats" aria-label="計算ゲームの状態">
+        <div className="score-panel mental-math-stats" aria-label={isEnglish ? "Mental Math status" : "計算ゲームの状態"}>
           <div>
             <span>Score</span>
             <strong>{score}</strong>
@@ -240,7 +222,7 @@ export function MentalMath({ onBack }: MentalMathProps) {
                   : `${bestResult.score}点 / ${bestResult.solved}問正解 / 最高${bestResult.bestStreak}連続`}
               </p>
             ) : (
-              <p>まだ記録がありません。</p>
+              <p>{isEnglish ? "No record yet." : "まだ記録がありません。"}</p>
             )}
           </div>
 

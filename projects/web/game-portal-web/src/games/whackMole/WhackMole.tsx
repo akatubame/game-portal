@@ -1,3 +1,6 @@
+import { useI18n } from "../../i18n";
+import { useLocalizedMessage } from "../useLocalizedMessage";
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { useCountdown } from "../useCountdown";
 import { safeStorage } from "../../safeStorage";
 import { Hammer, RotateCcw } from "lucide-react";
@@ -58,6 +61,9 @@ function calculateScore(hits: number, misses: number, combo: number, goldenHits:
 }
 
 export function WhackMole({ onBack }: WhackMoleProps) {
+  const confirmRecordReset = useConfirmRecordReset();
+  const { language } = useI18n();
+  const text = (ja: string, en: string) => language === "en" ? en : ja;
   const [status, setStatus] = useState<WhackMoleStatus>("idle");
   const [holes, setHoles] = useState<MoleHole[]>(() => createEmptyHoles());
   const { timeLeft, resetCountdown, hasExpired } = useCountdown(status === "playing", ROUND_SECONDS);
@@ -67,7 +73,7 @@ export function WhackMole({ onBack }: WhackMoleProps) {
   const [bestCombo, setBestCombo] = useState(0);
   const [goldenHits, setGoldenHits] = useState(0);
   const [bombHits, setBombHits] = useState(0);
-  const [message, setMessage] = useState("スタートを押して、30秒間のもぐらたたきを始めましょう。");
+  const [message, setMessage] = useLocalizedMessage("スタートを押して、30秒間のもぐらたたきを始めましょう。", "Press Challenge to start a 30-second round of Whack-a-Mole.");
   const [bestResult, setBestResult] = useState<WhackMoleResult | null>(() => readBestResult());
   const statusRef = useRef(status);
 
@@ -112,13 +118,13 @@ export function WhackMole({ onBack }: WhackMoleProps) {
     setBestCombo(0);
     setGoldenHits(0);
     setBombHits(0);
-    setMessage("もぐらを叩くと得点。金もぐらは高得点、爆弾は減点です。");
+    setMessage("もぐらを叩くと得点。金もぐらは高得点、爆弾は減点です。", "Hit moles to score. Golden moles give extra points; bombs cost points.");
   };
 
   const finishRound = () => {
     setStatus("finished");
     setHoles(createEmptyHoles());
-    setMessage("終了です。金もぐらを逃さず、爆弾を避けてベスト更新を狙いましょう。");
+    setMessage("終了です。金もぐらを逃さず、爆弾を避けてベスト更新を狙いましょう。", "Finished. Catch golden moles and avoid bombs to beat your best.");
 
     const result: WhackMoleResult = {
       score,
@@ -142,7 +148,7 @@ export function WhackMole({ onBack }: WhackMoleProps) {
     if (hole.kind === "empty") {
       setMisses((current) => current + 1);
       setCombo(0);
-      setMessage("空振り。よく見てから叩きましょう。");
+      setMessage("空振り。よく見てから叩きましょう。", "Miss! Look before you hit.");
       return;
     }
 
@@ -150,7 +156,7 @@ export function WhackMole({ onBack }: WhackMoleProps) {
       setBombHits((current) => current + 1);
       setMisses((current) => current + 1);
       setCombo(0);
-      setMessage("爆弾！減点です。次は避けましょう。");
+      setMessage("爆弾！減点です。次は避けましょう。", "Bomb! Points lost. Avoid the next one.");
     } else {
       const nextCombo = combo + 1;
       setHits((current) => current + 1);
@@ -159,9 +165,9 @@ export function WhackMole({ onBack }: WhackMoleProps) {
 
       if (hole.kind === "golden") {
         setGoldenHits((current) => current + 1);
-        setMessage(`金もぐら！ ${nextCombo}コンボです。`);
+        setMessage(`金もぐら！ ${nextCombo}コンボです。`, `Golden mole! Combo: ${nextCombo}.`);
       } else {
-        setMessage(nextCombo >= 5 ? `${nextCombo}コンボ！いいテンポです。` : "ヒット！");
+        setMessage(nextCombo >= 5 ? `${nextCombo}コンボ！いいテンポです。` : "ヒット！", nextCombo >= 5 ? `${nextCombo} combo! Great rhythm.` : "Hit!");
       }
     }
 
@@ -169,19 +175,20 @@ export function WhackMole({ onBack }: WhackMoleProps) {
   };
 
   const resetBest = () => {
+    if (!confirmRecordReset()) return;
     safeStorage.removeItem(BEST_KEY);
     setBestResult(null);
   };
 
   return (
-    <section className="puzzle-shell whack-shell" aria-labelledby="whack-title">
+    <section data-native-i18n className="puzzle-shell whack-shell" aria-labelledby="whack-title">
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">SCORE ATTACK / INTERNAL GAME</p>
-          <h1 id="whack-title">もぐらたたき</h1>
+          <h1 id="whack-title">{text("もぐらたたき", "Whack-a-Mole")}</h1>
           <p className="lead">{message}</p>
         </div>
-        <div className="score-panel whack-stats" aria-label="もぐらたたきの状態">
+        <div className="score-panel whack-stats" aria-label={text("もぐらたたきの状態", "Whack-a-Mole status")}>
           <div>
             <span>Score</span>
             <strong>{score}</strong>
@@ -194,14 +201,15 @@ export function WhackMole({ onBack }: WhackMoleProps) {
       </div>
 
       <div className="puzzle-layout whack-layout">
-        <div className="whack-board" aria-label="もぐらたたき盤面">
+        <div className="whack-board" aria-label={text("もぐらたたき盤面", "Whack-a-Mole board")}>
           {holes.map((hole) => (
             <button
               className={`whack-hole is-${hole.kind}`}
               key={hole.id}
               type="button"
               onClick={() => hitHole(hole)}
-              aria-label={hole.kind === "empty" ? "空の穴" : hole.kind === "bomb" ? "爆弾" : "もぐら"}
+              disabled={status !== "playing"}
+              aria-label={text(`${hole.id + 1}番: ${hole.kind === "empty" ? "空の穴" : hole.kind === "bomb" ? "爆弾" : hole.kind === "golden" ? "金もぐら" : "もぐら"}`, `Hole ${hole.id + 1}: ${hole.kind === "empty" ? "empty" : hole.kind === "bomb" ? "bomb" : hole.kind === "golden" ? "golden mole" : "mole"}`)}
             >
               <span className="whack-hole-dirt" />
               {hole.kind !== "empty" && (
@@ -215,50 +223,50 @@ export function WhackMole({ onBack }: WhackMoleProps) {
 
         <aside className="puzzle-side whack-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{text("遊び方", "How to Play")}</h2>
             <p>
-              30秒間、出てきたもぐらをクリックします。金もぐらは高得点、爆弾は減点。空振りするとコンボが途切れます。
+              {text("30秒間、出てきたもぐらをクリックします。金もぐらは高得点、爆弾は減点。空振りするとコンボが途切れます。", "Hit the moles during a 30-second round. Golden moles give extra points; bombs cost points. Missing breaks your combo.")}
             </p>
           </div>
 
           <div className="whack-progress">
-            <span>ヒット: {hits}</span>
-            <span>ミス: {misses}</span>
-            <span>コンボ: {combo}</span>
-            <span>最高コンボ: {bestCombo}</span>
-            <span>金もぐら: {goldenHits}</span>
-            <span>爆弾: {bombHits}</span>
+            <span>{text("ヒット", "Hits")}: {hits}</span>
+            <span>{text("ミス", "Misses")}: {misses}</span>
+            <span>{text("コンボ", "Combo")}: {combo}</span>
+            <span>{text("最高コンボ", "Best combo")}: {bestCombo}</span>
+            <span>{text("金もぐら", "Golden moles")}: {goldenHits}</span>
+            <span>{text("爆弾", "Bombs")}: {bombHits}</span>
           </div>
 
           <div className="whack-best">
-            <h2>ベスト</h2>
+            <h2>{text("ベスト", "Best")}</h2>
             {bestResult ? (
               <p>
-                {bestResult.score}点 / {bestResult.hits}ヒット / 最高{bestResult.bestCombo}コンボ
+                {text(`${bestResult.score}点 / ${bestResult.hits}ヒット / 最高${bestResult.bestCombo}コンボ`, `${bestResult.score} pts / ${bestResult.hits} hits / Best combo ${bestResult.bestCombo}`)}
               </p>
             ) : (
-              <p>まだ記録がありません。</p>
+              <p>{text("まだ記録がありません。", "No record yet.")}</p>
             )}
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "finished" ? { score, display: `${score}点`, meta: `${hits}ヒット / 最高${bestCombo}コンボ` } : null}
+            pendingScore={status === "finished" ? { score, display: text(`${score}点`, `${score} pts`), meta: text(`${hits}ヒット / 最高${bestCombo}コンボ`, `${hits} hits / Best combo ${bestCombo}`) } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startRound}>
               <Hammer aria-hidden="true" />
-              挑戦
+              {text("挑戦", "Challenge")}
             </button>
             <button className="ghost-button" type="button" onClick={resetBest}>
               <RotateCcw aria-hidden="true" />
-              ベスト削除
+              {text("ベスト削除", "Clear best")}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {text("棚へ戻る", "Back to shelf")}
           </button>
         </aside>
       </div>

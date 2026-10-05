@@ -1,9 +1,11 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { useStopwatch } from "../useStopwatch";
 import { safeStorage } from "../../safeStorage";
 import { RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { useLocalizedMessage } from "../useLocalizedMessage";
 import type { CSSProperties } from "react";
 import type { HanoiBest, HanoiPeg, HanoiStatus } from "./types";
 
@@ -54,6 +56,7 @@ function canMove(from: HanoiPeg, to: HanoiPeg) {
 }
 
 export function Hanoi({ onBack }: HanoiProps) {
+  const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
   const [diskCount, setDiskCount] = useState(4);
@@ -61,8 +64,8 @@ export function Hanoi({ onBack }: HanoiProps) {
   const [status, setStatus] = useState<HanoiStatus>("idle");
   const [selectedPeg, setSelectedPeg] = useState<number | null>(null);
   const [moves, setMoves] = useState(0);
-  const { seconds, startTimer, resetTimer, stopTimer } = useStopwatch();
-  const [message, setMessage] = useState("円盤を1枚ずつ動かして、すべて右端の柱へ移しましょう。");
+  const { seconds, resetTimer, stopTimer } = useStopwatch();
+  const [message, setMessage] = useLocalizedMessage("円盤を1枚ずつ動かして、すべて右端の柱へ移しましょう。", "Move one disk at a time until all disks are on the rightmost peg.");
   const [bestByDisk, setBestByDisk] = useState<Record<string, HanoiBest>>(() => readBest());
   const [bestTimes, setBestTimes] = useState<Record<string, number>>(() => readBestTimes());
 
@@ -71,24 +74,16 @@ export function Hanoi({ onBack }: HanoiProps) {
   const currentBestTime = bestTimes[String(diskCount)] ?? null;
   const isSolved = useMemo(() => pegs[2].length === diskCount, [diskCount, pegs]);
   const ranking = useRanking({ gameId: `hanoi-${diskCount}`, metricLabel: "Moves", mode: "lower" });
-  const visibleMessage = isEnglish
-    ? status === "idle"
-      ? "Move one disk at a time and transfer every disk to the rightmost peg."
-      : status === "playing"
-        ? "Select a peg with a disk, then select the destination peg."
-        : message
-    : message;
 
 
   const startGame = (nextDiskCount = diskCount) => {
     setDiskCount(nextDiskCount);
     setPegs(createPegs(nextDiskCount));
-    startTimer();
-      setStatus("playing");
+    setStatus("playing");
     setSelectedPeg(null);
     setMoves(0);
     resetTimer(true);
-    setMessage("動かしたい円盤がある柱を選び、次に移動先の柱を選びます。");
+    setMessage("動かしたい円盤がある柱を選び、次に移動先の柱を選びます。", "Select a peg with a disk, then select the destination peg.");
   };
 
   const finishIfSolved = (nextPegs: HanoiPeg[], nextMoves: number) => {
@@ -109,9 +104,9 @@ export function Hanoi({ onBack }: HanoiProps) {
       const nextBest = { ...bestByDisk, [key]: result };
       setBestByDisk(nextBest);
       safeStorage.setItem(BEST_KEY, JSON.stringify(nextBest));
-      setMessage(`完成！${nextMoves}手でベスト更新です。`);
+      setMessage(`完成！${nextMoves}手でベスト更新です。`, `Solved in ${nextMoves} moves — new best!`);
     } else {
-      setMessage(`完成！${nextMoves}手でした。最短は${minMoves}手です。`);
+      setMessage(`完成！${nextMoves}手でした。最短は${minMoves}手です。`, `Solved in ${nextMoves} moves. The minimum is ${minMoves}.`);
     }
 
     setBestTimes((current) => {
@@ -136,23 +131,23 @@ export function Hanoi({ onBack }: HanoiProps) {
 
     if (selectedPeg === null) {
       if (pegs[pegIndex].length === 0) {
-        setMessage("空の柱からは動かせません。円盤のある柱を選びましょう。");
+        setMessage("空の柱からは動かせません。円盤のある柱を選びましょう。", "You cannot move from an empty peg. Choose a peg with a disk.");
         return;
       }
 
       setSelectedPeg(pegIndex);
-      setMessage(`${pegIndex + 1}番の柱を選択中。移動先の柱を選んでください。`);
+      setMessage(`${pegIndex + 1}番の柱を選択中。移動先の柱を選んでください。`, `Peg ${pegIndex + 1} selected. Choose the destination peg.`);
       return;
     }
 
     if (selectedPeg === pegIndex) {
       setSelectedPeg(null);
-      setMessage("選択を解除しました。");
+      setMessage("選択を解除しました。", "Selection cleared.");
       return;
     }
 
     if (!canMove(pegs[selectedPeg], pegs[pegIndex])) {
-      setMessage("大きい円盤を小さい円盤の上には置けません。");
+      setMessage("大きい円盤を小さい円盤の上には置けません。", "You cannot put a larger disk on a smaller one.");
       return;
     }
 
@@ -168,11 +163,12 @@ export function Hanoi({ onBack }: HanoiProps) {
     setPegs(nextPegs);
     setMoves(nextMoves);
     setSelectedPeg(null);
-    setMessage(`${movingDisk}番の円盤を移動しました。`);
+    setMessage(`${movingDisk}番の円盤を移動しました。`, `Moved disk ${movingDisk}.`);
     finishIfSolved(nextPegs, nextMoves);
   };
 
   const resetBest = () => {
+    if (!confirmRecordReset()) return;
     safeStorage.removeItem(BEST_KEY);
     safeStorage.removeItem(BEST_TIME_KEY);
     setBestByDisk({});
@@ -180,12 +176,12 @@ export function Hanoi({ onBack }: HanoiProps) {
   };
 
   return (
-    <section className="puzzle-shell hanoi-shell" aria-labelledby="hanoi-title">
+    <section className="puzzle-shell hanoi-shell" aria-labelledby="hanoi-title" data-native-i18n>
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">PUZZLE / INTERNAL GAME</p>
           <h1 id="hanoi-title">{isEnglish ? "Tower of Hanoi" : "タワー・オブ・ハノイ"}</h1>
-          <p className="lead">{visibleMessage}</p>
+          <p className="lead">{message}</p>
         </div>
         <div className="score-panel hanoi-score" aria-label={isEnglish ? "Tower of Hanoi status" : "ハノイの塔の状態"}>
           <div>

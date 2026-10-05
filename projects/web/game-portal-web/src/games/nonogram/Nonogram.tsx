@@ -1,7 +1,12 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
+import { AssistedRecordNotice, recordCategoryKey } from "../assistedRecords";
 import { safeStorage } from "../../safeStorage";
 import { Eye, Grid3X3, Paintbrush, RotateCcw, Sparkles, X } from "lucide-react";
 import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
+import { useLocalizedMessage } from "../useLocalizedMessage";
 import type { NonogramCell, NonogramPuzzle, NonogramRecord, NonogramStatus, NonogramTool } from "./types";
 
 type NonogramProps = {
@@ -17,6 +22,20 @@ type DragState = {
 };
 
 const RECORD_KEY = "game-shelf-nonogram-record";
+const PROGRESS_KEY = "game-shelf-progress-nonogram-v1";
+type SavedNonogram = { version: 1; puzzleId: string; grid: NonogramCell[][]; moves: number; tool: NonogramTool; showAnswer: boolean; assisted: boolean };
+const puzzleNamesEn: Record<string, string> = {
+  heart5: "Heart", fish8: "Fish", house10: "House", cat10: "Cat",
+  rocket10: "Rocket", star8: "Star", tree10: "Tree", umbrella10: "Umbrella",
+  car10: "Car", coffee12: "Coffee", key12: "Key", music12: "Music Note",
+  butterfly10: "Butterfly", crown10: "Crown", cactus10: "Cactus", boat12: "Boat",
+  apple12: "Apple", camera12: "Camera", diamond12: "Diamond", bell10: "Bell",
+  mushroom10: "Mushroom", anchor12: "Anchor", flower10: "Flower", flag10: "Flag",
+  glasses10: "Glasses", lightbulb12: "Light Bulb"
+};
+const difficultyNamesEn: Record<string, string> = {
+  "入門": "Intro", "やさしめ": "Easy", "ふつう": "Normal", "試作": "Experimental"
+};
 
 const puzzles: NonogramPuzzle[] = [
   {
@@ -621,19 +640,42 @@ function getLineTargets(startRow: number, startColumn: number, endRow: number, e
   return targets;
 }
 
+function isSavedNonogram(value: unknown): value is SavedNonogram {
+  if (!isPlainRecord(value) || value.version !== 1 || typeof value.puzzleId !== "string" ||
+      !Number.isSafeInteger(value.moves) || (value.moves as number) < 0 ||
+      (value.tool !== "fill" && value.tool !== "mark") ||
+      typeof value.showAnswer !== "boolean" || typeof value.assisted !== "boolean" ||
+      (value.showAnswer && !value.assisted)) return false;
+  const puzzle = puzzles.find((item) => item.id === value.puzzleId);
+  const grid = value.grid;
+  return Boolean(puzzle) && Array.isArray(grid) && grid.length === puzzle!.solution.length &&
+    grid.every((row) => Array.isArray(row) && row.length === puzzle!.solution[0].length &&
+      row.every((cell) => cell === "unknown" || cell === "filled" || cell === "marked")) &&
+    !isSolved(grid, puzzle!.solution);
+}
+
 export function Nonogram({ onBack }: NonogramProps) {
-  const [puzzleIndex, setPuzzleIndex] = useState(0);
-  const [grid, setGrid] = useState<NonogramCell[][]>(() => applyAutoMarks(createEmptyGrid(puzzles[0]), puzzles[0].solution));
-  const [tool, setTool] = useState<NonogramTool>("fill");
+  const { language } = useI18n();
+  const isEnglish = language === "en";
+  const text = (ja: string, en: string) => isEnglish ? en : ja;
+  const puzzleName = (item: NonogramPuzzle) => isEnglish ? puzzleNamesEn[item.id] ?? item.name : item.name;
+  const confirmRecordReset = useConfirmRecordReset();
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedNonogram));
+  const [puzzleIndex, setPuzzleIndex] = useState(() => saved ? puzzles.findIndex((item) => item.id === saved.puzzleId) : 0);
+  const [grid, setGrid] = useState<NonogramCell[][]>(() => saved ? saved.grid.map((row) => [...row]) : applyAutoMarks(createEmptyGrid(puzzles[0]), puzzles[0].solution));
+  const [tool, setTool] = useState<NonogramTool>(saved?.tool ?? "fill");
   const [status, setStatus] = useState<NonogramStatus>("playing");
-  const [moves, setMoves] = useState(0);
-  const [showAnswer, setShowAnswer] = useState(false);
+  const [moves, setMoves] = useState(saved?.moves ?? 0);
+  const [showAnswer, setShowAnswer] = useState(saved?.showAnswer ?? false);
+  const [assisted, setAssisted] = useState(saved?.assisted ?? false);
   const [record, setRecord] = useState<NonogramRecord>(() => readRecord());
-  const [message, setMessage] = useState("数字ヒントを頼りに、絵柄になるマスを塗ってください。ドラッグで横・縦の直線をまとめて入力できます。");
+  const [message, setMessage] = useLocalizedMessage("数字ヒントを頼りに、絵柄になるマスを塗ってください。ドラッグで横・縦の直線をまとめて入力できます。", "Use the number clues to fill the picture. Drag to fill or mark a straight row or column.");
   const dragState = useRef<DragState | null>(null);
 
   const puzzle = puzzles[puzzleIndex];
-  const ranking = useRanking({ gameId: `nonogram-${puzzle.id}`, metricLabel: "Moves", mode: "lower" });
+  const recordId = recordCategoryKey(puzzle.id, assisted);
+  const ranking = useRanking({ gameId: `nonogram-${recordId}`, metricLabel: "Moves", mode: "lower" });
+  const legacyRanking = useRanking({ gameId: `nonogram-${puzzle.id}`, metricLabel: "Moves", mode: "lower" });
   const rows = puzzle.solution.length;
   const columns = puzzle.solution[0].length;
   const rowHints = useMemo(() => puzzle.solution.map(getLineHints), [puzzle]);
@@ -646,7 +688,7 @@ export function Nonogram({ onBack }: NonogramProps) {
   );
   const filledCount = grid.flat().filter((cell) => cell === "filled").length;
   const answerCount = useMemo(() => countFilled(puzzle.solution), [puzzle]);
-  const bestMoves = record[puzzle.id] ?? null;
+  const bestMoves = record[recordId] ?? null;
   const rowCompletions = useMemo(() => grid.map((row, rowIndex) => isLineComplete(row, puzzle.solution[rowIndex])), [grid, puzzle]);
   const columnCompletions = useMemo(
     () =>
@@ -658,6 +700,14 @@ export function Nonogram({ onBack }: NonogramProps) {
       ),
     [columns, grid, puzzle, rows]
   );
+
+  useEffect(() => {
+    if (status === "cleared") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    } else if (moves > 0 || assisted || showAnswer) {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, puzzleId: puzzle.id, grid, moves, tool, showAnswer, assisted } satisfies SavedNonogram));
+    }
+  }, [assisted, grid, moves, puzzle.id, showAnswer, status, tool]);
 
   useEffect(() => {
     const stopDrag = () => {
@@ -674,6 +724,8 @@ export function Nonogram({ onBack }: NonogramProps) {
   }, []);
 
   const startPuzzle = (nextPuzzleIndex = puzzleIndex) => {
+    safeStorage.removeItem(PROGRESS_KEY);
+    setAssisted(false);
     const nextPuzzle = puzzles[nextPuzzleIndex];
 
     dragState.current = null;
@@ -682,7 +734,7 @@ export function Nonogram({ onBack }: NonogramProps) {
     setStatus("playing");
     setMoves(0);
     setShowAnswer(false);
-    setMessage(`${nextPuzzle.name}を開始しました。塗る/×印を切り替えながら解いてみてください。`);
+    setMessage(`${nextPuzzle.name}を開始しました。塗る/×印を切り替えながら解いてみてください。`, `Started ${puzzleNamesEn[nextPuzzle.id] ?? nextPuzzle.name}. Switch between Fill and X as you solve it.`);
   };
 
   const finishIfSolved = (nextGrid: NonogramCell[][], nextMoves: number) => {
@@ -692,13 +744,13 @@ export function Nonogram({ onBack }: NonogramProps) {
 
     const nextRecord = {
       ...record,
-      [puzzle.id]: bestMoves === null ? nextMoves : Math.min(bestMoves, nextMoves)
+      [recordId]: bestMoves === null ? nextMoves : Math.min(bestMoves, nextMoves)
     };
 
     setRecord(nextRecord);
     safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus("cleared");
-    setMessage(`完成！ ${nextMoves}手で「${puzzle.name}」を解きました。`);
+    setMessage(`完成！ ${nextMoves}手で「${puzzle.name}」を解きました。`, `Solved ${puzzleNamesEn[puzzle.id] ?? puzzle.name} in ${nextMoves} moves!`);
 
     return true;
   };
@@ -728,7 +780,7 @@ export function Nonogram({ onBack }: NonogramProps) {
     }
 
     if (!finishIfSolved(nextGrid, nextMoves)) {
-      setMessage(tool === "fill" ? "マスを塗りました。ヒントの並びと合っているか確認しましょう。" : "×印を置きました。ここは塗らない候補です。");
+      setMessage(tool === "fill" ? "マスを塗りました。ヒントの並びと合っているか確認しましょう。" : "×印を置きました。ここは塗らない候補です。", tool === "fill" ? "Cell filled. Check the number clues." : "X marked. This cell should stay empty.");
     }
   };
 
@@ -793,6 +845,7 @@ export function Nonogram({ onBack }: NonogramProps) {
   };
 
   const resetRecord = () => {
+    if (!confirmRecordReset()) return;
     setRecord({});
     safeStorage.setItem(RECORD_KEY, JSON.stringify({}));
   };
@@ -864,17 +917,17 @@ export function Nonogram({ onBack }: NonogramProps) {
   } as CSSProperties;
 
   return (
-    <section className="puzzle-shell nonogram-shell" aria-labelledby="nonogram-title">
+    <section className="puzzle-shell nonogram-shell" aria-labelledby="nonogram-title" data-native-i18n>
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">PICTURE LOGIC / INTERNAL GAME</p>
-          <h1 id="nonogram-title">イラストロジック</h1>
+          <h1 id="nonogram-title">{text("イラストロジック", "Nonogram")}</h1>
           <p className="lead">{message}</p>
         </div>
-        <div className="score-panel nonogram-score" aria-label="イラストロジックの状態">
+        <div className="score-panel nonogram-score" aria-label={text("イラストロジックの状態", "Nonogram status")}>
           <div>
             <span>Problem</span>
-            <strong>{puzzle.name}</strong>
+            <strong>{puzzleName(puzzle)}</strong>
           </div>
           <div>
             <span>Move</span>
@@ -889,18 +942,21 @@ export function Nonogram({ onBack }: NonogramProps) {
 
       <div className="puzzle-layout nonogram-layout">
         <div className="nonogram-play-area">
-          <div className="nonogram-toolbar" aria-label="操作モード">
+          <div className="nonogram-toolbar" aria-label={text("操作モード", "Tool mode")}>
             <button className={tool === "fill" ? "is-active" : ""} type="button" onClick={() => setTool("fill")}>
               <Paintbrush aria-hidden="true" />
-              塗る
+              {text("塗る", "Fill")}
             </button>
             <button className={tool === "mark" ? "is-active" : ""} type="button" onClick={() => setTool("mark")}>
               <X aria-hidden="true" />
-              ×印
+              {text("×印", "X mark")}
             </button>
-            <button className={showAnswer ? "is-active" : ""} type="button" onClick={() => setShowAnswer((current) => !current)}>
+            <button className={showAnswer ? "is-active" : ""} type="button" onClick={() => {
+              if (!showAnswer && status === "playing") setAssisted(true);
+              setShowAnswer((current) => !current);
+            }}>
               <Eye aria-hidden="true" />
-              答え確認
+              {text("答え確認", "Show answer")}
             </button>
           </div>
 
@@ -942,7 +998,7 @@ export function Nonogram({ onBack }: NonogramProps) {
                         applyCells([{ rowIndex, columnIndex }], cell === nextCell ? "unknown" : nextCell, true);
                       }}
                       aria-pressed={cell === "filled"}
-                      aria-label={`${rowIndex + 1}行 ${columnIndex + 1}列`}
+                      aria-label={text(`${rowIndex + 1}行 ${columnIndex + 1}列`, `Row ${rowIndex + 1}, column ${columnIndex + 1}`)}
                     >
                       {cell === "marked" ? "×" : ""}
                     </button>
@@ -955,48 +1011,50 @@ export function Nonogram({ onBack }: NonogramProps) {
 
         <aside className="puzzle-side nonogram-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{text("遊び方", "How to Play")}</h2>
             <p>
-              行と列の数字は、連続して塗るマス数を表します。例えば「3」「1」なら、3マス連続で塗った後に1マス以上空けて、1マス塗ります。
-              左ドラッグで横または縦の直線をまとめて塗ったり、×印を置いたりできます。
+              {text("行と列の数字は、連続して塗るマス数を表します。例えば「3」「1」なら、3マス連続で塗った後に1マス以上空けて、1マス塗ります。左ドラッグで横または縦の直線をまとめて塗ったり、×印を置いたりできます。",
+                "Row and column clues show runs of filled cells. For 3, 1, fill three cells, leave at least one empty, then fill one. Drag to fill or mark a straight row or column.")}
             </p>
+            <p>{text("途中の盤面は、このブラウザに自動保存されます。", "Your current puzzle is saved automatically on this browser.")}</p>
           </div>
 
-          <div className="nonogram-puzzles" aria-label="問題選択">
+          <div className="nonogram-puzzles" aria-label={text("問題選択", "Choose a puzzle")}>
             {puzzles.map((item, index) => (
               <button className={index === puzzleIndex ? "is-active" : ""} key={item.id} type="button" onClick={() => startPuzzle(index)}>
-                <span>{item.name}</span>
+                <span>{puzzleName(item)}</span>
                 <small>
-                  {item.sizeLabel} / {item.difficulty}
+                  {item.sizeLabel} / {isEnglish ? difficultyNamesEn[item.difficulty] ?? item.difficulty : item.difficulty}
                 </small>
               </button>
             ))}
           </div>
 
           <div className="nonogram-status">
-            <span>塗り: {filledCount} / 解答 {answerCount}</span>
-            <span>状態: {status === "cleared" ? "クリア" : "挑戦中"}</span>
-            <span>現在の道具: {tool === "fill" ? "塗る" : "×印"}</span>
+            <span>{text("塗り", "Filled")}: {filledCount} / {text("解答", "Solution")} {answerCount}</span>
+            <span>{text("状態", "Status")}: {status === "cleared" ? text("クリア", "Solved") : text("挑戦中", "Playing")}</span>
+            <span>{text("現在の道具", "Tool")}: {tool === "fill" ? text("塗る", "Fill") : text("×印", "X mark")}</span>
           </div>
 
+          <AssistedRecordNotice assisted={assisted} legacyBest={record[puzzle.id] === undefined ? null : String(record[puzzle.id])} legacyRanking={legacyRanking} />
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "cleared" ? { score: moves, display: `${moves}手`, meta: `${puzzle.name} / ${columns}×${rows}` } : null}
+            pendingScore={status === "cleared" ? { score: moves, display: text(`${moves}手`, `${moves} moves`), meta: `${puzzleName(puzzle)} / ${columns}×${rows}` } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => startPuzzle()}>
               <Sparkles aria-hidden="true" />
-              やり直し
+              {text("やり直し", "Restart")}
             </button>
             <button className="ghost-button" type="button" onClick={resetRecord}>
               <RotateCcw aria-hidden="true" />
-              記録リセット
+              {text("記録リセット", "Reset records")}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {text("棚へ戻る", "Back to shelf")}
           </button>
         </aside>
       </div>

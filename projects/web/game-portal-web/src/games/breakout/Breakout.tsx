@@ -1,7 +1,10 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { useLocalizedMessage } from "../useLocalizedMessage";
 import type { Ball, Brick, BreakoutResult, BreakoutStatus } from "./types";
 
 type BreakoutProps = {
@@ -70,12 +73,16 @@ function overlaps(ball: Ball, brick: Brick) {
 }
 
 export function Breakout({ onBack }: BreakoutProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
+  const text = (ja: string, en: string) => isEnglish ? en : ja;
+  const confirmRecordReset = useConfirmRecordReset();
   const [status, setStatus] = useState<BreakoutStatus>("idle");
   const [ball, setBall] = useState<Ball>(initialBall);
   const [paddleX, setPaddleX] = useState((BOARD_WIDTH - PADDLE_WIDTH) / 2);
   const [bricks, setBricks] = useState<Brick[]>(() => createBricks());
   const [lives, setLives] = useState(INITIAL_LIVES);
-  const [message, setMessage] = useState("スタートを押して、パドルでボールを打ち返しましょう。");
+  const [message, setMessage] = useLocalizedMessage("スタートを押して、パドルでボールを打ち返しましょう。", "Press Start and bounce the ball with your paddle.");
   const [bestResult, setBestResult] = useState<BreakoutResult | null>(() => readBestResult());
 
   const statusRef = useRef(status);
@@ -147,14 +154,14 @@ export function Breakout({ onBack }: BreakoutProps) {
     if (nextLives <= 0) {
       releasePaddleControls();
       setStatus("finished");
-      setMessage("ゲームオーバー。角度をつけて打ち返すと崩しやすくなります。");
+      setMessage("ゲームオーバー。角度をつけて打ち返すと崩しやすくなります。", "Game over. Angle your shots to reach more bricks.");
       saveBest("finished", bricksRef.current, 0);
       return;
     }
 
     releasePaddleControls();
     setStatus("paused");
-    setMessage("ボールを落としました。再開ボタンで続きから遊べます。");
+    setMessage("ボールを落としました。再開ボタンで続きから遊べます。", "You lost a ball. Press Resume to continue.");
   };
 
   const movePaddleBy = (delta: number) => {
@@ -224,12 +231,12 @@ export function Breakout({ onBack }: BreakoutProps) {
       nextBall.vy *= -1;
       bricksRef.current = nextBricks;
       setBricks(nextBricks);
-      setMessage("ブロック破壊！ボールを落とさずに続けましょう。");
+      setMessage("ブロック破壊！ボールを落とさずに続けましょう。", "Brick destroyed! Keep the ball in play.");
 
       if (nextBricks.every((brick) => !brick.alive)) {
         releasePaddleControls();
         setStatus("cleared");
-        setMessage("全ブロック破壊！お見事です。");
+        setMessage("全ブロック破壊！お見事です。", "All bricks cleared! Great work.");
         saveBest("cleared", nextBricks, livesRef.current);
       }
     }
@@ -260,6 +267,8 @@ export function Breakout({ onBack }: BreakoutProps) {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (event.isComposing || (target instanceof HTMLElement && (target.isContentEditable || target.closest("input, textarea, select, button")))) return;
       if (event.key === "ArrowLeft" || event.key === "a" || event.key === "A") {
         event.preventDefault();
         moveLeftRef.current = true;
@@ -278,10 +287,10 @@ export function Breakout({ onBack }: BreakoutProps) {
         if (statusRef.current === "playing") {
           releasePaddleControls();
           setStatus("paused");
-          setMessage("一時停止中。スペースキーまたは再開ボタンで続けられます。");
+          setMessage("一時停止中。スペースキーまたは再開ボタンで続けられます。", "Paused. Press Space or Resume to continue.");
         } else if (statusRef.current === "paused") {
           setStatus("playing");
-          setMessage("再開しました。ボールの角度をよく見ましょう。");
+          setMessage("再開しました。ボールの角度をよく見ましょう。", "Resumed. Watch the ball's angle.");
         }
       }
     };
@@ -335,7 +344,7 @@ export function Breakout({ onBack }: BreakoutProps) {
     setPaddleX((BOARD_WIDTH - PADDLE_WIDTH) / 2);
     setBricks(nextBricks);
     setLives(INITIAL_LIVES);
-    setMessage("左右キーまたはA/Dでパドルを動かし、ボールを打ち返しましょう。");
+    setMessage("左右キーまたはA/Dでパドルを動かし、ボールを打ち返しましょう。", "Move the paddle with Left/Right or A/D and return the ball.");
     releasePaddleControls();
     ballRef.current = initialBall;
     paddleXRef.current = (BOARD_WIDTH - PADDLE_WIDTH) / 2;
@@ -347,30 +356,31 @@ export function Breakout({ onBack }: BreakoutProps) {
     if (status === "playing") {
       releasePaddleControls();
       setStatus("paused");
-      setMessage("一時停止中。再開ボタンで続けられます。");
+      setMessage("一時停止中。再開ボタンで続けられます。", "Paused. Press Space or Resume to continue.");
       return;
     }
 
     if (status === "paused") {
       setStatus("playing");
-      setMessage("再開しました。ボールの角度をよく見ましょう。");
+      setMessage("再開しました。ボールの角度をよく見ましょう。", "Resumed. Watch the ball's angle.");
     }
   };
 
   const resetBest = () => {
+    if (!confirmRecordReset()) return;
     safeStorage.removeItem(BEST_KEY);
     setBestResult(null);
   };
 
   return (
-    <section className="puzzle-shell breakout-shell" aria-labelledby="breakout-title">
+    <section className="puzzle-shell breakout-shell" aria-labelledby="breakout-title" data-native-i18n>
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">ARCADE / INTERNAL GAME</p>
-          <h1 id="breakout-title">ブロック崩し</h1>
+          <h1 id="breakout-title">{text("ブロック崩し", "Breakout")}</h1>
           <p className="lead">{message}</p>
         </div>
-        <div className="score-panel breakout-stats" aria-label="ブロック崩しの状態">
+        <div className="score-panel breakout-stats" aria-label={text("ブロック崩しの状態", "Breakout status")}>
           <div>
             <span>Score</span>
             <strong>{score}</strong>
@@ -384,7 +394,7 @@ export function Breakout({ onBack }: BreakoutProps) {
 
       <div className="puzzle-layout breakout-layout">
         <div className={`breakout-board-wrap is-${status}`}>
-          <div className="breakout-board" aria-label="ブロック崩し盤面">
+          <div className="breakout-board" aria-label={text("ブロック崩し盤面", "Breakout board")}>
             {bricks.map((brick) => (
               <span
                 className={`breakout-brick${brick.alive ? "" : " is-broken"}`}
@@ -424,19 +434,20 @@ export function Breakout({ onBack }: BreakoutProps) {
 
         <aside className="puzzle-side breakout-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{text("遊び方", "How to Play")}</h2>
             <p>
-              左右キーまたはA/Dでパドルを動かし、ボールを落とさないように跳ね返します。すべてのブロックを壊すとクリアです。
+              {text("左右キーまたはA/Dでパドルを動かし、ボールを落とさないように跳ね返します。すべてのブロックを壊すとクリアです。",
+                "Move the paddle with Left/Right or A/D and keep the ball in play. Clear all bricks to win.")}
             </p>
           </div>
 
           <div className="breakout-progress">
-            <span>破壊: {clearedBricks}/{bricks.length}</span>
-            <span>残機: {lives}</span>
-            <span>状態: {status === "playing" ? "プレイ中" : status === "paused" ? "一時停止" : status === "cleared" ? "クリア" : status === "finished" ? "終了" : "待機中"}</span>
+            <span>{text("破壊", "Bricks")}: {clearedBricks}/{bricks.length}</span>
+            <span>{text("残機", "Lives")}: {lives}</span>
+            <span>{text("状態", "Status")}: {status === "playing" ? text("プレイ中", "Playing") : status === "paused" ? text("一時停止", "Paused") : status === "cleared" ? text("クリア", "Cleared") : status === "finished" ? text("終了", "Finished") : text("待機中", "Ready")}</span>
           </div>
 
-          <div className="breakout-controls" aria-label="パドル操作">
+          <div className="breakout-controls" aria-label={text("パドル操作", "Paddle controls")}>
             <button
               type="button"
               onMouseDown={() => {
@@ -459,7 +470,7 @@ export function Breakout({ onBack }: BreakoutProps) {
               }}
             >
               <ChevronLeft aria-hidden="true" />
-              左
+              {text("左", "Left")}
             </button>
             <button
               type="button"
@@ -482,44 +493,44 @@ export function Breakout({ onBack }: BreakoutProps) {
                 releasePaddleControls();
               }}
             >
-              右
+              {text("右", "Right")}
               <ChevronRight aria-hidden="true" />
             </button>
           </div>
 
           <div className="breakout-best">
-            <h2>ベスト</h2>
+            <h2>{text("ベスト", "Best")}</h2>
             {bestResult ? (
               <p>
-                {bestResult.score}点 / 破壊{bestResult.clearedBricks}個 / 残機{bestResult.lives}
+                {text(`${bestResult.score}点 / 破壊${bestResult.clearedBricks}個 / 残機${bestResult.lives}`, `${bestResult.score} pts / ${bestResult.clearedBricks} bricks / ${bestResult.lives} lives`)}
               </p>
             ) : (
-              <p>まだ記録がありません。</p>
+              <p>{text("まだ記録がありません。", "No record yet.")}</p>
             )}
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "cleared" || status === "finished" ? { score, display: `${score}点`, meta: `破壊${clearedBricks}個 / 残機${lives}` } : null}
+            pendingScore={status === "cleared" || status === "finished" ? { score, display: text(`${score}点`, `${score} pts`), meta: text(`破壊${clearedBricks}個 / 残機${lives}`, `${clearedBricks} bricks / ${lives} lives`) } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startGame}>
               <Play aria-hidden="true" />
-              挑戦
+              {text("挑戦", "Start")}
             </button>
             <button className="ghost-button" type="button" onClick={togglePause} disabled={status !== "playing" && status !== "paused"}>
               <Pause aria-hidden="true" />
-              {status === "paused" ? "再開" : "停止"}
+              {status === "paused" ? text("再開", "Resume") : text("停止", "Pause")}
             </button>
             <button className="ghost-button" type="button" onClick={resetBest}>
               <RotateCcw aria-hidden="true" />
-              ベスト削除
+              {text("ベスト削除", "Clear best")}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {text("棚へ戻る", "Back to shelf")}
           </button>
         </aside>
       </div>

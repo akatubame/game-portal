@@ -1,3 +1,5 @@
+import { useLocalizedMessage } from "../useLocalizedMessage";
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { CircleDot, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -242,6 +244,7 @@ function updateRecord(record: ConnectFourRecord, outcome: ConnectFourOutcome): C
 }
 
 export function ConnectFour({ onBack }: ConnectFourProps) {
+  const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
   const [board, setBoard] = useState<ConnectFourCell[]>(() => createBoard());
@@ -249,7 +252,8 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
   const [turn, setTurn] = useState<ConnectFourPlayer>("red");
   const [difficulty, setDifficulty] = useState<ConnectFourDifficulty>("normal");
   const [record, setRecord] = useState<ConnectFourRecord>(() => readRecord());
-  const [message, setMessage] = useState("赤があなた、黄がCOMです。先に4つ並べましょう。");
+  const [completedRecord, setCompletedRecord] = useState<Readonly<ConnectFourRecord> | null>(null);
+  const [message, setMessage] = useLocalizedMessage("赤があなた、黄がCOMです。先に4つ並べましょう。", "You are red and the CPU is yellow. Connect four to win.");
 
   const result = useMemo(() => findResult(board), [board]);
   const outcome = getOutcome(result, board);
@@ -264,12 +268,13 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
 
     const nextRecord = updateRecord(record, outcome);
     setRecord(nextRecord);
+    setCompletedRecord({ ...nextRecord });
     safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus("finished");
 
-    if (outcome === "win") setMessage("勝利！赤が4つ並びました。");
-    if (outcome === "lose") setMessage("COMの勝ちです。次はリーチを早めに止めましょう。");
-    if (outcome === "draw") setMessage("引き分けです。盤面ぎっしりの接戦でした。");
+    if (outcome === "win") setMessage("勝利！赤が4つ並びました。", "You win! Four red discs in a row.");
+    if (outcome === "lose") setMessage("COMの勝ちです。次はリーチを早めに止めましょう。", "The CPU wins. Try blocking threats earlier next time.");
+    if (outcome === "draw") setMessage("引き分けです。盤面ぎっしりの接戦でした。", "A draw! The board is full.");
   }, [outcome, record, status]);
 
   useEffect(() => {
@@ -291,17 +296,18 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
 
       setBoard(nextBoard);
       setTurn("red");
-      setMessage(`${column + 1}列目にCOMが置きました。あなたの番です。`);
+      setMessage(`${column + 1}列目にCOMが置きました。あなたの番です。`, `The CPU played column ${column + 1}. Your turn.`);
     }, 420);
 
     return () => window.clearTimeout(timerId);
   }, [board, difficulty, outcome, status, turn]);
 
   const startGame = () => {
+    setCompletedRecord(null);
     setBoard(createBoard());
     setStatus("playing");
     setTurn("red");
-    setMessage("列を選ぶと、下から赤いチップが入ります。");
+    setMessage("列を選ぶと、下から赤いチップが入ります。", "Choose a column to drop a red disc into its lowest empty space.");
   };
 
   const playColumn = (column: number) => {
@@ -311,23 +317,24 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
 
     const nextBoard = dropDisc(board, column, "red");
     if (!nextBoard) {
-      setMessage("その列はもういっぱいです。別の列を選びましょう。");
+      setMessage("その列はもういっぱいです。別の列を選びましょう。", "That column is full. Choose another column.");
       return;
     }
 
     setBoard(nextBoard);
     setTurn("yellow");
-    setMessage("COMが考えています……");
+    setMessage("COMが考えています……", "CPU is thinking...");
   };
 
   const resetRecord = () => {
+    if (!confirmRecordReset()) return;
     const emptyRecord = { wins: 0, losses: 0, draws: 0, streak: 0 };
     setRecord(emptyRecord);
     safeStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
   };
 
   return (
-    <section className="puzzle-shell connect-shell" aria-labelledby="connect-title">
+    <section data-native-i18n className="puzzle-shell connect-shell" aria-labelledby="connect-title">
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">BOARD GAME / INTERNAL GAME</p>
@@ -382,7 +389,7 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
             <h2>{isEnglish ? "How to play" : "遊び方"}</h2>
             <p>
               {isEnglish
-                ? "Choose a column to drop your disc from the bottom. Connect four of your color vertically, horizontally, or diagonally to win."
+                ? "Choose a column to drop your disc into its lowest empty space. Connect four of your color vertically, horizontally, or diagonally to win."
                 : "列を選ぶとチップが下から積み上がります。縦・横・斜めのどれかに自分の色を4つ並べると勝ちです。"}
             </p>
           </div>
@@ -411,13 +418,13 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
 
           <div className="connect-record">
             <span>{isEnglish ? "Streak" : "連勝"}: {record.streak}</span>
-            <span>{isEnglish ? "Current" : "現在"}: {status === "playing" ? (turn === "red" ? (isEnglish ? "Your turn" : "あなたの番") : (isEnglish ? "CPU turn" : "COMの番")) : (isEnglish ? "Idle" : "待機中")}</span>
+            <span>{isEnglish ? "Current" : "現在"}: {status === "playing" ? (turn === "red" ? (isEnglish ? "Your turn" : "あなたの番") : (isEnglish ? "CPU turn" : "COMの番")) : status === "finished" ? (isEnglish ? "Finished" : "対局終了") : (isEnglish ? "Idle" : "待機中")}</span>
             <span>{isEnglish ? "Difficulty" : "難易度"}: {visibleDifficultyLabel}</span>
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "finished" && outcome === "win" ? { score: record.streak, display: isEnglish ? `${record.streak}-win streak` : `${record.streak}連勝`, meta: visibleDifficultyLabel } : null}
+            pendingScore={status === "finished" && outcome === "win" && completedRecord ? { score: completedRecord.streak, display: isEnglish ? `${completedRecord.streak}-win streak` : `${completedRecord.streak}連勝`, meta: visibleDifficultyLabel } : null}
           />
 
           <div className="control-row">

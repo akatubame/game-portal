@@ -1,3 +1,25 @@
+export type RankingEntry = {
+  id: string;
+  name: string;
+  score: number;
+  display: string;
+  meta?: string;
+  recordedAt: string;
+};
+
+// 旧版の記録には display がない。読み込み時だけ補完し、保存済みのキーや値は変更しない。
+export type StoredRankingEntry = Omit<RankingEntry, "display"> & { display?: string };
+
+export function isStoredRankingEntry(value: unknown): value is StoredRankingEntry {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  const entry = value as Record<string, unknown>;
+  return typeof entry.id === "string" && typeof entry.name === "string" &&
+    typeof entry.score === "number" && Number.isFinite(entry.score) &&
+    typeof entry.recordedAt === "string" &&
+    (entry.display === undefined || typeof entry.display === "string") &&
+    (entry.meta === undefined || typeof entry.meta === "string");
+}
+
 type Validator = (value: unknown) => boolean;
 const object = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
@@ -44,6 +66,7 @@ const schemas: Record<string, Validator> = {
   "hanoi-best-times": map(number),
   "hanoi-best": map(result("moves disks")),
   "maze-escape-best": map(result("size moves seconds")),
+  "maze-escape-time-best": map(result("size moves seconds")),
   "flood-fill-best": map(shape({ moves: number, difficulty: text, recordedAt: text })),
   "same-game-best": map(shape({ score: number, difficulty: text, recordedAt: text })),
   "hit-blow-best": map(shape({ attempts: number, seconds: number, difficulty: text, recordedAt: text })),
@@ -59,8 +82,7 @@ export function validStoredValue(key: string, raw: string): boolean {
   }
   let validate = schemas[name];
   if (name.startsWith("ranking-")) {
-    validate = list((value) => shape({ id: text, name: text, score: number, recordedAt: text })(value) &&
-      object(value) && (value.meta === undefined || text(value.meta)));
+    validate = list(isStoredRankingEntry);
   }
   if (!validate) return true;
   try { return validate(JSON.parse(raw)); } catch { return false; }

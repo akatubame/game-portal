@@ -26,6 +26,7 @@ export function LightsOut({ onBack }: LightsOutProps) {
   const isEnglish = language === "en";
   const [difficultyId, setDifficultyId] = useState<LightsOutDifficultyId>("easy");
   const difficulty = getDifficulty(difficultyId);
+  const difficultyLabel = isEnglish ? { easy: "Easy", normal: "Normal", hard: "Hard" }[difficulty.id] : difficulty.label;
   const [board, setBoard] = useState<LightsOutBoard>(() => createPuzzle(difficulty));
   const [moves, setMoves] = useState(0);
   const { seconds, startTimer, resetTimer, stopTimer } = useStopwatch();
@@ -112,7 +113,7 @@ export function LightsOut({ onBack }: LightsOutProps) {
   }[status] : statusText;
 
   return (
-    <section className="puzzle-shell lights-out-shell" aria-labelledby="lights-out-title">
+    <section className="puzzle-shell lights-out-shell" aria-labelledby="lights-out-title" data-native-i18n>
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">PUZZLE / INTERNAL GAME</p>
@@ -138,7 +139,7 @@ export function LightsOut({ onBack }: LightsOutProps) {
       <div className="puzzle-layout lights-out-layout">
         <div
           className="lights-out-board"
-          aria-label={`${difficulty.label}の盤面`}
+          aria-label={isEnglish ? `${difficultyLabel} board` : `${difficultyLabel}の盤面`}
           style={{ "--size": difficulty.size } as CSSProperties}
         >
           {board.map((row, rowIndex) =>
@@ -172,7 +173,7 @@ export function LightsOut({ onBack }: LightsOutProps) {
             <select value={difficultyId} onChange={(event) => resetGame(event.target.value as LightsOutDifficultyId)}>
               {lightsOutDifficulties.map((item) => (
                 <option value={item.id} key={item.id}>
-                  {item.label} - {item.size}x{item.size}
+                  {isEnglish ? { easy: "Easy", normal: "Normal", hard: "Hard" }[item.id] : item.label} - {item.size}x{item.size}
                 </option>
               ))}
             </select>
@@ -189,7 +190,7 @@ export function LightsOut({ onBack }: LightsOutProps) {
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "cleared" ? { score: moves, display: isEnglish ? `${moves} moves` : `${moves}手`, meta: `${difficulty.label} / ${formatTime(seconds)}` } : null}
+            pendingScore={status === "cleared" ? { score: moves, display: isEnglish ? `${moves} moves` : `${moves}手`, meta: `${difficultyLabel} / ${formatTime(seconds)}` } : null}
           />
 
           <div className="control-row">

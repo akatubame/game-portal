@@ -1,3 +1,4 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { useCountdown } from "../useCountdown";
 import { safeStorage } from "../../safeStorage";
 import { Keyboard, RotateCcw } from "lucide-react";
@@ -36,6 +37,7 @@ function calculateScore(correctChars: number, completedPhrases: number, accuracy
 }
 
 export function TypingGame({ onBack }: TypingGameProps) {
+  const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
   const [status, setStatus] = useState<TypingStatus>("idle");
@@ -140,6 +142,7 @@ export function TypingGame({ onBack }: TypingGameProps) {
   };
 
   const resetBest = () => {
+    if (!confirmRecordReset()) return;
     safeStorage.removeItem(BEST_KEY);
     setBestResult(null);
   };
@@ -147,21 +150,25 @@ export function TypingGame({ onBack }: TypingGameProps) {
   const expected = phrase.reading.toLowerCase();
   const isCurrentInputValid = expected.startsWith(input);
   const remaining = expected.slice(input.length);
-  const statusText = {
+  const statusText = (isEnglish ? {
+    idle: "Press Start for a 60-second round. Type the romaji shown below.",
+    playing: "Type the romaji. If you make a mistake, you can correct it.",
+    finished: "Time's up! You can try again."
+  } : {
     idle: "スタートを押したら60秒勝負です。表示されたローマ字を入力してください。",
     playing: "ローマ字を入力してください。間違えても、そのまま打ち直せます。",
     finished: "終了！もう一度挑戦できます。"
-  }[status];
+  })[status];
 
   return (
-    <section className="puzzle-shell typing-shell" aria-labelledby="typing-title">
+    <section className="puzzle-shell typing-shell" aria-labelledby="typing-title" data-native-i18n>
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">SCORE ATTACK / INTERNAL GAME</p>
-          <h1 id="typing-title">タイピングゲーム</h1>
+          <h1 id="typing-title">{isEnglish ? "Typing Game" : "タイピングゲーム"}</h1>
           <p className="lead">{statusText}</p>
         </div>
-        <div className="score-panel typing-stats" aria-label="タイピングゲームの状態">
+        <div className="score-panel typing-stats" aria-label={isEnglish ? "Typing Game status" : "タイピングゲームの状態"}>
           <div>
             <span>Score</span>
             <strong>{score}</strong>
@@ -190,30 +197,30 @@ export function TypingGame({ onBack }: TypingGameProps) {
             spellCheck={false}
             autoCapitalize="off"
             autoComplete="off"
-            aria-label="ローマ字入力"
-            placeholder={status === "playing" ? "ここに入力" : "スタートを押してください"}
+            aria-label={isEnglish ? "Romaji input" : "ローマ字入力"}
+            placeholder={status === "playing" ? (isEnglish ? "Type here" : "ここに入力") : (isEnglish ? "Press Start" : "スタートを押してください")}
           />
           <button className="typing-start-button" type="button" onClick={startRound}>
             <Keyboard aria-hidden="true" />
-            {status === "playing" ? "最初から" : "スタート"}
+            {status === "playing" ? (isEnglish ? "Restart" : "最初から") : (isEnglish ? "Start" : "スタート")}
           </button>
         </div>
 
         <aside className="puzzle-side typing-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
-            <p>表示された日本語に対応するローマ字を入力します。60秒でどれだけ正確に打てるかを競います。</p>
+            <h2>{isEnglish ? "How to Play" : "遊び方"}</h2>
+            <p>{isEnglish ? "Type the romaji for the Japanese phrase shown on screen. Score as many accurate keystrokes as you can in 60 seconds." : "表示された日本語に対応するローマ字を入力します。60秒でどれだけ正確に打てるかを競います。"}</p>
           </div>
 
           <div className="typing-progress">
-            <span>正確率: {accuracy}%</span>
-            <span>完了フレーズ: {completedPhrases}</span>
-            <span>正解文字: {correctChars}</span>
-            <span>入力文字: {totalTyped}</span>
+            <span>{isEnglish ? "Accuracy" : "正確率"}: {accuracy}%</span>
+            <span>{isEnglish ? "Completed phrases" : "完了フレーズ"}: {completedPhrases}</span>
+            <span>{isEnglish ? "Correct characters" : "正解文字"}: {correctChars}</span>
+            <span>{isEnglish ? "Typed characters" : "入力文字"}: {totalTyped}</span>
           </div>
 
           <div className="typing-best">
-            <h2>ベスト</h2>
+            <h2>{isEnglish ? "Best" : "ベスト"}</h2>
             {bestResult ? (
               <p>
                 {isEnglish
@@ -221,7 +228,7 @@ export function TypingGame({ onBack }: TypingGameProps) {
                   : `${bestResult.score}点 / 正確率${bestResult.accuracy}% / ${bestResult.completedPhrases}フレーズ`}
               </p>
             ) : (
-              <p>まだ記録がありません。</p>
+              <p>{isEnglish ? "No record yet." : "まだ記録がありません。"}</p>
             )}
           </div>
 
@@ -233,16 +240,16 @@ export function TypingGame({ onBack }: TypingGameProps) {
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startRound}>
               <Keyboard aria-hidden="true" />
-              挑戦
+              {isEnglish ? "Start round" : "挑戦"}
             </button>
             <button className="ghost-button" type="button" onClick={resetBest}>
               <RotateCcw aria-hidden="true" />
-              ベスト削除
+              {isEnglish ? "Clear best" : "ベスト削除"}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {isEnglish ? "Back to shelf" : "棚へ戻る"}
           </button>
         </aside>
       </div>

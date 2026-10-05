@@ -45,6 +45,7 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
   const isEnglish = language === "en";
   const [difficultyId, setDifficultyId] = useState<DifficultyId>("easy");
   const difficulty = getDifficulty(difficultyId);
+  const difficultyLabel = isEnglish ? { easy: "Easy", normal: "Normal", hard: "Hard" }[difficulty.id] : difficulty.label;
   const [board, setBoard] = useState<MineBoard>(() => createEmptyBoard(difficulty));
   const [status, setStatus] = useState<GameStatus>("ready");
   const [flagMode, setFlagMode] = useState(false);
@@ -146,14 +147,14 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
     : status === "ready" ? "開始前" : status === "playing" ? "探索中" : status === "won" ? "クリア" : "失敗";
 
   return (
-    <section className="puzzle-shell minesweeper-shell" aria-labelledby="minesweeper-title">
+    <section className="puzzle-shell minesweeper-shell" aria-labelledby="minesweeper-title" data-native-i18n>
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">PUZZLE / INTERNAL GAME</p>
-          <h1 id="minesweeper-title">マインスイーパー</h1>
+          <h1 id="minesweeper-title">{isEnglish ? "Minesweeper" : "マインスイーパー"}</h1>
           <p className="lead">{visibleStatusText}</p>
         </div>
-        <div className="score-panel minesweeper-stats" aria-label="マインスイーパーの状態">
+        <div className="score-panel minesweeper-stats" aria-label={isEnglish ? "Minesweeper status" : "マインスイーパーの状態"}>
           <div>
             <span>Mines</span>
             <strong>{remainingMines}</strong>
@@ -172,7 +173,7 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
       <div className="puzzle-layout minesweeper-layout">
         <div
           className="minesweeper-board"
-          aria-label={`${difficulty.label}の盤面`}
+          aria-label={isEnglish ? `${difficultyLabel} board` : `${difficultyLabel}の盤面`}
           style={{ "--columns": difficulty.columns } as CSSProperties}
         >
           {board.map((row) =>
@@ -200,9 +201,9 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
                   type="button"
                   onClick={() => openCell(cell.row, cell.column)}
                   onContextMenu={(event) => flagCell(event, cell.row, cell.column)}
-                  aria-label={`${cell.row + 1}行${cell.column + 1}列${
-                    cell.revealed ? "、開いています" : cell.flagged ? "、旗" : "、未開封"
-                  }`}
+                  aria-label={isEnglish
+                    ? `Row ${cell.row + 1}, column ${cell.column + 1}: ${cell.revealed ? "revealed" : cell.flagged ? "flagged" : "hidden"}`
+                    : `${cell.row + 1}行${cell.column + 1}列${cell.revealed ? "、開いています" : cell.flagged ? "、旗" : "、未開封"}`}
                 >
                   {content}
                 </button>
@@ -226,7 +227,7 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
             <select value={difficultyId} onChange={(event) => resetGame(event.target.value as DifficultyId)}>
               {difficulties.map((item) => (
                 <option value={item.id} key={item.id}>
-                  {item.label} - {item.rows}x{item.columns} / {isEnglish ? `${item.mines} mines` : `地雷${item.mines}`}
+                  {isEnglish ? { easy: "Easy", normal: "Normal", hard: "Hard" }[item.id] : item.label} - {item.rows}x{item.columns} / {isEnglish ? `${item.mines} mines` : `地雷${item.mines}`}
                 </option>
               ))}
             </select>
@@ -239,7 +240,7 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
             <span>
               {isEnglish ? "Status" : "状態"}: {visibleStatusLabel}
             </span>
-            <span>ベストタイム: {bestTime === null ? "未記録" : formatTime(bestTime)}</span>
+            <span>{isEnglish ? "Best time" : "ベストタイム"}: {bestTime === null ? (isEnglish ? "No record" : "未記録") : formatTime(bestTime)}</span>
           </div>
 
           <div className="control-row">
@@ -265,7 +266,7 @@ export function Minesweeper({ onBack }: MinesweeperProps) {
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "won" ? { score: seconds, display: isEnglish ? `${formatTime(seconds)} sec` : `${formatTime(seconds)}秒`, meta: difficulty.label } : null}
+            pendingScore={status === "won" ? { score: seconds, display: isEnglish ? `${formatTime(seconds)} sec` : `${formatTime(seconds)}秒`, meta: difficultyLabel } : null}
           />
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>

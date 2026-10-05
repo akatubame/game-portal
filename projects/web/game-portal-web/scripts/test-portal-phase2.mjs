@@ -58,6 +58,7 @@ try {
     await page.clock.install();
     await page.clock.pauseAt(new Date(Date.now() + 1000));
     await page.getByRole("button", { name: "スタート", exact: true }).click();
+    page.once("dialog", dialog => dialog.accept());
     await page.getByRole("button", { name: "記録リセット", exact: true }).click();
     await page.clock.fastForward(5000);
     assert.ok(await page.locator(".reaction-target.is-idle").count());

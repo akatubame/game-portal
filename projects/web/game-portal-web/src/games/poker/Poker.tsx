@@ -1,4 +1,6 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
+import { useI18n } from "../../i18n";
 import { CircleDollarSign, RotateCcw, Sparkles, Trophy } from "lucide-react";
 import { useMemo, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
@@ -112,16 +114,26 @@ function cardKey(card: PokerCard, index: number) {
 }
 
 export function Poker({ onBack }: PokerProps) {
+  const confirmRecordReset = useConfirmRecordReset();
+  const { language } = useI18n();
+  const en = language === "en";
+  const text = (ja: string, english: string) => en ? english : ja;
+  const handName = (name: string) => !en ? name : ({ "ロイヤルフラッシュ": "Royal Flush", "ストレートフラッシュ": "Straight Flush", "フォーカード": "Four of a Kind", "フルハウス": "Full House", "フラッシュ": "Flush", "ストレート": "Straight", "スリーカード": "Three of a Kind", "ツーペア": "Two Pair", "ワンペア": "One Pair", "ハイカード": "High Card", "なし": "None", "未判定": "Not evaluated" } as Record<string, string>)[name] ?? "Unknown hand";
   const [deck, setDeck] = useState<PokerCard[]>(() => createDeck());
   const [hand, setHand] = useState<PokerCard[]>([]);
   const [selectedIndexes, setSelectedIndexes] = useState<number[]>([]);
   const [status, setStatus] = useState<PokerStatus>("idle");
   const [record, setRecord] = useState<PokerRecord>(() => readRecord());
-  const [message, setMessage] = useState("5枚のカードを配り、交換したいカードを選んで役を作りましょう。");
+  const [exchangedCount, setExchangedCount] = useState(0);
 
   const result = useMemo(() => evaluateHand(hand), [hand]);
   const ranking = useRanking({ gameId: "poker-hand-score", metricLabel: "Score", mode: "higher" });
   const selectedCount = selectedIndexes.length;
+  const message = status === "idle"
+    ? text("5枚のカードを配り、交換したいカードを選んで役を作りましょう。", "Deal five cards, then select the cards to exchange.")
+    : status === "dealt"
+      ? text("交換したいカードを選んでください。もう一度カードを押すと選択解除できます。", "Select cards to exchange. Click a selected card again to keep it.")
+      : text(exchangedCount === 0 ? `交換なしで勝負。役は「${result.name}」です。` : `${exchangedCount}枚交換しました。役は「${result.name}」です。`, `${exchangedCount} card${exchangedCount === 1 ? "" : "s"} exchanged. Your hand: ${handName(result.name)}.`);
 
   const deal = () => {
     const nextDeck = createDeck();
@@ -131,7 +143,7 @@ export function Poker({ onBack }: PokerProps) {
     setHand(drawn.cards);
     setSelectedIndexes([]);
     setStatus("dealt");
-    setMessage("交換したいカードを選んでください。もう一度カードを押すと選択解除できます。");
+    setExchangedCount(0);
   };
 
   const toggleCard = (index: number) => {
@@ -171,10 +183,11 @@ export function Poker({ onBack }: PokerProps) {
     setStatus("drawn");
     setRecord(nextRecord);
     safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
-    setMessage(selectedCount === 0 ? `交換なしで勝負。役は「${nextResult.name}」です。` : `${selectedCount}枚交換しました。役は「${nextResult.name}」です。`);
+    setExchangedCount(selectedCount);
   };
 
   const resetRecord = () => {
+    if (!confirmRecordReset()) return;
     const emptyRecord = { plays: 0, bestHand: "なし", bestScore: 0 };
     setRecord(emptyRecord);
     safeStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
@@ -185,26 +198,26 @@ export function Poker({ onBack }: PokerProps) {
     const isSelected = selectedIndexes.includes(index);
 
     return (
-      <button className={`poker-card${isRed ? " is-red" : ""}${isSelected ? " is-selected" : ""}`} key={cardKey(card, index)} type="button" onClick={() => toggleCard(index)}>
+      <button className={`poker-card${isRed ? " is-red" : ""}${isSelected ? " is-selected" : ""}`} key={cardKey(card, index)} type="button" onClick={() => toggleCard(index)} disabled={status !== "dealt"} aria-pressed={isSelected}>
         <span>{card.rank}</span>
         <strong>{card.suit}</strong>
-        {status === "dealt" && <em>{isSelected ? "交換" : "保持"}</em>}
+        {status === "dealt" && <em>{isSelected ? text("交換", "Exchange") : text("保持", "Keep")}</em>}
       </button>
     );
   };
 
   return (
-    <section className="puzzle-shell poker-shell" aria-labelledby="poker-title">
+    <section data-native-i18n className="puzzle-shell poker-shell" aria-labelledby="poker-title">
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">CARD GAME / INTERNAL GAME</p>
-          <h1 id="poker-title">ポーカー</h1>
+          <h1 id="poker-title">{text("ポーカー", "Poker")}</h1>
           <p className="lead">{message}</p>
         </div>
-        <div className="score-panel poker-score" aria-label="ポーカーの記録">
+        <div className="score-panel poker-score" aria-label={text("ポーカーの記録", "Poker records")}>
           <div>
             <span>Hand</span>
-            <strong>{status === "idle" ? "--" : result.name}</strong>
+            <strong>{status === "idle" ? "--" : handName(result.name)}</strong>
           </div>
           <div>
             <span>Score</span>
@@ -218,19 +231,18 @@ export function Poker({ onBack }: PokerProps) {
       </div>
 
       <div className="puzzle-layout poker-layout">
-        <div className="poker-table" aria-label="ポーカーの手札">
-          <div className="poker-hand">{hand.length === 0 ? <div className="poker-placeholder">DEALを押してカードを配ります</div> : hand.map(renderCard)}</div>
+        <div className="poker-table" aria-label={text("ポーカーの手札", "Poker hand")}>
+          <div className="poker-hand">{hand.length === 0 ? <div className="poker-placeholder">{text("DEALを押してカードを配ります", "Press Deal to receive your cards.")}</div> : hand.map(renderCard)}</div>
           <div className="poker-result" aria-live="polite">
-            {status === "drawn" ? result.name : status === "dealt" ? `${selectedCount}枚を交換予定` : "FIVE CARD DRAW"}
+            {status === "drawn" ? handName(result.name) : status === "dealt" ? text(`${selectedCount}枚を交換予定`, `${selectedCount} selected for exchange`) : "FIVE CARD DRAW"}
           </div>
         </div>
 
         <aside className="puzzle-side poker-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{text("遊び方", "How to Play")}</h2>
             <p>
-              5枚の手札から交換したいカードを選び、「選んだカードを交換」を押します。交換は1回だけです。
-              交換後に役が確定し、最高役が保存されます。
+              {text("5枚の手札から交換したいカードを選び、「選んだカードを交換」を押します。交換は1回だけです。交換後に役が確定し、最高役が保存されます。", "Select any of your five cards, then press Exchange selected cards. You may exchange once, or keep all five. Your final hand is evaluated and your best hand is saved.")}
             </p>
           </div>
 
@@ -238,7 +250,7 @@ export function Poker({ onBack }: PokerProps) {
             <div>
               <Trophy aria-hidden="true" />
               <span>Best Hand</span>
-              <strong>{record.bestHand}</strong>
+              <strong>{handName(record.bestHand)}</strong>
             </div>
             <div>
               <CircleDollarSign aria-hidden="true" />
@@ -250,7 +262,7 @@ export function Poker({ onBack }: PokerProps) {
           <div className="poker-hand-table">
             {handTable.slice(0, 6).map((item) => (
               <span key={item.name}>
-                {item.name}
+                {handName(item.name)}
                 <strong>{item.score}</strong>
               </span>
             ))}
@@ -258,25 +270,25 @@ export function Poker({ onBack }: PokerProps) {
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "drawn" ? { score: result.score, display: `${result.score}点`, meta: result.name } : null}
+            pendingScore={status === "drawn" ? { score: result.score, display: text(`${result.score}点`, `${result.score} pts`), meta: handName(result.name) } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={deal}>
               <Sparkles aria-hidden="true" />
-              配る
+              {text("配る", "Deal")}
             </button>
             <button className="ghost-button" type="button" onClick={drawSelected} disabled={status !== "dealt"}>
-              選んだカードを交換
+              {text("選んだカードを交換", "Exchange selected cards")}
             </button>
             <button className="ghost-button" type="button" onClick={resetRecord}>
               <RotateCcw aria-hidden="true" />
-              記録リセット
+              {text("記録リセット", "Reset records")}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {text("棚へ戻る", "Back to shelf")}
           </button>
         </aside>
       </div>

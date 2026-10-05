@@ -1,8 +1,11 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { useStopwatch } from "../useStopwatch";
 import { safeStorage } from "../../safeStorage";
 import { Check, Delete, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { useLocalizedMessage } from "../useLocalizedMessage";
 import type { HitBlowBest, HitBlowDifficulty, HitBlowGuess, HitBlowStatus } from "./types";
 
 type HitBlowProps = {
@@ -91,12 +94,16 @@ function isBetterBest(currentBest: HitBlowBest | undefined, attempts: number, se
 }
 
 export function HitBlow({ onBack }: HitBlowProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
+  const text = (ja: string, en: string) => isEnglish ? en : ja;
+  const confirmRecordReset = useConfirmRecordReset();
   const [difficulty, setDifficulty] = useState<HitBlowDifficulty>("normal");
   const [answer, setAnswer] = useState(() => createAnswer());
   const [status, setStatus] = useState<HitBlowStatus>("idle");
   const [input, setInput] = useState("");
   const [guesses, setGuesses] = useState<HitBlowGuess[]>([]);
-  const [message, setMessage] = useState("重複しない4桁の数字を推理しましょう。Hitは位置も数字も一致、Blowは数字だけ一致です。");
+  const [message, setMessage] = useLocalizedMessage("重複しない4桁の数字を推理しましょう。Hitは位置も数字も一致、Blowは数字だけ一致です。", "Guess four distinct digits. A Hit has the right digit in the right place; a Blow has the right digit in a different place.");
   const { seconds, resetTimer, stopTimer } = useStopwatch();
   const [bestByDifficulty, setBestByDifficulty] = useState<Record<HitBlowDifficulty, HitBlowBest | undefined>>(() => readBest());
 
@@ -131,7 +138,7 @@ export function HitBlow({ onBack }: HitBlowProps) {
     setInput("");
     setGuesses([]);
     resetTimer(true);
-    setMessage("数字ボタンで4桁を入力し、判定しましょう。数字は重複できません。");
+    setMessage("数字ボタンで4桁を入力し、判定しましょう。数字は重複できません。", "Enter four different digits and submit your guess.");
   };
 
   const addDigit = (digit: string) => {
@@ -148,7 +155,7 @@ export function HitBlow({ onBack }: HitBlowProps) {
 
   const submitGuess = () => {
     if (!canSubmit) {
-      setMessage(input.length < 4 ? "4桁そろえてから判定しましょう。" : "同じ数字は使えません。");
+      setMessage(input.length < 4 ? "4桁そろえてから判定しましょう。" : "同じ数字は使えません。", input.length < 4 ? "Enter all four digits before submitting." : "You cannot use the same digit twice.");
       return;
     }
 
@@ -160,7 +167,7 @@ export function HitBlow({ onBack }: HitBlowProps) {
 
     if (result.hits === 4) {
       setStatus("cleared");
-      setMessage(`正解！${nextGuesses.length}回で当てました。`);
+      setMessage(`正解！${nextGuesses.length}回で当てました。`, `Correct! You found the code in ${nextGuesses.length} ${nextGuesses.length === 1 ? "try" : "tries"}.`);
       saveBest(nextGuesses.length, stopTimer());
       return;
     }
@@ -168,27 +175,28 @@ export function HitBlow({ onBack }: HitBlowProps) {
     if (nextGuesses.length >= settings.attempts) {
       stopTimer();
       setStatus("failed");
-      setMessage(`ゲームオーバー。答えは ${answer} でした。`);
+      setMessage(`ゲームオーバー。答えは ${answer} でした。`, `Game over. The code was ${answer}.`);
       return;
     }
 
-    setMessage(`${result.hits} Hit / ${result.blows} Blow。残り${settings.attempts - nextGuesses.length}回です。`);
+    setMessage(`${result.hits} Hit / ${result.blows} Blow。残り${settings.attempts - nextGuesses.length}回です。`, `${result.hits} Hit / ${result.blows} Blow. ${settings.attempts - nextGuesses.length} tries left.`);
   };
 
   const resetBest = () => {
+    if (!confirmRecordReset()) return;
     safeStorage.removeItem(BEST_KEY);
     setBestByDifficulty({ easy: undefined, normal: undefined, hard: undefined });
   };
 
   return (
-    <section className="puzzle-shell hitblow-shell" aria-labelledby="hitblow-title">
+    <section className="puzzle-shell hitblow-shell" aria-labelledby="hitblow-title" data-native-i18n>
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">LOGIC / INTERNAL GAME</p>
           <h1 id="hitblow-title">Hit & Blow</h1>
           <p className="lead">{message}</p>
         </div>
-        <div className="score-panel hitblow-score" aria-label="Hit and Blowの状態">
+        <div className="score-panel hitblow-score" aria-label={text("Hit and Blowの状態", "Hit & Blow status")}>
           <div>
             <span>Tries</span>
             <strong>{guesses.length}</strong>
@@ -206,7 +214,7 @@ export function HitBlow({ onBack }: HitBlowProps) {
 
       <div className="puzzle-layout hitblow-layout">
         <div className="hitblow-play-area">
-          <div className="hitblow-input" aria-label="現在の入力">
+          <div className="hitblow-input" aria-label={text("現在の入力", "Current input")}>
             {inputDigits.map((digit, index) => (
               <span className={digit.trim() ? "is-filled" : ""} key={index}>
                 {digit.trim() || "?"}
@@ -214,7 +222,7 @@ export function HitBlow({ onBack }: HitBlowProps) {
             ))}
           </div>
 
-          <div className="hitblow-keypad" aria-label="数字入力">
+          <div className="hitblow-keypad" aria-label={text("数字入力", "Number keypad")}>
             {DIGITS.map((digit) => (
               <button disabled={status !== "playing" || input.includes(digit) || input.length >= 4} key={digit} type="button" onClick={() => addDigit(digit)}>
                 {digit}
@@ -225,18 +233,18 @@ export function HitBlow({ onBack }: HitBlowProps) {
           <div className="hitblow-actions">
             <button className="ghost-button" type="button" onClick={deleteDigit} disabled={status !== "playing" || input.length === 0}>
               <Delete aria-hidden="true" />
-              1文字削除
+              {text("1文字削除", "Delete digit")}
             </button>
             <button className="primary-button" type="button" onClick={submitGuess} disabled={status !== "playing"}>
               <Check aria-hidden="true" />
-              判定
+              {text("判定", "Submit")}
             </button>
           </div>
 
-          <div className="hitblow-history" aria-label="判定履歴">
-            <h2>履歴</h2>
+          <div className="hitblow-history" aria-label={text("判定履歴", "Guess history")}>
+            <h2>{text("履歴", "History")}</h2>
             {guesses.length === 0 ? (
-              <p>まだ履歴はありません。まずは直感の4桁からどうぞ。</p>
+              <p>{text("まだ履歴はありません。まずは直感の4桁からどうぞ。", "No guesses yet. Try any four distinct digits.")}</p>
             ) : (
               <ol>
                 {guesses.map((guess, index) => (
@@ -253,14 +261,14 @@ export function HitBlow({ onBack }: HitBlowProps) {
 
         <aside className="puzzle-side hitblow-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{text("遊び方", "How to Play")}</h2>
             <p>
-              答えは重複しない4桁の数字です。Hitは数字と位置が一致、Blowは数字は含まれるが位置が違う、という意味です。
-              履歴を見ながら候補を絞り込みましょう。
+              {text("答えは重複しない4桁の数字です。Hitは数字と位置が一致、Blowは数字は含まれるが位置が違う、という意味です。履歴を見ながら候補を絞り込みましょう。",
+                "The answer has four distinct digits. A Hit matches both digit and position; a Blow matches the digit in another position. Use the history to narrow it down.")}
             </p>
           </div>
 
-          <div className="hitblow-options" aria-label="難易度">
+          <div className="hitblow-options" aria-label={text("難易度", "Difficulty")}>
             {(Object.keys(difficultySettings) as HitBlowDifficulty[]).map((level) => (
               <button
                 className={difficulty === level ? "is-selected" : ""}
@@ -269,36 +277,36 @@ export function HitBlow({ onBack }: HitBlowProps) {
                 type="button"
                 onClick={() => startGame(level)}
               >
-                <span>{difficultySettings[level].label}</span>
-                <small>{difficultySettings[level].description}</small>
+                <span>{isEnglish ? { easy: "Easy", normal: "Normal", hard: "Hard" }[level] : difficultySettings[level].label}</span>
+                <small>{isEnglish ? { easy: "12 tries. The first digit is shown.", normal: "10 tries. Standard rules.", hard: "Find the code in 8 tries." }[level] : difficultySettings[level].description}</small>
               </button>
             ))}
           </div>
 
           <div className="hitblow-progress">
-            <span>現在: {status === "playing" ? "推理中" : status === "cleared" ? "正解" : status === "failed" ? "失敗" : "待機中"}</span>
-            <span>ヒント: {settings.hint && status !== "idle" ? `先頭は ${answer[0]}` : "なし"}</span>
-            <span>ベスト: {currentBest ? `${currentBest.attempts}回 / ${formatTime(currentBest.seconds)}` : "まだ記録なし"}</span>
+            <span>{text("現在", "Status")}: {status === "playing" ? text("推理中", "Guessing") : status === "cleared" ? text("正解", "Solved") : status === "failed" ? text("失敗", "Failed") : text("待機中", "Ready")}</span>
+            <span>{text("ヒント", "Hint")}: {settings.hint && status !== "idle" ? text(`先頭は ${answer[0]}`, `First digit: ${answer[0]}`) : text("なし", "None")}</span>
+            <span>{text("ベスト", "Best")}: {currentBest ? text(`${currentBest.attempts}回 / ${formatTime(currentBest.seconds)}`, `${currentBest.attempts} tries / ${formatTime(currentBest.seconds)}`) : text("まだ記録なし", "No record yet")}</span>
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "cleared" ? { score: guesses.length * 10000 + seconds, display: `${guesses.length}回 / ${formatTime(seconds)}`, meta: settings.label } : null}
+            pendingScore={status === "cleared" ? { score: guesses.length * 10000 + seconds, display: text(`${guesses.length}回 / ${formatTime(seconds)}`, `${guesses.length} tries / ${formatTime(seconds)}`), meta: isEnglish ? { easy: "Easy", normal: "Normal", hard: "Hard" }[difficulty] : settings.label } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={() => startGame()}>
               <Sparkles aria-hidden="true" />
-              新しく始める
+              {text("新しく始める", "New game")}
             </button>
             <button className="ghost-button" type="button" onClick={resetBest}>
               <RotateCcw aria-hidden="true" />
-              ベスト削除
+              {text("ベスト削除", "Clear best")}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {text("棚へ戻る", "Back to shelf")}
           </button>
         </aside>
       </div>

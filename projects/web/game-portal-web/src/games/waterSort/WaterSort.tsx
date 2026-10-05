@@ -1,8 +1,10 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { RotateCcw, Sparkles, Trophy, Undo2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { useLocalizedMessage } from "../useLocalizedMessage";
 import type { WaterBottle, WaterColor, WaterSortHistory, WaterSortRecord, WaterSortStatus } from "./types";
 
 type WaterSortProps = {
@@ -139,36 +141,8 @@ function isSolved(bottles: WaterBottle[]) {
   return bottles.every((bottle) => bottle.length === 0 || (bottle.length === CAPACITY && bottle.every((color) => color === bottle[0])));
 }
 
-function translateWaterSortMessage(message: string) {
-  const startMatch = message.match(/^(.+)を開始しました。/);
-  if (startMatch) {
-    return `Started ${startMatch[1]}. Consecutive water of the same color pours together.`;
-  }
-
-  const clearedMatch = message.match(/^クリア！\s*(\d+)手で全ボトルを整理できました。$/);
-  if (clearedMatch) {
-    return `Clear! You sorted every bottle in ${clearedMatch[1]} moves.`;
-  }
-
-  const selectedMatch = message.match(/^(\d+)番のボトルを選択中。/);
-  if (selectedMatch) {
-    return `Bottle ${selectedMatch[1]} selected. Choose a bottle to pour into.`;
-  }
-
-  const exact: Record<string, string> = {
-    "同じ色の水だけを重ねられます。ボトルを選んで、注ぎ先を選びましょう。": "Only matching colors can be stacked. Choose a bottle, then choose where to pour.",
-    "空のボトルからは注げません。水が入っているボトルを選びましょう。": "You cannot pour from an empty bottle. Choose a bottle that contains water.",
-    "選択を解除しました。": "Selection cleared.",
-    "そのボトルには注げません。選択を切り替えました。": "You cannot pour into that bottle. Selection switched.",
-    "そのボトルには注げません。色か空き容量を確認してください。": "You cannot pour into that bottle. Check the color or free space.",
-    "いい注ぎ方です。単色のボトルを増やしていきましょう。": "Nice pour. Keep building bottles with a single color.",
-    "1手戻しました。": "Undid one move."
-  };
-
-  return exact[message] ?? message;
-}
-
 export function WaterSort({ onBack }: WaterSortProps) {
+  const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
   const [levelIndex, setLevelIndex] = useState(0);
@@ -178,13 +152,12 @@ export function WaterSort({ onBack }: WaterSortProps) {
   const [history, setHistory] = useState<WaterSortHistory[]>([]);
   const [status, setStatus] = useState<WaterSortStatus>("playing");
   const [record, setRecord] = useState<WaterSortRecord>(() => readRecord());
-  const [message, setMessage] = useState("同じ色の水だけを重ねられます。ボトルを選んで、注ぎ先を選びましょう。");
+  const [message, setMessage] = useLocalizedMessage("同じ色の水だけを重ねられます。ボトルを選んで、注ぎ先を選びましょう。", "Only matching colors can be stacked. Choose a bottle, then choose where to pour.");
 
   const level = levels[levelIndex];
   const ranking = useRanking({ gameId: `water-sort-${level.id}`, metricLabel: "Moves", mode: "lower" });
   const bestMoves = record[level.id] ?? null;
   const filledBottleCount = useMemo(() => bottles.filter((bottle) => bottle.length === CAPACITY && bottle.every((color) => color === bottle[0])).length, [bottles]);
-  const visibleMessage = isEnglish ? translateWaterSortMessage(message) : message;
 
   const startLevel = (nextLevelIndex = levelIndex) => {
     const nextLevel = levels[nextLevelIndex];
@@ -195,7 +168,7 @@ export function WaterSort({ onBack }: WaterSortProps) {
     setMoves(0);
     setHistory([]);
     setStatus("playing");
-    setMessage(`${nextLevel.name}を開始しました。上にある同色の水はまとめて注がれます。`);
+    setMessage(`${nextLevel.name}を開始しました。上にある同色の水はまとめて注がれます。`, `Started ${nextLevel.name}. Consecutive layers of the same color pour together.`);
   };
 
   const selectLevel = (nextLevelIndex: number) => {
@@ -215,7 +188,7 @@ export function WaterSort({ onBack }: WaterSortProps) {
     setRecord(nextRecord);
     safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus("cleared");
-    setMessage(`クリア！ ${nextMoves}手で全ボトルを整理できました。`);
+    setMessage(`クリア！ ${nextMoves}手で全ボトルを整理できました。`, `Clear! You sorted every bottle in ${nextMoves} moves.`);
 
     return true;
   };
@@ -229,18 +202,18 @@ export function WaterSort({ onBack }: WaterSortProps) {
 
     if (selectedBottle === null) {
       if (bottle.length === 0) {
-        setMessage("空のボトルからは注げません。水が入っているボトルを選びましょう。");
+        setMessage("空のボトルからは注げません。水が入っているボトルを選びましょう。", "You cannot pour from an empty bottle. Choose one with water.");
         return;
       }
 
       setSelectedBottle(bottleIndex);
-      setMessage(`${bottleIndex + 1}番のボトルを選択中。注ぎ先を選んでください。`);
+      setMessage(`${bottleIndex + 1}番のボトルを選択中。注ぎ先を選んでください。`, `Bottle ${bottleIndex + 1} selected. Choose a destination.`);
       return;
     }
 
     if (selectedBottle === bottleIndex) {
       setSelectedBottle(null);
-      setMessage("選択を解除しました。");
+      setMessage("選択を解除しました。", "Selection cleared.");
       return;
     }
 
@@ -249,9 +222,9 @@ export function WaterSort({ onBack }: WaterSortProps) {
     if (!nextBottles) {
       if (bottle.length > 0) {
         setSelectedBottle(bottleIndex);
-        setMessage("そのボトルには注げません。選択を切り替えました。");
+        setMessage("そのボトルには注げません。選択を切り替えました。", "You cannot pour there. Switched selection.");
       } else {
-        setMessage("そのボトルには注げません。色か空き容量を確認してください。");
+        setMessage("そのボトルには注げません。色か空き容量を確認してください。", "You cannot pour there. Check the color or available space.");
       }
       return;
     }
@@ -264,7 +237,7 @@ export function WaterSort({ onBack }: WaterSortProps) {
     setSelectedBottle(null);
 
     if (!completeIfSolved(nextBottles, nextMoves)) {
-      setMessage("いい注ぎ方です。単色のボトルを増やしていきましょう。");
+      setMessage("いい注ぎ方です。単色のボトルを増やしていきましょう。", "Nice pour! Keep sorting the colors.");
     }
   };
 
@@ -279,21 +252,22 @@ export function WaterSort({ onBack }: WaterSortProps) {
     setMoves(previous.moves);
     setHistory(history.slice(0, -1));
     setSelectedBottle(null);
-    setMessage("1手戻しました。");
+    setMessage("1手戻しました。", "Undid one move.");
   };
 
   const resetRecord = () => {
+    if (!confirmRecordReset()) return;
     setRecord({});
     safeStorage.setItem(RECORD_KEY, JSON.stringify({}));
   };
 
   return (
-    <section className="puzzle-shell watersort-shell" aria-labelledby="watersort-title">
+    <section className="puzzle-shell watersort-shell" aria-labelledby="watersort-title" data-native-i18n>
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">SORT PUZZLE / INTERNAL GAME</p>
           <h1 id="watersort-title">Water Sort Puzzle</h1>
-          <p className="lead">{visibleMessage}</p>
+          <p className="lead">{message}</p>
         </div>
         <div className="score-panel watersort-score" aria-label={isEnglish ? "Water Sort Puzzle score" : "Water Sort Puzzleのスコア"}>
           <div>

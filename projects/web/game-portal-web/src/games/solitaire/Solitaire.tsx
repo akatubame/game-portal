@@ -1,3 +1,4 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { RotateCcw, Sparkles, Trophy } from "lucide-react";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
@@ -227,6 +228,7 @@ function sourceKey(selection: Selection | null) {
 }
 
 export function Solitaire({ onBack }: SolitaireProps) {
+  const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
   const [state, setState] = useState<GameState>(() => dealGame());
@@ -236,10 +238,12 @@ export function Solitaire({ onBack }: SolitaireProps) {
   const [startedAt, setStartedAt] = useState(() => Date.now());
   const [elapsedMs, setElapsedMs] = useState(0);
   const [record, setRecord] = useState<SolitaireRecord>(() => readRecord());
-  const [pendingScore, setPendingScore] = useState<PendingRankingScore | null>(null);
   const ranking = useRanking({ gameId: "solitaire-time", metricLabel: "Time", mode: "lower" });
   const selectedKey = sourceKey(selection);
   const foundationCount = useMemo(() => countFoundationCards(state), [state]);
+  const pendingScore: PendingRankingScore | null = status === "cleared"
+    ? { score: elapsedMs, display: formatTime(elapsedMs), meta: isEnglish ? `${moves} moves` : `${moves}手` }
+    : null;
 
   useEffect(() => {
     if (status === "cleared") return;
@@ -266,11 +270,6 @@ export function Solitaire({ onBack }: SolitaireProps) {
     setStatus("cleared");
     setElapsedMs(clearMs);
     setRecord(nextRecord);
-    setPendingScore({
-      score: clearMs,
-      display: formatTime(clearMs),
-      meta: isEnglish ? `${nextMoves} moves` : `${nextMoves}手`
-    });
     safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
   };
 
@@ -281,13 +280,12 @@ export function Solitaire({ onBack }: SolitaireProps) {
     setStatus("playing");
     setStartedAt(Date.now());
     setElapsedMs(0);
-    setPendingScore(null);
   };
 
   const resetRecord = () => {
+    if (!confirmRecordReset()) return;
     const nextRecord = emptyRecord();
     setRecord(nextRecord);
-    setPendingScore(null);
     safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
   };
 
@@ -453,7 +451,7 @@ export function Solitaire({ onBack }: SolitaireProps) {
   );
 
   return (
-    <section className="puzzle-shell solitaire-shell" aria-labelledby="solitaire-title">
+    <section className="puzzle-shell solitaire-shell" aria-labelledby="solitaire-title" data-native-i18n>
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">CARD GAME / INTERNAL GAME</p>

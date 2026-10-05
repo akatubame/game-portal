@@ -1,7 +1,10 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { ChevronDown, ChevronUp, Pause, Play, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { useLocalizedMessage } from "../useLocalizedMessage";
 import type { PongBall, PongDifficulty, PongResult, PongStatus } from "./types";
 
 type PongProps = {
@@ -76,6 +79,11 @@ function createServe(direction: 1 | -1): PongBall {
 }
 
 export function Pong({ onBack }: PongProps) {
+  const { language } = useI18n();
+  const isEnglish = language === "en";
+  const text = (ja: string, en: string) => isEnglish ? en : ja;
+  const difficultyLabel = (level: PongDifficulty) => text(difficultySettings[level].label, { easy: "Easy", normal: "Normal", hard: "Hard" }[level]);
+  const confirmRecordReset = useConfirmRecordReset();
   const [status, setStatus] = useState<PongStatus>("idle");
   const [ball, setBall] = useState<PongBall>(initialBall);
   const [playerY, setPlayerY] = useState((BOARD_HEIGHT - PADDLE_HEIGHT) / 2);
@@ -83,7 +91,7 @@ export function Pong({ onBack }: PongProps) {
   const [playerScore, setPlayerScore] = useState(0);
   const [cpuScore, setCpuScore] = useState(0);
   const [difficulty, setDifficulty] = useState<PongDifficulty>("normal");
-  const [message, setMessage] = useState("スタートを押して、CPUとのポン対戦を始めましょう。");
+  const [message, setMessage] = useLocalizedMessage("スタートを押して、CPUとのポン対戦を始めましょう。", "Press Start to play Pong against the CPU.");
   const [bestResult, setBestResult] = useState<PongResult | null>(() => readBestResult());
   const ranking = useRanking({ gameId: `pong-${difficulty}`, metricLabel: "Margin", mode: "higher" });
 
@@ -159,13 +167,13 @@ export function Pong({ onBack }: PongProps) {
 
       if (nextPlayerScore >= WIN_SCORE) {
         setStatus("finished");
-        setMessage("勝利！ラリーを制しました。もう一度遊べます。");
+        setMessage("勝利！ラリーを制しました。もう一度遊べます。", "You win! Ready for another match?");
         saveResult("player", nextPlayerScore, cpuScoreRef.current);
         return;
       }
 
       setBall(createServe(-1));
-      setMessage("得点！CPU側から再開します。");
+      setMessage("得点！CPU側から再開します。", "Point scored! The next serve starts toward the CPU.");
       return;
     }
 
@@ -175,13 +183,13 @@ export function Pong({ onBack }: PongProps) {
 
     if (nextCpuScore >= WIN_SCORE) {
       setStatus("finished");
-      setMessage("CPUの勝利。次は早めに中央へ戻ると守りやすいです。");
+      setMessage("CPUの勝利。次は早めに中央へ戻ると守りやすいです。", "CPU wins. Return toward the center sooner to defend.");
       saveResult("cpu", playerScoreRef.current, nextCpuScore);
       return;
     }
 
     setBall(createServe(1));
-    setMessage("失点。落ち着いて次のサーブを返しましょう。");
+    setMessage("失点。落ち着いて次のサーブを返しましょう。", "Point lost. Get ready for the next serve.");
   };
 
   const movePaddleBy = (delta: number) => {
@@ -284,6 +292,8 @@ export function Pong({ onBack }: PongProps) {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target;
+      if (event.isComposing || (target instanceof HTMLElement && (target.isContentEditable || target.closest("input, textarea, select, button")))) return;
       if (event.key === "ArrowUp" || event.key === "w" || event.key === "W") {
         event.preventDefault();
         moveUpRef.current = true;
@@ -302,10 +312,10 @@ export function Pong({ onBack }: PongProps) {
         if (statusRef.current === "playing") {
           releaseControls();
           setStatus("paused");
-          setMessage("一時停止中。スペースキーまたは再開ボタンで続けられます。");
+          setMessage("一時停止中。スペースキーまたは再開ボタンで続けられます。", "Paused. Press Space or Resume to continue.");
         } else if (statusRef.current === "paused") {
           setStatus("playing");
-          setMessage("再開しました。パドルの中央で返すと角度を抑えられます。");
+          setMessage("再開しました。パドルの中央で返すと角度を抑えられます。", "Resumed. Hit with the paddle center for a straighter return.");
         }
       }
     };
@@ -356,7 +366,7 @@ export function Pong({ onBack }: PongProps) {
     setCpuY((BOARD_HEIGHT - PADDLE_HEIGHT) / 2);
     setPlayerScore(0);
     setCpuScore(0);
-    setMessage("上下キーまたはW/Sでパドルを操作。先に5点を取ると勝利です。");
+    setMessage("上下キーまたはW/Sでパドルを操作。先に5点を取ると勝利です。", "Move with Up/Down or W/S. First to five points wins.");
     playerYRef.current = (BOARD_HEIGHT - PADDLE_HEIGHT) / 2;
     cpuYRef.current = (BOARD_HEIGHT - PADDLE_HEIGHT) / 2;
     playerScoreRef.current = 0;
@@ -373,37 +383,38 @@ export function Pong({ onBack }: PongProps) {
     setDifficulty(nextDifficulty);
     difficultyRef.current = nextDifficulty;
 
-    setMessage(`${difficultySettings[nextDifficulty].label}でプレイします。スタートを押して開始してください。`);
+    setMessage(`${difficultySettings[nextDifficulty].label}でプレイします。スタートを押して開始してください。`, `Playing on ${{ easy: "Easy", normal: "Normal", hard: "Hard" }[nextDifficulty]}. Press Start when ready.`);
   };
 
   const togglePause = () => {
     if (status === "playing") {
       releaseControls();
       setStatus("paused");
-      setMessage("一時停止中。再開ボタンで続けられます。");
+      setMessage("一時停止中。再開ボタンで続けられます。", "Paused. Press Space or Resume to continue.");
       return;
     }
 
     if (status === "paused") {
       setStatus("playing");
-      setMessage("再開しました。パドルの中央で返すと角度を抑えられます。");
+      setMessage("再開しました。パドルの中央で返すと角度を抑えられます。", "Resumed. Hit with the paddle center for a straighter return.");
     }
   };
 
   const resetBest = () => {
+    if (!confirmRecordReset()) return;
     safeStorage.removeItem(BEST_KEY);
     setBestResult(null);
   };
 
   return (
-    <section className="puzzle-shell pong-shell" aria-labelledby="pong-title">
+    <section className="puzzle-shell pong-shell" aria-labelledby="pong-title" data-native-i18n>
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">ARCADE / INTERNAL GAME</p>
-          <h1 id="pong-title">ポン</h1>
+          <h1 id="pong-title">{text("ポン", "Pong")}</h1>
           <p className="lead">{message}</p>
         </div>
-        <div className="score-panel pong-stats" aria-label="ポンの状態">
+        <div className="score-panel pong-stats" aria-label={text("ポンの状態", "Pong status")}>
           <div>
             <span>You</span>
             <strong>{playerScore}</strong>
@@ -417,7 +428,7 @@ export function Pong({ onBack }: PongProps) {
 
       <div className="puzzle-layout pong-layout">
         <div className={`pong-board-wrap is-${status}`}>
-          <div className="pong-board" aria-label="ポン盤面">
+          <div className="pong-board" aria-label={text("ポン盤面", "Pong board")}>
             <span className="pong-center-line" />
             <span className="pong-paddle is-player" style={{ top: `${(playerY / BOARD_HEIGHT) * 100}%` }} />
             <span className="pong-paddle is-cpu" style={{ top: `${(cpuY / BOARD_HEIGHT) * 100}%` }} />
@@ -439,21 +450,22 @@ export function Pong({ onBack }: PongProps) {
 
         <aside className="puzzle-side pong-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{text("遊び方", "How to Play")}</h2>
             <p>
-              上下キーまたはW/Sで左のパドルを動かし、CPUとラリーします。先に5点を取った側の勝利です。
+              {text("上下キーまたはW/Sで左のパドルを動かし、CPUとラリーします。先に5点を取った側の勝利です。",
+                "Move the left paddle with Up/Down or W/S and rally against the CPU. First to five points wins.")}
             </p>
           </div>
 
           <div className="pong-progress">
-            <span>あなた: {playerScore}</span>
+            <span>{text("あなた", "You")}: {playerScore}</span>
             <span>CPU: {cpuScore}</span>
-            <span>勝利条件: {WIN_SCORE}点</span>
-            <span>難易度: {difficultySettings[difficulty].label}</span>
-            <span>状態: {status === "playing" ? "プレイ中" : status === "paused" ? "一時停止" : status === "finished" ? "終了" : "待機中"}</span>
+            <span>{text("勝利条件", "First to")}: {WIN_SCORE}{isEnglish ? " points" : "点"}</span>
+            <span>{text("難易度", "Difficulty")}: {difficultyLabel(difficulty)}</span>
+            <span>{text("状態", "Status")}: {status === "playing" ? text("プレイ中", "Playing") : status === "paused" ? text("一時停止", "Paused") : status === "finished" ? text("終了", "Finished") : text("待機中", "Ready")}</span>
           </div>
 
-          <div className="pong-difficulty" aria-label="難易度選択">
+          <div className="pong-difficulty" aria-label={text("難易度選択", "Choose difficulty")}>
             {(Object.keys(difficultySettings) as PongDifficulty[]).map((level) => (
               <button
                 className={difficulty === level ? "is-selected" : ""}
@@ -462,12 +474,12 @@ export function Pong({ onBack }: PongProps) {
                 type="button"
                 onClick={() => changeDifficulty(level)}
               >
-                {difficultySettings[level].label}
+                {difficultyLabel(level)}
               </button>
             ))}
           </div>
 
-          <div className="pong-controls" aria-label="パドル操作">
+          <div className="pong-controls" aria-label={text("パドル操作", "Paddle controls")}>
             <button
               type="button"
               onMouseDown={() => {
@@ -486,7 +498,7 @@ export function Pong({ onBack }: PongProps) {
               onTouchEnd={releaseControls}
             >
               <ChevronUp aria-hidden="true" />
-              上
+              {text("上", "Up")}
             </button>
             <button
               type="button"
@@ -506,43 +518,43 @@ export function Pong({ onBack }: PongProps) {
               onTouchEnd={releaseControls}
             >
               <ChevronDown aria-hidden="true" />
-              下
+              {text("下", "Down")}
             </button>
           </div>
 
           <div className="pong-best">
-            <h2>ベスト</h2>
+            <h2>{text("ベスト", "Best")}</h2>
             {bestResult ? (
               <p>
-                勝利 {bestResult.playerScore}-{bestResult.cpuScore}
+                {text("勝利", "Win")} {bestResult.playerScore}-{bestResult.cpuScore}
               </p>
             ) : (
-              <p>まだ勝利記録がありません。</p>
+              <p>{text("まだ勝利記録がありません。", "No wins recorded yet.")}</p>
             )}
           </div>
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "finished" && playerScore > cpuScore ? { score: playerScore - cpuScore, display: `${playerScore}-${cpuScore}`, meta: `${difficultySettings[difficulty].label} / 勝利` } : null}
+            pendingScore={status === "finished" && playerScore > cpuScore ? { score: playerScore - cpuScore, display: `${playerScore}-${cpuScore}`, meta: `${difficultyLabel(difficulty)} / ${text("勝利", "Win")}` } : null}
           />
 
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startGame}>
               <Play aria-hidden="true" />
-              挑戦
+              {text("挑戦", "Start")}
             </button>
             <button className="ghost-button" type="button" onClick={togglePause} disabled={status !== "playing" && status !== "paused"}>
               <Pause aria-hidden="true" />
-              {status === "paused" ? "再開" : "停止"}
+              {status === "paused" ? text("再開", "Resume") : text("停止", "Pause")}
             </button>
             <button className="ghost-button" type="button" onClick={resetBest}>
               <RotateCcw aria-hidden="true" />
-              ベスト削除
+              {text("ベスト削除", "Clear best")}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {text("棚へ戻る", "Back to shelf")}
           </button>
         </aside>
       </div>

@@ -1,4 +1,6 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
+import { useI18n } from "../../i18n";
 import { RotateCcw, Zap } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
@@ -21,27 +23,31 @@ function readHistory(): ReactionResult[] {
   return stored ? (JSON.parse(stored) as ReactionResult[]) : [];
 }
 
-function getMessage(status: ReactionStatus, lastResult: ReactionResult | null) {
+function getMessage(status: ReactionStatus, lastResult: ReactionResult | null, en: boolean) {
   if (status === "waiting") {
-    return "まだです……画面が光るまで待ってください。";
+    return en ? "Not yet... Wait for the signal." : "まだです……画面が光るまで待ってください。";
   }
 
   if (status === "ready") {
-    return "今です！クリック！";
+    return en ? "Now! Click!" : "今です！クリック！";
   }
 
   if (status === "tooSoon") {
-    return "早すぎました。合図が出てからクリックしましょう。";
+    return en ? "Too soon! Wait for the signal before clicking." : "早すぎました。合図が出てからクリックしましょう。";
   }
 
   if (status === "finished" && lastResult) {
-    return `${lastResult.milliseconds}ms。もう一回いきますか？`;
+    return en ? `${lastResult.milliseconds}ms. Try again?` : `${lastResult.milliseconds}ms。もう一回いきますか？`;
   }
 
-  return "スタートを押して、画面が光ったらできるだけ早くクリックしてください。";
+  return en ? "Press Start, then click as quickly as you can when the signal appears." : "スタートを押して、画面が光ったらできるだけ早くクリックしてください。";
 }
 
 export function ReactionTest({ onBack }: ReactionTestProps) {
+  const confirmRecordReset = useConfirmRecordReset();
+  const { language } = useI18n();
+  const en = language === "en";
+  const text = (ja: string, english: string) => en ? english : ja;
   const [status, setStatus] = useState<ReactionStatus>("idle");
   const [bestResult, setBestResult] = useState<ReactionResult | null>(() => readBestResult());
   const [lastResult, setLastResult] = useState<ReactionResult | null>(null);
@@ -83,6 +89,7 @@ export function ReactionTest({ onBack }: ReactionTestProps) {
   };
 
   const resetRecords = () => {
+    if (!confirmRecordReset()) return;
     if (timeoutRef.current !== null) window.clearTimeout(timeoutRef.current);
     timeoutRef.current = null;
     readyAtRef.current = null;
@@ -128,17 +135,17 @@ export function ReactionTest({ onBack }: ReactionTestProps) {
     }
   };
 
-  const message = getMessage(status, lastResult);
+  const message = getMessage(status, lastResult, en);
 
   return (
-    <section className="puzzle-shell reaction-shell" aria-labelledby="reaction-title">
+    <section data-native-i18n className="puzzle-shell reaction-shell" aria-labelledby="reaction-title">
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">SCORE ATTACK / INTERNAL GAME</p>
-          <h1 id="reaction-title">反射神経テスト</h1>
+          <h1 id="reaction-title">{text("反射神経テスト", "Reaction Test")}</h1>
           <p className="lead">{message}</p>
         </div>
-        <div className="score-panel reaction-stats" aria-label="反射神経テストの状態">
+        <div className="score-panel reaction-stats" aria-label={text("反射神経テストの状態", "Reaction test status")}>
           <div>
             <span>Best</span>
             <strong>{bestResult ? `${bestResult.milliseconds}` : "---"}</strong>
@@ -155,38 +162,38 @@ export function ReactionTest({ onBack }: ReactionTestProps) {
           className={`reaction-target is-${status}`}
           type="button"
           onClick={handleTargetClick}
-          aria-label="反射神経テストの操作エリア"
+          aria-label={text("反射神経テストの操作エリア", "Reaction test target")}
         >
           <Zap aria-hidden="true" />
           <span>
             {status === "waiting"
-              ? "待て"
+              ? text("待て", "WAIT")
               : status === "ready"
                 ? "CLICK"
                 : status === "tooSoon"
-                  ? "早い！"
+                  ? text("早い！", "TOO SOON!")
                   : "START"}
           </span>
         </button>
 
         <aside className="puzzle-side reaction-side">
           <div className="rule-card">
-            <h2>遊び方</h2>
+            <h2>{text("遊び方", "How to Play")}</h2>
             <p>
-              スタート後、合図が出るまではクリックしないでください。画面が光った瞬間にクリックすると反応速度を測定します。
+              {text("スタート後、合図が出るまではクリックしないでください。画面が光った瞬間にクリックすると反応速度を測定します。", "After starting, wait for the signal. Click as soon as the target lights up to measure your reaction time.")}
             </p>
           </div>
 
           <div className="reaction-progress">
-            <span>平均: {average ? `${average}ms` : "未記録"}</span>
-            <span>記録数: {history.length}/5</span>
-            <span>状態: {status === "waiting" ? "待機中" : status === "ready" ? "合図中" : "待機前"}</span>
+            <span>{text("平均", "Average")}: {average !== null ? `${average}ms` : text("未記録", "No record")}</span>
+            <span>{text("記録数", "Records")}: {history.length}/5</span>
+            <span>{text("状態", "Status")}: {status === "waiting" ? text("待機中", "Waiting") : status === "ready" ? text("合図中", "Go!") : status === "finished" ? text("測定完了", "Finished") : status === "tooSoon" ? text("フライング", "Too soon") : text("待機前", "Idle")}</span>
           </div>
 
           <div className="reaction-history">
-            <h2>最近の記録</h2>
+            <h2>{text("最近の記録", "Recent results")}</h2>
             {history.length === 0 ? (
-              <p>まだ記録がありません。</p>
+              <p>{text("まだ記録がありません。", "No records yet.")}</p>
             ) : (
               <ol>
                 {history.map((result) => (
@@ -204,16 +211,16 @@ export function ReactionTest({ onBack }: ReactionTestProps) {
           <div className="control-row">
             <button className="primary-button" type="button" onClick={startRound}>
               <Zap aria-hidden="true" />
-              スタート
+              {text("スタート", "Start")}
             </button>
             <button className="ghost-button" type="button" onClick={resetRecords}>
               <RotateCcw aria-hidden="true" />
-              記録リセット
+              {text("記録リセット", "Reset records")}
             </button>
           </div>
 
           <button className="ghost-button shelf-button" type="button" onClick={onBack}>
-            棚へ戻る
+            {text("棚へ戻る", "Back to shelf")}
           </button>
         </aside>
       </div>

@@ -1,18 +1,11 @@
-import { safeStorage } from "../safeStorage";
+import { isStoredRankingEntry, safeStorage, type RankingEntry } from "../safeStorage";
 import { useI18n } from "../i18n";
 import { translateDynamicText } from "../domTranslations";
 import { useEffect, useMemo, useState } from "react";
 
 export type RankingMode = "higher" | "lower";
 
-export type RankingEntry = {
-  id: string;
-  name: string;
-  score: number;
-  display: string;
-  meta?: string;
-  recordedAt: string;
-};
+export type { RankingEntry } from "../safeStorage";
 
 export type PendingRankingScore = {
   score: number;
@@ -45,13 +38,7 @@ function readEntries(gameId: string, metricLabel: string): RankingEntry[] {
   try {
     const parsed = JSON.parse(safeStorage.getItem(storageKey(gameId)) ?? "[]");
     return Array.isArray(parsed)
-      ? parsed.filter((entry): entry is RankingEntry =>
-          entry &&
-          typeof entry.id === "string" &&
-          typeof entry.name === "string" &&
-          typeof entry.score === "number" &&
-          typeof entry.recordedAt === "string"
-        ).map((entry) => ({
+      ? parsed.filter(isStoredRankingEntry).map((entry) => ({
           ...entry,
           display: typeof entry.display === "string" && entry.display.trim() ? entry.display : fallbackDisplay(entry.score, metricLabel)
         }))

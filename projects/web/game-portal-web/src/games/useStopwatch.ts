@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 // 非表示中も実経過時間を含め、終了操作の瞬間に記録を確定する。
-export function useStopwatch() {
-  const [seconds, setSeconds] = useState(0);
-  const clock = useRef({ startedAt: null as number | null, frozen: 0 });
+export function useStopwatch(initialSeconds = 0, initialRunning = false) {
+  const [seconds, setSeconds] = useState(initialSeconds);
+  const clock = useRef({ startedAt: initialRunning ? Date.now() - initialSeconds * 1000 : null as number | null, frozen: initialSeconds });
   const read = useCallback(() => clock.current.startedAt === null
     ? clock.current.frozen : Math.max(0, Math.floor((Date.now() - clock.current.startedAt) / 1000)), []);
   const startTimer = useCallback(() => {

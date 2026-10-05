@@ -1,9 +1,11 @@
 import { useStopwatch } from "../useStopwatch";
+import { AssistedRecordNotice, recordCategoryKey } from "../assistedRecords";
 import { safeStorage } from "../../safeStorage";
 import { Eraser, Lightbulb, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import { cloneGrid, countFilledCells, countMistakes, hasConflict, isComplete, isGivenCell, isSolved } from "./logic";
 import { sudokuPuzzles } from "./puzzles";
 import type { SudokuGrid } from "./types";
@@ -18,6 +20,21 @@ type SelectedCell = {
 };
 
 const SUDOKU_BEST_TIME_KEY = "game-shelf-sudoku-best-times";
+const PROGRESS_KEY = "game-shelf-progress-sudoku-v1";
+type SavedSudoku = { version: 1; puzzleId: string; grid: SudokuGrid; seconds: number; assisted: boolean; showMistakes: boolean };
+
+function isSavedSudoku(value: unknown): value is SavedSudoku {
+  if (!isPlainRecord(value) || value.version !== 1 || typeof value.puzzleId !== "string" ||
+      !Number.isSafeInteger(value.seconds) || (value.seconds as number) < 0 ||
+      typeof value.assisted !== "boolean" || typeof value.showMistakes !== "boolean") return false;
+  const puzzle = sudokuPuzzles.find((item) => item.id === value.puzzleId);
+  const grid = value.grid;
+  return Boolean(puzzle) && Array.isArray(grid) && grid.length === 9 &&
+    grid.every((row, rowIndex) => Array.isArray(row) && row.length === 9 &&
+      row.every((digit, columnIndex) => Number.isInteger(digit) && digit >= 0 && digit <= 9 &&
+        (puzzle!.puzzle[rowIndex][columnIndex] === 0 || puzzle!.puzzle[rowIndex][columnIndex] === digit))) &&
+    !isSolved(grid, puzzle!.puzzle);
+}
 
 function getCellLabel(row: number, column: number) {
   return `${row + 1}行${column + 1}列`;
@@ -77,25 +94,37 @@ function readBestTimes(): Record<string, number> {
 export function Sudoku({ onBack }: SudokuProps) {
   const { language } = useI18n();
   const isEnglish = language === "en";
-  const [puzzleIndex, setPuzzleIndex] = useState(0);
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedSudoku));
+  const [puzzleIndex, setPuzzleIndex] = useState(() => saved ? sudokuPuzzles.findIndex((item) => item.id === saved.puzzleId) : 0);
   const puzzle = sudokuPuzzles[puzzleIndex];
-  const [grid, setGrid] = useState<SudokuGrid>(() => cloneGrid(puzzle.puzzle));
+  const [grid, setGrid] = useState<SudokuGrid>(() => saved ? cloneGrid(saved.grid) : cloneGrid(puzzle.puzzle));
   const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
-  const [showMistakes, setShowMistakes] = useState(true);
-  const { seconds, startTimer, resetTimer, stopTimer } = useStopwatch();
-  const [started, setStarted] = useState(false);
+  const [showMistakes, setShowMistakes] = useState(saved?.showMistakes ?? true);
+  const { seconds, startTimer, resetTimer, stopTimer } = useStopwatch(saved?.seconds ?? 0, saved !== null);
+  const [started, setStarted] = useState(saved !== null);
   const [recordedSolve, setRecordedSolve] = useState(false);
+  const [assisted, setAssisted] = useState(saved?.assisted ?? false);
+  const recordId = recordCategoryKey(puzzle.id, assisted);
   const [bestTimes, setBestTimes] = useState<Record<string, number>>(() => readBestTimes());
 
   const mistakes = useMemo(() => countMistakes(grid), [grid]);
   const filledCells = useMemo(() => countFilledCells(grid), [grid]);
   const solved = useMemo(() => isSolved(grid, puzzle.puzzle), [grid, puzzle.puzzle]);
   const complete = useMemo(() => isComplete(grid), [grid]);
-  const ranking = useRanking({ gameId: `sudoku-${puzzle.id}`, metricLabel: "Time", mode: "lower" });
-  const bestTime = bestTimes[puzzle.id] ?? null;
+  const ranking = useRanking({ gameId: `sudoku-${recordId}`, metricLabel: "Time", mode: "lower" });
+  const legacyRanking = useRanking({ gameId: `sudoku-${puzzle.id}`, metricLabel: "Time", mode: "lower" });
+  const bestTime = bestTimes[recordId] ?? null;
   const clearSeconds = Math.max(1, seconds);
   const visiblePuzzleTitle = isEnglish ? getSudokuTitleLabel(puzzle.id) : puzzle.title;
   const visibleDifficulty = isEnglish ? getSudokuDifficultyLabel(puzzle.id) : puzzle.difficulty;
+
+  useEffect(() => {
+    if (solved) {
+      safeStorage.removeItem(PROGRESS_KEY);
+    } else if (started) {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, puzzleId: puzzle.id, grid, seconds, assisted, showMistakes } satisfies SavedSudoku));
+    }
+  }, [assisted, grid, puzzle.id, seconds, showMistakes, solved, started]);
 
 
   useEffect(() => {
@@ -105,19 +134,21 @@ export function Sudoku({ onBack }: SudokuProps) {
 
     const finalSeconds = stopTimer(1);
     setBestTimes((current) => {
-      const currentBest = current[puzzle.id];
+      const currentBest = current[recordId];
       if (currentBest !== undefined && currentBest <= finalSeconds) {
         return current;
       }
 
-      const next = { ...current, [puzzle.id]: finalSeconds };
+      const next = { ...current, [recordId]: finalSeconds };
       safeStorage.setItem(SUDOKU_BEST_TIME_KEY, JSON.stringify(next));
       return next;
     });
     setRecordedSolve(true);
-  }, [puzzle.id, recordedSolve, solved, stopTimer]);
+  }, [recordId, recordedSolve, solved, stopTimer]);
 
   const resetPuzzle = () => {
+    safeStorage.removeItem(PROGRESS_KEY);
+    setAssisted(false);
     setGrid(cloneGrid(puzzle.puzzle));
     setSelectedCell(null);
     resetTimer();
@@ -126,6 +157,8 @@ export function Sudoku({ onBack }: SudokuProps) {
   };
 
   const changePuzzle = (nextIndex: number) => {
+    safeStorage.removeItem(PROGRESS_KEY);
+    setAssisted(false);
     const nextPuzzle = sudokuPuzzles[nextIndex];
     setPuzzleIndex(nextIndex);
     setGrid(cloneGrid(nextPuzzle.puzzle));
@@ -172,6 +205,7 @@ export function Sudoku({ onBack }: SudokuProps) {
       return;
     }
 
+    setAssisted(true);
     setGrid((currentGrid) => {
       const nextGrid = cloneGrid(currentGrid);
       nextGrid[target.row][target.column] = puzzle.solution[target.row][target.column];
@@ -199,7 +233,7 @@ export function Sudoku({ onBack }: SudokuProps) {
     : statusText;
 
   return (
-    <section className="puzzle-shell sudoku-shell" aria-labelledby="sudoku-title">
+    <section className="puzzle-shell sudoku-shell" aria-labelledby="sudoku-title" data-native-i18n>
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">PUZZLE / INTERNAL GAME</p>
@@ -262,6 +296,7 @@ export function Sudoku({ onBack }: SudokuProps) {
                 ? "Fill the grid so every row, column, and 3x3 box contains the numbers 1 through 9 exactly once. Given numbers cannot be changed."
                 : "各行・各列・3x3ブロックに、1から9までの数字が一度ずつ入るように埋めます。最初から表示されている数字は変更できません。"}
             </p>
+            <p>{isEnglish ? "Progress is saved on this browser. The timer pauses while the page is closed." : "途中の盤面は、このブラウザに保存されます。ページを閉じている間、時間は進みません。"}</p>
           </div>
 
           <label className="select-label">
@@ -315,6 +350,7 @@ export function Sudoku({ onBack }: SudokuProps) {
             {isEnglish ? "Best time" : "ベストタイム"}: <strong>{bestTime === null ? (isEnglish ? "No record" : "未記録") : formatTime(bestTime)}</strong>
           </p>
 
+          <AssistedRecordNotice assisted={assisted} legacyBest={bestTimes[puzzle.id] === undefined ? null : formatTime(bestTimes[puzzle.id])} legacyRanking={legacyRanking} />
           <RankingPanel
             ranking={ranking}
             pendingScore={solved ? { score: clearSeconds, display: formatTime(clearSeconds), meta: `${visibleDifficulty} - ${visiblePuzzleTitle}` } : null}

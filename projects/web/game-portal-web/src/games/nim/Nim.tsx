@@ -1,3 +1,5 @@
+import { useLocalizedMessage } from "../useLocalizedMessage";
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { Hand, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -143,6 +145,7 @@ function updateRecord(record: NimRecord, status: "won" | "lost"): NimRecord {
 }
 
 export function Nim({ onBack }: NimProps) {
+  const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
   const [setup, setSetup] = useState<NimSetup>("classic");
@@ -151,31 +154,23 @@ export function Nim({ onBack }: NimProps) {
   const [status, setStatus] = useState<NimStatus>("idle");
   const [turn, setTurn] = useState<NimTurn>("player");
   const [record, setRecord] = useState<NimRecord>(() => readRecord());
-  const [message, setMessage] = useState("一つの山を選び、1個以上の石を取ります。最後の石を取った方が勝ちです。");
+  const [completedRecord, setCompletedRecord] = useState<Readonly<NimRecord> | null>(null);
+  const [message, setMessage] = useLocalizedMessage("一つの山を選び、1個以上の石を取ります。最後の石を取った方が勝ちです。", "Choose a pile and take one or more stones. Whoever takes the last stone wins.");
 
   const remaining = useMemo(() => piles.reduce((total, pile) => total + pile, 0), [piles]);
   const nimSum = useMemo(() => getNimSum(piles), [piles]);
   const ranking = useRanking({ gameId: `nim-${setup}-${difficulty}`, metricLabel: "Streak", mode: "higher" });
   const canPlay = status === "playing" && turn === "player";
-  const visibleMessage = isEnglish
-    ? status === "won"
-      ? "Victory! You took the last stone."
-      : status === "lost"
-        ? "CPU took the last stone. Try leaving a more awkward pile shape next time."
-        : status === "playing" && turn === "cpu"
-          ? "CPU is thinking..."
-          : status === "playing"
-            ? "Your turn. Choose one pile and take any positive number of stones."
-            : "Choose one pile and take one or more stones. The player who takes the last stone wins."
-    : message;
+  const visibleMessage = message;
 
   const finishGame = (nextStatus: "won" | "lost") => {
     const nextRecord = updateRecord(record, nextStatus);
     setRecord(nextRecord);
+    setCompletedRecord({ ...nextRecord });
     safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus(nextStatus);
     setTurn("player");
-    setMessage(nextStatus === "won" ? "勝利！最後の石を取り切りました。" : "COMが最後の石を取りました。次は山の残り方を少し意識してみましょう。");
+    setMessage(nextStatus === "won" ? "勝利！最後の石を取り切りました。" : "COMが最後の石を取りました。次は山の残り方を少し意識してみましょう。", nextStatus === "won" ? "Victory! You took the last stone." : "The CPU took the last stone. Try leaving a different pile shape next time.");
   };
 
   useEffect(() => {
@@ -194,13 +189,14 @@ export function Nim({ onBack }: NimProps) {
       }
 
       setTurn("player");
-      setMessage(`COMは${move.pileIndex + 1}番目の山から${move.count}個取りました。あなたの番です。`);
+      setMessage(`COMは${move.pileIndex + 1}番目の山から${move.count}個取りました。あなたの番です。`, `The CPU took ${move.count} from pile ${move.pileIndex + 1}. Your turn.`);
     }, 520);
 
     return () => window.clearTimeout(timerId);
   }, [difficulty, piles, status, turn]);
 
   const startGame = (nextSetup = setup) => {
+    setCompletedRecord(null);
     if (nextSetup !== setup) {
       const nextRecord = { ...record, streak: 0 };
       setRecord(nextRecord);
@@ -210,7 +206,7 @@ export function Nim({ onBack }: NimProps) {
     setPiles([...setupPiles[nextSetup]]);
     setStatus("playing");
     setTurn("player");
-    setMessage("あなたの番です。一つの山から好きな数だけ石を取ってください。");
+    setMessage("あなたの番です。一つの山から好きな数だけ石を取ってください。", "Your turn. Take one or more stones from a single pile.");
   };
 
   const takeStones = (pileIndex: number, count: number) => {
@@ -227,24 +223,25 @@ export function Nim({ onBack }: NimProps) {
     }
 
     setTurn("cpu");
-    setMessage(`${pileIndex + 1}番目の山から${count}個取りました。COMが考えています……`);
+    setMessage(`${pileIndex + 1}番目の山から${count}個取りました。COMが考えています……`, `You took ${count} from pile ${pileIndex + 1}. CPU is thinking...`);
   };
 
   const resetRecord = () => {
+    if (!confirmRecordReset()) return;
     const emptyRecord = { wins: 0, losses: 0, streak: 0, bestStreak: 0 };
     setRecord(emptyRecord);
     safeStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
   };
 
   return (
-    <section className="puzzle-shell nim-shell" aria-labelledby="nim-title">
+    <section data-native-i18n className="puzzle-shell nim-shell" aria-labelledby="nim-title">
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">STRATEGY / INTERNAL GAME</p>
           <h1 id="nim-title">Nim</h1>
           <p className="lead">{visibleMessage}</p>
         </div>
-        <div className="score-panel nim-score" aria-label="Nimの戦績">
+        <div className="score-panel nim-score" aria-label={isEnglish ? "Nim records" : "Nimの戦績"}>
           <div>
             <span>Win</span>
             <strong>{record.wins}</strong>
@@ -262,7 +259,7 @@ export function Nim({ onBack }: NimProps) {
 
       <div className="puzzle-layout nim-layout">
         <div className="nim-play-area">
-          <div className="nim-board" aria-label="Nimの石の山">
+          <div className="nim-board" aria-label={isEnglish ? "Nim piles" : "Nimの石の山"}>
             {piles.map((pile, pileIndex) => (
               <div className="nim-pile" key={pileIndex}>
                 <div className="nim-pile-header">
@@ -305,7 +302,7 @@ export function Nim({ onBack }: NimProps) {
             </p>
           </div>
 
-          <div className="nim-options" aria-label="山の構成">
+          <div className="nim-options" aria-label={isEnglish ? "Pile setup" : "山の構成"}>
             {(Object.keys(setupLabels) as NimSetup[]).map((level) => (
               <button
                 className={setup === level ? "is-selected" : ""}
@@ -320,7 +317,7 @@ export function Nim({ onBack }: NimProps) {
             ))}
           </div>
 
-          <div className="nim-difficulty" aria-label="難易度">
+          <div className="nim-difficulty" aria-label={isEnglish ? "Difficulty" : "難易度"}>
             {(Object.keys(difficultyLabels) as NimDifficulty[]).map((level) => (
               <button
                 className={difficulty === level ? "is-selected" : ""}
@@ -351,7 +348,7 @@ export function Nim({ onBack }: NimProps) {
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "won" ? { score: record.streak, display: isEnglish ? `${record.streak}-win streak` : `${record.streak}連勝`, meta: `${isEnglish ? setupEnglishLabels[setup] : setupLabels[setup]} / ${isEnglish ? difficultyEnglishLabels[difficulty] : difficultyLabels[difficulty]}` } : null}
+            pendingScore={status === "won" && completedRecord ? { score: completedRecord.streak, display: isEnglish ? `${completedRecord.streak}-win streak` : `${completedRecord.streak}連勝`, meta: `${isEnglish ? setupEnglishLabels[setup] : setupLabels[setup]} / ${isEnglish ? difficultyEnglishLabels[difficulty] : difficultyLabels[difficulty]}` } : null}
           />
 
           <div className="control-row">

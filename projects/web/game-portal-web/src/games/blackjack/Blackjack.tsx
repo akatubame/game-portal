@@ -1,3 +1,4 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { Club, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -94,18 +95,21 @@ function updateRecord(record: BlackjackRecord, outcome: BlackjackOutcome): Black
   return record;
 }
 
-function outcomeMessage(outcome: BlackjackOutcome, playerHand: BlackjackCard[], dealerHand: BlackjackCard[]) {
+function outcomeMessage(outcome: BlackjackOutcome, playerHand: BlackjackCard[], dealerHand: BlackjackCard[], en: boolean) {
   const player = handValue(playerHand);
   const dealer = handValue(dealerHand);
 
-  if (outcome === "blackjack") return "ブラックジャック！チップ +150 です。";
-  if (outcome === "win") return `勝利！ ${player} 対 ${dealer} でチップ +100 です。`;
-  if (outcome === "lose") return player > 21 ? "バースト。21を超えてしまいました。" : `ディーラーの勝ちです。${player} 対 ${dealer}。`;
-  if (outcome === "push") return `引き分けです。${player} 対 ${dealer}。`;
-  return "カードを配って勝負を始めましょう。";
+  if (outcome === "blackjack") return en ? "Blackjack! +150 chips." : "ブラックジャック！チップ +150 です。";
+  if (outcome === "win") return en ? `You win! ${player} vs ${dealer}. +100 chips.` : `勝利！ ${player} 対 ${dealer} でチップ +100 です。`;
+  if (outcome === "lose") return player > 21
+    ? (en ? "Bust! Your total is over 21." : "バースト。21を超えてしまいました。")
+    : (en ? `Dealer wins. ${player} vs ${dealer}.` : `ディーラーの勝ちです。${player} 対 ${dealer}。`);
+  if (outcome === "push") return en ? `Push! ${player} vs ${dealer}.` : `引き分けです。${player} 対 ${dealer}。`;
+  return en ? "Deal the cards to start a round." : "カードを配って勝負を始めましょう。";
 }
 
 export function Blackjack({ onBack }: BlackjackProps) {
+  const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
   const [deck, setDeck] = useState<BlackjackCard[]>(() => createDeck());
@@ -113,32 +117,35 @@ export function Blackjack({ onBack }: BlackjackProps) {
   const [dealerHand, setDealerHand] = useState<BlackjackCard[]>([]);
   const [status, setStatus] = useState<BlackjackStatus>("idle");
   const [record, setRecord] = useState<BlackjackRecord>(() => readRecord());
-  const [message, setMessage] = useState("カードを配って、21に近い手を目指しましょう。");
+  const [completedRecord, setCompletedRecord] = useState<Readonly<BlackjackRecord> | null>(null);
+  const [hasHit, setHasHit] = useState(false);
   const [outcome, setOutcome] = useState<BlackjackOutcome>(null);
 
   const playerTotal = useMemo(() => handValue(playerHand), [playerHand]);
   const dealerTotal = useMemo(() => handValue(dealerHand), [dealerHand]);
   const ranking = useRanking({ gameId: "blackjack-chips", metricLabel: "Chips", mode: "higher" });
   const visibleDealerTotal = status === "playing" && dealerHand.length > 1 ? handValue([dealerHand[0]]) : dealerTotal;
-  const visibleMessage = isEnglish
-    ? status === "idle"
-      ? "Deal the cards and try to get as close to 21 as possible."
-      : status === "playing"
-        ? "Hit to draw a card, or Stand to settle the round."
-        : message
-    : message;
+  const visibleMessage = status === "finished"
+    ? outcomeMessage(outcome, playerHand, dealerHand, isEnglish)
+    : status === "idle"
+      ? (isEnglish ? "Deal the cards and try to get as close to 21 as possible." : "カードを配って、21に近い手を目指しましょう。")
+      : hasHit
+        ? (isEnglish ? "Draw another card or stand? The choice is yours." : "もう1枚引くか、ここで止めるか。いい悩みどころです。")
+        : (isEnglish ? "Hit to draw a card, or Stand to settle the round." : "ヒットでカードを引くか、スタンドで勝負します。");
 
   const finishRound = (nextPlayerHand: BlackjackCard[], nextDealerHand: BlackjackCard[]) => {
     const nextOutcome = decideOutcome(nextPlayerHand, nextDealerHand);
     const nextRecord = updateRecord(record, nextOutcome);
     setOutcome(nextOutcome);
     setRecord(nextRecord);
+    setCompletedRecord({ ...nextRecord });
     safeStorage.setItem(RECORD_KEY, JSON.stringify(nextRecord));
     setStatus("finished");
-    setMessage(outcomeMessage(nextOutcome, nextPlayerHand, nextDealerHand));
   };
 
   const deal = () => {
+    setCompletedRecord(null);
+    setHasHit(false);
     let nextDeck = createDeck();
     const firstPlayer = draw(nextDeck);
     nextDeck = firstPlayer.nextDeck;
@@ -161,7 +168,6 @@ export function Blackjack({ onBack }: BlackjackProps) {
       finishRound(nextPlayerHand, nextDealerHand);
     } else {
       setStatus("playing");
-      setMessage("ヒットでカードを引くか、スタンドで勝負します。");
     }
   };
 
@@ -178,7 +184,7 @@ export function Blackjack({ onBack }: BlackjackProps) {
     if (handValue(nextPlayerHand) > 21) {
       finishRound(nextPlayerHand, dealerHand);
     } else {
-      setMessage("もう1枚引くか、ここで止めるか。いい悩みどころです。");
+      setHasHit(true);
     }
   };
 
@@ -202,6 +208,7 @@ export function Blackjack({ onBack }: BlackjackProps) {
   };
 
   const resetRecord = () => {
+    if (!confirmRecordReset()) return;
     const emptyRecord = { wins: 0, losses: 0, pushes: 0, chips: 1000 };
     setRecord(emptyRecord);
     safeStorage.setItem(RECORD_KEY, JSON.stringify(emptyRecord));
@@ -221,7 +228,7 @@ export function Blackjack({ onBack }: BlackjackProps) {
   );
 
   return (
-    <section className="puzzle-shell blackjack-shell" aria-labelledby="blackjack-title">
+    <section data-native-i18n className="puzzle-shell blackjack-shell" aria-labelledby="blackjack-title">
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">CARD GAME / INTERNAL GAME</p>
@@ -289,7 +296,7 @@ export function Blackjack({ onBack }: BlackjackProps) {
 
           <RankingPanel
             ranking={ranking}
-            pendingScore={status === "finished" ? { score: record.chips, display: isEnglish ? `${record.chips} chips` : `${record.chips}枚`, meta: outcome ? outcome.toUpperCase() : "ROUND END" } : null}
+            pendingScore={status === "finished" && completedRecord ? { score: completedRecord.chips, display: isEnglish ? `${completedRecord.chips} chips` : `${completedRecord.chips}枚`, meta: outcome ? outcome.toUpperCase() : "ROUND END" } : null}
           />
 
           <div className="control-row">

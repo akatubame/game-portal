@@ -1,3 +1,4 @@
+import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { Dice5, RotateCcw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -145,23 +146,7 @@ const categoryEnglishText: Record<YachtCategoryId, { label: string; description:
   chance: { label: "Chance", description: "Total of all dice." }
 };
 
-function translateYachtMessage(message: string) {
-  const scoredMatch = message.match(/^(.+)に(\d+)点を記録しました。次のラウンドです。$/);
-  if (scoredMatch) {
-    return `Scored ${scoredMatch[2]} points in ${scoredMatch[1]}. Next round.`;
-  }
-  const finishedMatch = message.match(/^ゲーム終了！合計(\d+)点でした。$/);
-  if (finishedMatch) {
-    return `Game over! Total score: ${finishedMatch[1]} points.`;
-  }
-  const exact: Record<string, string> = {
-    "サイコロを最大3回振り、狙う役にスコアを記録していきましょう。": "Roll the dice up to three times and record scores in the categories you aim for.",
-    "まずはロール。残したいサイコロはクリックでホールドできます。": "Roll first. Click dice you want to hold.",
-    "残したい目をホールドして、もう一度振るか役を選びましょう。": "Hold the dice you want to keep, then roll again or choose a category.",
-    "ロール終了です。スコアを入れる役を選んでください。": "No rolls left. Choose a category to score."
-  };
-  return exact[message] ?? message;
-}
+
 
 function readBest(): YachtBest | null {
   const stored = safeStorage.getItem(BEST_KEY);
@@ -177,6 +162,7 @@ function formatDie(value: number) {
 }
 
 export function YachtDice({ onBack }: YachtDiceProps) {
+  const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
   const [status, setStatus] = useState<YachtStatus>("idle");
@@ -185,14 +171,24 @@ export function YachtDice({ onBack }: YachtDiceProps) {
   const [rollsLeft, setRollsLeft] = useState(MAX_ROLLS);
   const [scores, setScores] = useState<YachtScoreSheet>({});
   const [best, setBest] = useState<YachtBest | null>(() => readBest());
-  const [message, setMessage] = useState("サイコロを最大3回振り、狙う役にスコアを記録していきましょう。");
+  const [lastScored, setLastScored] = useState<{ id: YachtCategoryId; score: number } | null>(null);
 
   const total = useMemo(() => getTotal(scores), [scores]);
   const ranking = useRanking({ gameId: "yacht-dice-score", metricLabel: "Score", mode: "higher" });
   const round = Object.keys(scores).length + 1;
   const hasRolled = status === "playing" && rollsLeft < MAX_ROLLS;
   const isComplete = Object.keys(scores).length >= categories.length;
-  const visibleMessage = isEnglish ? translateYachtMessage(message) : message;
+  const visibleMessage = status === "finished"
+    ? (isEnglish ? `Game over! Total score: ${total} points.` : `ゲーム終了！合計${total}点でした。`)
+    : status === "idle"
+      ? (isEnglish ? "Roll the dice up to three times and record scores in the categories you aim for." : "サイコロを最大3回振り、狙う役にスコアを記録していきましょう。")
+      : lastScored
+        ? (isEnglish ? `Scored ${lastScored.score} points in ${categoryEnglishText[lastScored.id].label}. Next round.` : `${categories.find(category => category.id === lastScored.id)!.label}に${lastScored.score}点を記録しました。次のラウンドです。`)
+        : rollsLeft === MAX_ROLLS
+          ? (isEnglish ? "Roll first. Click dice you want to hold." : "まずはロール。残したいサイコロはクリックでホールドできます。")
+          : rollsLeft > 0
+            ? (isEnglish ? "Hold the dice you want to keep, then roll again or choose a category." : "残したい目をホールドして、もう一度振るか役を選びましょう。")
+            : (isEnglish ? "No rolls left. Choose a category to score." : "ロール終了です。スコアを入れる役を選んでください。");
 
   const startGame = () => {
     setStatus("playing");
@@ -200,7 +196,7 @@ export function YachtDice({ onBack }: YachtDiceProps) {
     setHeld(Array.from({ length: DICE_COUNT }, () => false));
     setRollsLeft(MAX_ROLLS);
     setScores({});
-    setMessage("まずはロール。残したいサイコロはクリックでホールドできます。");
+    setLastScored(null);
   };
 
   const rollDice = () => {
@@ -212,7 +208,7 @@ export function YachtDice({ onBack }: YachtDiceProps) {
     const nextRollsLeft = rollsLeft - 1;
     setDice(nextDice);
     setRollsLeft(nextRollsLeft);
-    setMessage(nextRollsLeft > 0 ? "残したい目をホールドして、もう一度振るか役を選びましょう。" : "ロール終了です。スコアを入れる役を選んでください。");
+    setLastScored(null);
   };
 
   const toggleHold = (index: number) => {
@@ -241,23 +237,24 @@ export function YachtDice({ onBack }: YachtDiceProps) {
       }
 
       setStatus("finished");
-      setMessage(`ゲーム終了！合計${nextTotal}点でした。`);
+      setLastScored(null);
       return;
     }
 
     setDice(createDice());
     setHeld(Array.from({ length: DICE_COUNT }, () => false));
     setRollsLeft(MAX_ROLLS);
-    setMessage(`${category.label}に${score}点を記録しました。次のラウンドです。`);
+    setLastScored({ id: category.id, score });
   };
 
   const resetBest = () => {
+    if (!confirmRecordReset()) return;
     safeStorage.removeItem(BEST_KEY);
     setBest(null);
   };
 
   return (
-    <section className="puzzle-shell yacht-shell" aria-labelledby="yacht-title">
+    <section data-native-i18n className="puzzle-shell yacht-shell" aria-labelledby="yacht-title">
       <div className="puzzle-hero">
         <div>
           <p className="eyebrow">DICE / INTERNAL GAME</p>
@@ -305,7 +302,7 @@ export function YachtDice({ onBack }: YachtDiceProps) {
             </button>
             <button className="ghost-button" type="button" onClick={startGame}>
               <Sparkles aria-hidden="true" />
-              新しく始める
+              {isEnglish ? "New game" : "新しく始める"}
             </button>
           </div>
 
