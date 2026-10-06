@@ -4,6 +4,7 @@ import { useI18n } from "../../i18n";
 import { Brain, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import type {
   TicTacToeCell,
   TicTacToeDifficulty,
@@ -24,6 +25,8 @@ type LineResult = {
 
 const EMPTY_BOARD: TicTacToeCell[] = Array.from({ length: 9 }, () => null);
 const RECORD_KEY = "game-shelf-tic-tac-toe-record";
+const PROGRESS_KEY = "game-shelf-progress-tic-tac-toe-v1";
+type SavedTicTacToe = { version: 1; board: TicTacToeCell[]; turn: TicTacToePlayer; difficulty: TicTacToeDifficulty };
 const WIN_LINES = [
   [0, 1, 2],
   [3, 4, 5],
@@ -166,6 +169,18 @@ function getOutcome(line: LineResult | null, board: TicTacToeCell[]): TicTacToeO
   return null;
 }
 
+function isSavedTicTacToe(value: unknown): value is SavedTicTacToe {
+  if (!isPlainRecord(value) || value.version !== 1 || !Array.isArray(value.board) || value.board.length !== 9 ||
+      !value.board.every((cell) => cell === null || cell === "X" || cell === "O") ||
+      (value.turn !== "X" && value.turn !== "O") || typeof value.difficulty !== "string" ||
+      !Object.prototype.hasOwnProperty.call(difficultyLabels, value.difficulty)) return false;
+  const board = value.board as TicTacToeCell[];
+  const x = board.filter((cell) => cell === "X").length;
+  const o = board.filter((cell) => cell === "O").length;
+  return x <= o + 1 && x >= o && (value.turn === "X" ? x === o : x === o + 1) &&
+    getOutcome(findLine(board), board) === null;
+}
+
 function updateRecord(record: TicTacToeRecord, outcome: TicTacToeOutcome): TicTacToeRecord {
   if (outcome === "win") {
     return { ...record, wins: record.wins + 1, streak: record.streak + 1 };
@@ -193,10 +208,11 @@ export function TicTacToe({ onBack }: TicTacToeProps) {
     normal: "The CPU looks for wins and blocks, but sometimes makes mistakes.",
     hard: "The CPU plays optimally and can always secure at least a draw."
   } : difficultyDescriptions;
-  const [board, setBoard] = useState<TicTacToeCell[]>(EMPTY_BOARD);
-  const [status, setStatus] = useState<TicTacToeStatus>("idle");
-  const [turn, setTurn] = useState<TicTacToePlayer>("X");
-  const [difficulty, setDifficulty] = useState<TicTacToeDifficulty>("normal");
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedTicTacToe));
+  const [board, setBoard] = useState<TicTacToeCell[]>(() => saved?.board.slice() ?? [...EMPTY_BOARD]);
+  const [status, setStatus] = useState<TicTacToeStatus>(saved ? "playing" : "idle");
+  const [turn, setTurn] = useState<TicTacToePlayer>(saved?.turn ?? "X");
+  const [difficulty, setDifficulty] = useState<TicTacToeDifficulty>(saved?.difficulty ?? "normal");
   const [record, setRecord] = useState<TicTacToeRecord>(() => readRecord());
   const [completedRecord, setCompletedRecord] = useState<Readonly<TicTacToeRecord> | null>(null);
 
@@ -216,6 +232,14 @@ export function TicTacToe({ onBack }: TicTacToeProps) {
             ? text("COMが考えています……", "CPU is thinking...")
             : text("あなたの番です。Xを3つ並べましょう。", "Your turn. Get three Xs in a row.");
   const ranking = useRanking({ gameId: `tic-tac-toe-${difficulty}`, metricLabel: "Wins", mode: "higher" });
+
+  useEffect(() => {
+    if (status === "playing" && !outcome) {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, board, turn, difficulty } satisfies SavedTicTacToe));
+    } else if (status === "finished") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [board, difficulty, outcome, status, turn]);
 
   useEffect(() => {
     if (status !== "playing" || !outcome) {
@@ -254,6 +278,7 @@ export function TicTacToe({ onBack }: TicTacToeProps) {
   }, [board, difficulty, outcome, status, turn]);
 
   const startGame = () => {
+    safeStorage.removeItem(PROGRESS_KEY);
     setCompletedRecord(null);
     setBoard(EMPTY_BOARD);
     setStatus("playing");

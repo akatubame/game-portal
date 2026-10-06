@@ -4,6 +4,7 @@ import { RotateCcw, Sparkles, Trophy } from "lucide-react";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking, type PendingRankingScore } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 
 type SolitaireProps = {
   onBack: () => void;
@@ -45,6 +46,8 @@ type CardButtonStyle = CSSProperties & {
 };
 
 const RECORD_KEY = "game-shelf-solitaire-record";
+const PROGRESS_KEY = "game-shelf-progress-solitaire-v1";
+type SavedSolitaire = { version: 1; state: GameState; moves: number; elapsedMs: number };
 const SUITS: Suit[] = ["spades", "hearts", "diamonds", "clubs"];
 const SUIT_LABELS: Record<Suit, string> = {
   spades: "♠",
@@ -53,6 +56,34 @@ const SUIT_LABELS: Record<Suit, string> = {
   clubs: "♣"
 };
 const RANK_LABELS = ["", "A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+
+function isSavedSolitaire(value: unknown): value is SavedSolitaire {
+  if (!isPlainRecord(value) || value.version !== 1 || !Number.isSafeInteger(value.moves) ||
+      (value.moves as number) < 1 || (value.moves as number) > 100000 ||
+      !Number.isSafeInteger(value.elapsedMs) || (value.elapsedMs as number) < 0 || !isPlainRecord(value.state)) return false;
+  const state = value.state;
+  if (!Array.isArray(state.stock) || !Array.isArray(state.waste) || !Array.isArray(state.tableau) ||
+      state.tableau.length !== 7 || !state.tableau.every(Array.isArray) || !isPlainRecord(state.foundations) ||
+      Object.keys(state.foundations).length !== SUITS.length) return false;
+  const rawFoundations = state.foundations as Record<string, unknown>;
+  if (!SUITS.every((suit) => Array.isArray(rawFoundations[suit]))) return false;
+  const foundations = state.foundations as Record<Suit, Card[]>;
+  const tableau = state.tableau as Card[][];
+  const all = [...state.stock, ...state.waste, ...SUITS.flatMap((suit) => foundations[suit]), ...tableau.flat()];
+  if (all.length !== 52) return false;
+  const ids = new Set<string>();
+  for (const card of all) {
+    if (!isPlainRecord(card) || !SUITS.includes(card.suit as Suit) || !Number.isSafeInteger(card.rank) ||
+        (card.rank as number) < 1 || (card.rank as number) > 13 || card.id !== `${card.suit}-${card.rank}` ||
+        typeof card.faceUp !== "boolean" || ids.has(card.id as string)) return false;
+    ids.add(card.id as string);
+  }
+  if (state.stock.some((card: Card) => card.faceUp) || state.waste.some((card: Card) => !card.faceUp)) return false;
+  if (SUITS.some((suit) => foundations[suit].some((card, index) => !card.faceUp || card.suit !== suit || card.rank !== index + 1))) return false;
+  if (tableau.some((pile) => pile.length > 0 && (!pile[pile.length - 1].faceUp ||
+      pile.some((card, index) => card.faceUp && pile.slice(index + 1).some((later) => !later.faceUp))))) return false;
+  return !isCleared(state as GameState);
+}
 
 function emptyRecord(): SolitaireRecord {
   return { bestTimeMs: null, bestMoves: null, clears: 0 };
@@ -231,12 +262,13 @@ export function Solitaire({ onBack }: SolitaireProps) {
   const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
-  const [state, setState] = useState<GameState>(() => dealGame());
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedSolitaire));
+  const [state, setState] = useState<GameState>(() => saved?.state ?? dealGame());
   const [selection, setSelection] = useState<Selection | null>(null);
-  const [moves, setMoves] = useState(0);
+  const [moves, setMoves] = useState(saved?.moves ?? 0);
   const [status, setStatus] = useState<SolitaireStatus>("playing");
-  const [startedAt, setStartedAt] = useState(() => Date.now());
-  const [elapsedMs, setElapsedMs] = useState(0);
+  const [startedAt, setStartedAt] = useState(() => Date.now() - (saved?.elapsedMs ?? 0));
+  const [elapsedMs, setElapsedMs] = useState(saved?.elapsedMs ?? 0);
   const [record, setRecord] = useState<SolitaireRecord>(() => readRecord());
   const ranking = useRanking({ gameId: "solitaire-time", metricLabel: "Time", mode: "lower" });
   const selectedKey = sourceKey(selection);
@@ -244,6 +276,14 @@ export function Solitaire({ onBack }: SolitaireProps) {
   const pendingScore: PendingRankingScore | null = status === "cleared"
     ? { score: elapsedMs, display: formatTime(elapsedMs), meta: isEnglish ? `${moves} moves` : `${moves}手` }
     : null;
+
+  useEffect(() => {
+    if (status === "playing" && moves > 0) {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, state, moves, elapsedMs } satisfies SavedSolitaire));
+    } else if (status === "cleared") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [elapsedMs, moves, state, status]);
 
   useEffect(() => {
     if (status === "cleared") return;
@@ -274,6 +314,7 @@ export function Solitaire({ onBack }: SolitaireProps) {
   };
 
   const startNewGame = () => {
+    safeStorage.removeItem(PROGRESS_KEY);
     setState(dealGame());
     setSelection(null);
     setMoves(0);

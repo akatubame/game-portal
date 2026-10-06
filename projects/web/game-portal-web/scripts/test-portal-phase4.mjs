@@ -31,8 +31,12 @@ try {
       await page.locator(".number-pad button").nth(p.solution[r][c]-1).click();
     }
     await page.locator(".ranking-submit").waitFor();
-    const data=await page.evaluate(()=>JSON.parse(localStorage.getItem("game-shelf-sudoku-best-times")));
     const category=assisted?"assisted":"unassisted";
+    await page.waitForFunction(key=>{
+      const raw=localStorage.getItem("game-shelf-sudoku-best-times");
+      return raw&&JSON.parse(raw)[key]>0;
+    },"easy-01--"+category+"-v1");
+    const data=await page.evaluate(()=>JSON.parse(localStorage.getItem("game-shelf-sudoku-best-times")));
     assert.equal(data["easy-01"],99);
     assert.ok(data["easy-01--"+category+"-v1"]>0);
     assert.equal(data["easy-01--"+(assisted?"unassisted":"assisted")+"-v1"],undefined);

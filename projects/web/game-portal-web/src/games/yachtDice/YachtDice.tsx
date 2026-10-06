@@ -1,9 +1,10 @@
 import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { Dice5, RotateCcw, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import type { YachtBest, YachtCategoryId, YachtScoreSheet, YachtStatus } from "./types";
 
 type YachtDiceProps = {
@@ -18,8 +19,10 @@ type YachtCategory = {
 };
 
 const BEST_KEY = "game-shelf-yacht-dice-best";
+const PROGRESS_KEY = "game-shelf-progress-yacht-dice-v1";
 const DICE_COUNT = 5;
 const MAX_ROLLS = 3;
+type SavedYacht = { version: 1; dice: number[]; held: boolean[]; rollsLeft: number; scores: YachtScoreSheet; lastScored: { id: YachtCategoryId; score: number } | null };
 
 function rollDie() {
   return Math.floor(Math.random() * 6) + 1;
@@ -130,6 +133,28 @@ const categories: YachtCategory[] = [
   }
 ];
 
+function isSavedYacht(value: unknown): value is SavedYacht {
+  if (!isPlainRecord(value) || value.version !== 1 || !Array.isArray(value.dice) || value.dice.length !== DICE_COUNT ||
+      !value.dice.every((die) => Number.isSafeInteger(die) && die >= 1 && die <= 6) ||
+      !Array.isArray(value.held) || value.held.length !== DICE_COUNT || !value.held.every((held) => typeof held === "boolean") ||
+      !Number.isSafeInteger(value.rollsLeft) || (value.rollsLeft as number) < 0 || (value.rollsLeft as number) > MAX_ROLLS ||
+      !isPlainRecord(value.scores)) return false;
+  const scores = value.scores as Record<string, unknown>;
+  const ids = Object.keys(scores);
+  if (ids.length >= categories.length || !ids.every((id) => {
+    const category = categories.find((item) => item.id === id);
+    const score = scores[id];
+    return category && typeof score === "number" && Number.isSafeInteger(score) && score >= 0 && score <= 50;
+  })) return false;
+  if (value.rollsLeft === MAX_ROLLS && (value.dice.some((die) => die !== 1) || value.held.some(Boolean))) return false;
+  if (value.lastScored !== null) {
+    if (!isPlainRecord(value.lastScored) || typeof value.lastScored.id !== "string" ||
+        !ids.includes(value.lastScored.id) || value.lastScored.score !== scores[value.lastScored.id] ||
+        value.rollsLeft !== MAX_ROLLS) return false;
+  }
+  return true;
+}
+
 const categoryEnglishText: Record<YachtCategoryId, { label: string; description: string }> = {
   ones: { label: "Aces", description: "Total of ones." },
   twos: { label: "Twos", description: "Total of twos." },
@@ -165,19 +190,28 @@ export function YachtDice({ onBack }: YachtDiceProps) {
   const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
-  const [status, setStatus] = useState<YachtStatus>("idle");
-  const [dice, setDice] = useState<number[]>(() => createDice());
-  const [held, setHeld] = useState<boolean[]>(() => Array.from({ length: DICE_COUNT }, () => false));
-  const [rollsLeft, setRollsLeft] = useState(MAX_ROLLS);
-  const [scores, setScores] = useState<YachtScoreSheet>({});
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedYacht));
+  const [status, setStatus] = useState<YachtStatus>(saved ? "playing" : "idle");
+  const [dice, setDice] = useState<number[]>(() => saved?.dice.slice() ?? createDice());
+  const [held, setHeld] = useState<boolean[]>(() => saved?.held.slice() ?? Array.from({ length: DICE_COUNT }, () => false));
+  const [rollsLeft, setRollsLeft] = useState(saved?.rollsLeft ?? MAX_ROLLS);
+  const [scores, setScores] = useState<YachtScoreSheet>(saved?.scores ?? {});
   const [best, setBest] = useState<YachtBest | null>(() => readBest());
-  const [lastScored, setLastScored] = useState<{ id: YachtCategoryId; score: number } | null>(null);
+  const [lastScored, setLastScored] = useState<{ id: YachtCategoryId; score: number } | null>(saved?.lastScored ?? null);
 
   const total = useMemo(() => getTotal(scores), [scores]);
   const ranking = useRanking({ gameId: "yacht-dice-score", metricLabel: "Score", mode: "higher" });
   const round = Object.keys(scores).length + 1;
   const hasRolled = status === "playing" && rollsLeft < MAX_ROLLS;
   const isComplete = Object.keys(scores).length >= categories.length;
+
+  useEffect(() => {
+    if (status === "playing") {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, dice, held, rollsLeft, scores, lastScored } satisfies SavedYacht));
+    } else if (status === "finished") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [dice, held, lastScored, rollsLeft, scores, status]);
   const visibleMessage = status === "finished"
     ? (isEnglish ? `Game over! Total score: ${total} points.` : `ゲーム終了！合計${total}点でした。`)
     : status === "idle"
@@ -191,6 +225,7 @@ export function YachtDice({ onBack }: YachtDiceProps) {
             : (isEnglish ? "No rolls left. Choose a category to score." : "ロール終了です。スコアを入れる役を選んでください。");
 
   const startGame = () => {
+    safeStorage.removeItem(PROGRESS_KEY);
     setStatus("playing");
     setDice(createDice());
     setHeld(Array.from({ length: DICE_COUNT }, () => false));

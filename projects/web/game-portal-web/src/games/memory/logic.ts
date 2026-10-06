@@ -1,6 +1,6 @@
 import type { MemoryCard, MemoryDifficulty } from "./types";
 
-const symbols = ["🍎", "🌙", "⭐", "🍀", "🔥", "💎", "🎲", "🎯", "🧩", "🐾", "🚀", "🎵"];
+export const memorySymbols = ["🍎", "🌙", "⭐", "🍀", "🔥", "💎", "🎲", "🎯", "🧩", "🐾", "🚀", "🎵"];
 
 export const memoryDifficulties: MemoryDifficulty[] = [
   { id: "easy", label: "初級", pairs: 6, columns: 4 },
@@ -20,7 +20,7 @@ export function shuffleCards<T>(items: T[]): T[] {
 }
 
 export function createMemoryCards(difficulty: MemoryDifficulty): MemoryCard[] {
-  const selectedSymbols = symbols.slice(0, difficulty.pairs);
+  const selectedSymbols = memorySymbols.slice(0, difficulty.pairs);
   const cards = selectedSymbols.flatMap((symbol, index) => [
     {
       id: `${index}-a`,

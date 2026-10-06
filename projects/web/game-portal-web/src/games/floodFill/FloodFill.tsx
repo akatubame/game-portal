@@ -1,9 +1,10 @@
 import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { PaintBucket, RotateCcw, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import { useLocalizedMessage } from "../useLocalizedMessage";
 import type { CSSProperties } from "react";
 import type { FloodBest, FloodColor, FloodDifficulty, FloodStatus } from "./types";
@@ -13,6 +14,8 @@ type FloodFillProps = {
 };
 
 const BEST_KEY = "game-shelf-flood-fill-best";
+const PROGRESS_KEY = "game-shelf-progress-flood-fill-v1";
+type SavedFloodFill = { version: 1; difficulty: FloodDifficulty; board: FloodColor[]; moves: number };
 const colors: FloodColor[] = ["coral", "gold", "mint", "sky", "violet", "rose"];
 
 const colorLabels: Record<FloodColor, string> = {
@@ -108,15 +111,28 @@ function isSolved(board: FloodColor[]) {
   return board.every((color) => color === board[0]);
 }
 
+function isSavedFloodFill(value: unknown): value is SavedFloodFill {
+  if (!isPlainRecord(value)) return false;
+  const moves = value.moves;
+  if (value.version !== 1 ||
+      (value.difficulty !== "small" && value.difficulty !== "normal" && value.difficulty !== "large") ||
+      typeof moves !== "number" || !Number.isSafeInteger(moves) || moves < 0) return false;
+  const settings = difficultySettings[value.difficulty];
+  const board = value.board;
+  return moves < settings.moves && Array.isArray(board) && board.length === settings.size ** 2 &&
+    board.every((color) => colors.includes(color)) && !isSolved(board);
+}
+
 export function FloodFill({ onBack }: FloodFillProps) {
   const { language } = useI18n();
   const isEnglish = language === "en";
   const text = (ja: string, en: string) => isEnglish ? en : ja;
   const confirmRecordReset = useConfirmRecordReset();
-  const [difficulty, setDifficulty] = useState<FloodDifficulty>("normal");
-  const [board, setBoard] = useState<FloodColor[]>(() => createBoard(difficultySettings.normal.size));
-  const [status, setStatus] = useState<FloodStatus>("idle");
-  const [moves, setMoves] = useState(0);
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedFloodFill));
+  const [difficulty, setDifficulty] = useState<FloodDifficulty>(saved?.difficulty ?? "normal");
+  const [board, setBoard] = useState<FloodColor[]>(() => saved?.board ?? createBoard(difficultySettings.normal.size));
+  const [status, setStatus] = useState<FloodStatus>(saved ? "playing" : "idle");
+  const [moves, setMoves] = useState(saved?.moves ?? 0);
   const [message, setMessage] = useLocalizedMessage("左上のエリアを広げて、盤面全体を同じ色に染めましょう。", "Expand the top-left area until the whole board is one color.");
   const [bestByDifficulty, setBestByDifficulty] = useState<Record<FloodDifficulty, FloodBest | undefined>>(() => readBest());
 
@@ -127,6 +143,14 @@ export function FloodFill({ onBack }: FloodFillProps) {
   const progress = Math.round((floodSize / board.length) * 100);
   const movesLeft = settings.moves - moves;
   const currentBest = bestByDifficulty[difficulty];
+
+  useEffect(() => {
+    if (status === "playing") {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, difficulty, board, moves } satisfies SavedFloodFill));
+    } else if (status === "cleared" || status === "failed") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [board, difficulty, moves, status]);
 
   const saveBest = (clearMoves: number) => {
     if (currentBest && currentBest.moves <= clearMoves) {
@@ -144,6 +168,7 @@ export function FloodFill({ onBack }: FloodFillProps) {
   };
 
   const startGame = (nextDifficulty = difficulty) => {
+    safeStorage.removeItem(PROGRESS_KEY);
     const nextSettings = difficultySettings[nextDifficulty];
     setDifficulty(nextDifficulty);
     setBoard(createBoard(nextSettings.size));
@@ -247,6 +272,7 @@ export function FloodFill({ onBack }: FloodFillProps) {
               {text("左上からつながっている同色エリアが自分の陣地です。色を選ぶと陣地全体がその色に変わり、隣接する同じ色のマスを取り込めます。制限手数内に全マスを同じ色にしましょう。",
                 "Your area begins in the top-left corner. Choose a color to recolor your connected area and absorb adjacent cells of that color. Fill the board before you run out of moves.")}
             </p>
+            <p>{text("途中の盤面はこのブラウザに自動保存されます。", "Your current board is saved automatically on this browser.")}</p>
           </div>
 
           <div className="flood-options" aria-label={text("盤面サイズ", "Board size")}>

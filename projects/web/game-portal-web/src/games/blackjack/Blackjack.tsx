@@ -1,9 +1,10 @@
 import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { Club, RotateCcw, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import type { BlackjackCard, BlackjackOutcome, BlackjackRecord, BlackjackStatus, BlackjackSuit } from "./types";
 
 type BlackjackProps = {
@@ -11,6 +12,8 @@ type BlackjackProps = {
 };
 
 const RECORD_KEY = "game-shelf-blackjack-record";
+const PROGRESS_KEY = "game-shelf-progress-blackjack-v1";
+type SavedBlackjack = { version: 1; deck: BlackjackCard[]; playerHand: BlackjackCard[]; dealerHand: BlackjackCard[]; hasHit: boolean };
 const SUITS: BlackjackSuit[] = ["♠", "♥", "♦", "♣"];
 const RANKS: BlackjackCard["rank"][] = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
 
@@ -60,6 +63,20 @@ function handValue(hand: BlackjackCard[]) {
 
 function isBlackjack(hand: BlackjackCard[]) {
   return hand.length === 2 && handValue(hand) === 21;
+}
+
+function isSavedBlackjack(value: unknown): value is SavedBlackjack {
+  if (!isPlainRecord(value) || value.version !== 1 || !Array.isArray(value.deck) ||
+      !Array.isArray(value.playerHand) || !Array.isArray(value.dealerHand) || value.playerHand.length < 2 ||
+      value.playerHand.length > 11 || value.dealerHand.length !== 2 || typeof value.hasHit !== "boolean" ||
+      value.hasHit !== (value.playerHand.length > 2) ||
+      value.deck.length + value.playerHand.length + value.dealerHand.length !== 52) return false;
+  const keys = [...value.deck, ...value.playerHand, ...value.dealerHand].map((card) => {
+    if (!isPlainRecord(card) || !SUITS.includes(card.suit as BlackjackSuit) || !RANKS.includes(card.rank as BlackjackCard["rank"])) return null;
+    return `${card.suit}-${card.rank}`;
+  });
+  return keys.every((key) => key !== null) && new Set(keys).size === 52 &&
+    handValue(value.playerHand) <= 21 && !isBlackjack(value.playerHand) && !isBlackjack(value.dealerHand);
 }
 
 function decideOutcome(playerHand: BlackjackCard[], dealerHand: BlackjackCard[]): BlackjackOutcome {
@@ -112,18 +129,27 @@ export function Blackjack({ onBack }: BlackjackProps) {
   const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
-  const [deck, setDeck] = useState<BlackjackCard[]>(() => createDeck());
-  const [playerHand, setPlayerHand] = useState<BlackjackCard[]>([]);
-  const [dealerHand, setDealerHand] = useState<BlackjackCard[]>([]);
-  const [status, setStatus] = useState<BlackjackStatus>("idle");
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedBlackjack));
+  const [deck, setDeck] = useState<BlackjackCard[]>(() => saved?.deck.map((card) => ({ ...card })) ?? createDeck());
+  const [playerHand, setPlayerHand] = useState<BlackjackCard[]>(() => saved?.playerHand.map((card) => ({ ...card })) ?? []);
+  const [dealerHand, setDealerHand] = useState<BlackjackCard[]>(() => saved?.dealerHand.map((card) => ({ ...card })) ?? []);
+  const [status, setStatus] = useState<BlackjackStatus>(saved ? "playing" : "idle");
   const [record, setRecord] = useState<BlackjackRecord>(() => readRecord());
   const [completedRecord, setCompletedRecord] = useState<Readonly<BlackjackRecord> | null>(null);
-  const [hasHit, setHasHit] = useState(false);
+  const [hasHit, setHasHit] = useState(saved?.hasHit ?? false);
   const [outcome, setOutcome] = useState<BlackjackOutcome>(null);
 
   const playerTotal = useMemo(() => handValue(playerHand), [playerHand]);
   const dealerTotal = useMemo(() => handValue(dealerHand), [dealerHand]);
   const ranking = useRanking({ gameId: "blackjack-chips", metricLabel: "Chips", mode: "higher" });
+
+  useEffect(() => {
+    if (status === "playing") {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, deck, playerHand, dealerHand, hasHit } satisfies SavedBlackjack));
+    } else if (status === "finished") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [deck, dealerHand, hasHit, playerHand, status]);
   const visibleDealerTotal = status === "playing" && dealerHand.length > 1 ? handValue([dealerHand[0]]) : dealerTotal;
   const visibleMessage = status === "finished"
     ? outcomeMessage(outcome, playerHand, dealerHand, isEnglish)
@@ -144,6 +170,7 @@ export function Blackjack({ onBack }: BlackjackProps) {
   };
 
   const deal = () => {
+    safeStorage.removeItem(PROGRESS_KEY);
     setCompletedRecord(null);
     setHasHit(false);
     let nextDeck = createDeck();

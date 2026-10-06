@@ -5,6 +5,7 @@ import { RotateCcw, Sparkles, Timer, Trophy } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import type { OneToFiftyCell, OneToFiftyRecord, OneToFiftyStatus } from "./types";
 
 type OneToFiftyProps = {
@@ -12,6 +13,8 @@ type OneToFiftyProps = {
 };
 
 const RECORD_KEY = "game-shelf-one-to-fifty-record";
+const PROGRESS_KEY = "game-shelf-progress-one-to-fifty-v1";
+type SavedOneToFifty = { version: 1; board: OneToFiftyCell[]; nextNumber: number; mistakes: number; elapsedMs: number };
 const BOARD_SIZE = 25;
 const FINAL_NUMBER = 50;
 const HINT_DELAY_MS = 2800;
@@ -34,6 +37,30 @@ function createBoard(): OneToFiftyCell[] {
   }));
 }
 
+function isSavedOneToFifty(value: unknown): value is SavedOneToFifty {
+  if (!isPlainRecord(value) || value.version !== 1 || !Array.isArray(value.board) || value.board.length !== BOARD_SIZE ||
+      !Number.isSafeInteger(value.nextNumber) || (value.nextNumber as number) < 1 || (value.nextNumber as number) > FINAL_NUMBER ||
+      !Number.isSafeInteger(value.mistakes) || (value.mistakes as number) < 0 ||
+      !Number.isSafeInteger(value.elapsedMs) || (value.elapsedMs as number) < 0) return false;
+  const seen = new Set<number>();
+  const actual: number[] = [];
+  for (let index = 0; index < BOARD_SIZE; index += 1) {
+    const cell = value.board[index];
+    if (!isPlainRecord(cell) || cell.id !== index ||
+        (cell.value !== null && (!Number.isSafeInteger(cell.value) || (cell.value as number) < 1 || (cell.value as number) > FINAL_NUMBER))) return false;
+    if (cell.value !== null) {
+      if (seen.has(cell.value as number)) return false;
+      seen.add(cell.value as number);
+      actual.push(cell.value as number);
+    }
+  }
+  const next = value.nextNumber as number;
+  const expected = Array.from({ length: BOARD_SIZE }, (_, index) => index + 1)
+    .map((low) => low >= next ? low : low + BOARD_SIZE >= next ? low + BOARD_SIZE : null)
+    .filter((number): number is number => number !== null);
+  return actual.sort((a, b) => a - b).join(",") === expected.sort((a, b) => a - b).join(",");
+}
+
 function readRecord(): OneToFiftyRecord {
   const stored = safeStorage.getItem(RECORD_KEY);
   return stored ? (JSON.parse(stored) as OneToFiftyRecord) : { bestTimeMs: null, plays: 0 };
@@ -51,16 +78,26 @@ export function OneToFifty({ onBack }: OneToFiftyProps) {
   const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
-  const [board, setBoard] = useState<OneToFiftyCell[]>(() => createBoard());
-  const [status, setStatus] = useState<OneToFiftyStatus>("idle");
-  const [nextNumber, setNextNumber] = useState(1);
-  const [mistakes, setMistakes] = useState(0);
-  const [startedAt, setStartedAt] = useState<number | null>(null);
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const [targetChangedAt, setTargetChangedAt] = useState<number | null>(null);
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedOneToFifty));
+  const [board, setBoard] = useState<OneToFiftyCell[]>(() => saved?.board.map((cell) => ({ ...cell })) ?? createBoard());
+  const [status, setStatus] = useState<OneToFiftyStatus>(saved ? "playing" : "idle");
+  const [nextNumber, setNextNumber] = useState(saved?.nextNumber ?? 1);
+  const [mistakes, setMistakes] = useState(saved?.mistakes ?? 0);
+  const [startedAt, setStartedAt] = useState<number | null>(() => saved ? Date.now() - saved.elapsedMs : null);
+  const [elapsedMs, setElapsedMs] = useState(saved?.elapsedMs ?? 0);
+  const [targetChangedAt, setTargetChangedAt] = useState<number | null>(() => saved ? Date.now() : null);
   const [record, setRecord] = useState<OneToFiftyRecord>(() => readRecord());
-  const [message, setMessage] = useLocalizedMessage("1から50まで、数字を順番にタッチしましょう。まずは「開始」を押してください。", "Tap numbers from 1 to 50 in order. Press Start first.");
+  const [message, setMessage] = useLocalizedMessage(saved ? "前回の続きから再開しました。次の数字を探しましょう。" : "1から50まで、数字を順番にタッチしましょう。まずは「開始」を押してください。", saved ? "Resumed your previous game. Find the next number." : "Tap numbers from 1 to 50 in order. Press Start first.");
   const ranking = useRanking({ gameId: "one-to-fifty-time", metricLabel: "Time", mode: "lower" });
+  const elapsedSecond = Math.floor(elapsedMs / 1000);
+
+  useEffect(() => {
+    if (status === "playing") {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, board, nextNumber, mistakes, elapsedMs } satisfies SavedOneToFifty));
+    } else if (status === "cleared") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [board, elapsedSecond, mistakes, nextNumber, status]);
 
   useEffect(() => {
     if (status !== "playing" || startedAt === null) {
@@ -81,6 +118,7 @@ export function OneToFifty({ onBack }: OneToFiftyProps) {
   const visibleMessage = message;
 
   const startGame = () => {
+    safeStorage.removeItem(PROGRESS_KEY);
     setBoard(createBoard());
     setStatus("playing");
     setNextNumber(1);

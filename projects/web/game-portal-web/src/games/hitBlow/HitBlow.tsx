@@ -2,9 +2,10 @@ import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { useStopwatch } from "../useStopwatch";
 import { safeStorage } from "../../safeStorage";
 import { Check, Delete, RotateCcw, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import { useLocalizedMessage } from "../useLocalizedMessage";
 import type { HitBlowBest, HitBlowDifficulty, HitBlowGuess, HitBlowStatus } from "./types";
 
@@ -13,6 +14,8 @@ type HitBlowProps = {
 };
 
 const BEST_KEY = "game-shelf-hit-blow-best";
+const PROGRESS_KEY = "game-shelf-progress-hit-blow-v1";
+type SavedHitBlow = { version: 1; difficulty: HitBlowDifficulty; answer: string; input: string; guesses: HitBlowGuess[]; seconds: number };
 const DIGITS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
 const difficultySettings: Record<HitBlowDifficulty, { label: string; attempts: number; hint: boolean; description: string }> = {
@@ -75,6 +78,21 @@ function judgeGuess(answer: string, guess: string) {
   );
 }
 
+function isSavedHitBlow(value: unknown): value is SavedHitBlow {
+  if (!isPlainRecord(value) || value.version !== 1 || typeof value.difficulty !== "string" ||
+      !Object.prototype.hasOwnProperty.call(difficultySettings, value.difficulty) ||
+      typeof value.answer !== "string" || !/^\d{4}$/.test(value.answer) || new Set(value.answer).size !== 4 ||
+      typeof value.input !== "string" || !/^\d{0,4}$/.test(value.input) || new Set(value.input).size !== value.input.length ||
+      !Number.isSafeInteger(value.seconds) || (value.seconds as number) < 0 || !Array.isArray(value.guesses)) return false;
+  const limit = difficultySettings[value.difficulty as HitBlowDifficulty].attempts;
+  return value.guesses.length < limit && value.guesses.every((entry) => {
+    if (!isPlainRecord(entry) || typeof entry.value !== "string" || !/^\d{4}$/.test(entry.value) ||
+        new Set(entry.value).size !== 4 || entry.value === value.answer) return false;
+    const expected = judgeGuess(value.answer as string, entry.value);
+    return entry.hits === expected.hits && entry.blows === expected.blows;
+  });
+}
+
 function formatTime(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   const rest = seconds % 60;
@@ -98,13 +116,14 @@ export function HitBlow({ onBack }: HitBlowProps) {
   const isEnglish = language === "en";
   const text = (ja: string, en: string) => isEnglish ? en : ja;
   const confirmRecordReset = useConfirmRecordReset();
-  const [difficulty, setDifficulty] = useState<HitBlowDifficulty>("normal");
-  const [answer, setAnswer] = useState(() => createAnswer());
-  const [status, setStatus] = useState<HitBlowStatus>("idle");
-  const [input, setInput] = useState("");
-  const [guesses, setGuesses] = useState<HitBlowGuess[]>([]);
-  const [message, setMessage] = useLocalizedMessage("重複しない4桁の数字を推理しましょう。Hitは位置も数字も一致、Blowは数字だけ一致です。", "Guess four distinct digits. A Hit has the right digit in the right place; a Blow has the right digit in a different place.");
-  const { seconds, resetTimer, stopTimer } = useStopwatch();
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedHitBlow));
+  const [difficulty, setDifficulty] = useState<HitBlowDifficulty>(saved?.difficulty ?? "normal");
+  const [answer, setAnswer] = useState(() => saved?.answer ?? createAnswer());
+  const [status, setStatus] = useState<HitBlowStatus>(saved ? "playing" : "idle");
+  const [input, setInput] = useState(saved?.input ?? "");
+  const [guesses, setGuesses] = useState<HitBlowGuess[]>(saved?.guesses ?? []);
+  const [message, setMessage] = useLocalizedMessage(saved ? "前回の続きから再開しました。推理を続けましょう。" : "重複しない4桁の数字を推理しましょう。Hitは位置も数字も一致、Blowは数字だけ一致です。", saved ? "Resumed your previous game. Keep guessing." : "Guess four distinct digits. A Hit has the right digit in the right place; a Blow has the right digit in a different place.");
+  const { seconds, resetTimer, stopTimer } = useStopwatch(saved?.seconds ?? 0, saved !== null);
   const [bestByDifficulty, setBestByDifficulty] = useState<Record<HitBlowDifficulty, HitBlowBest | undefined>>(() => readBest());
 
   const settings = difficultySettings[difficulty];
@@ -113,6 +132,14 @@ export function HitBlow({ onBack }: HitBlowProps) {
   const currentBest = bestByDifficulty[difficulty];
   const inputDigits = useMemo(() => input.padEnd(4, " ").split("").slice(0, 4), [input]);
   const canSubmit = status === "playing" && input.length === 4 && new Set(input).size === 4;
+
+  useEffect(() => {
+    if (status === "playing") {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, difficulty, answer, input, guesses, seconds } satisfies SavedHitBlow));
+    } else if (status === "cleared" || status === "failed") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [answer, difficulty, guesses, input, seconds, status]);
 
 
   const saveBest = (attempts: number, clearSeconds: number) => {
@@ -132,6 +159,7 @@ export function HitBlow({ onBack }: HitBlowProps) {
   };
 
   const startGame = (nextDifficulty = difficulty) => {
+    safeStorage.removeItem(PROGRESS_KEY);
     setDifficulty(nextDifficulty);
     setAnswer(createAnswer());
     setStatus("playing");

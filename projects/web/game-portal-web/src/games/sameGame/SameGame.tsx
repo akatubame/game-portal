@@ -4,6 +4,7 @@ import { Eraser, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import { useLocalizedMessage } from "../useLocalizedMessage";
 import type { CSSProperties } from "react";
 import type { SameGameBest, SameGameCell, SameGameColor, SameGameDifficulty, SameGameStatus } from "./types";
@@ -13,6 +14,8 @@ type SameGameProps = {
 };
 
 const BEST_KEY = "game-shelf-same-game-best";
+const PROGRESS_KEY = "game-shelf-progress-same-game-v1";
+type SavedSameGame = { version: 1; difficulty: SameGameDifficulty; board: SameGameCell[]; score: number; lastRemoved: number };
 const colors: SameGameColor[] = ["coral", "gold", "mint", "sky", "violet"];
 
 const colorLabels: Record<SameGameColor, string> = {
@@ -153,17 +156,33 @@ function scoreForGroup(size: number) {
   return size < 2 ? 0 : (size - 1) ** 2;
 }
 
+function isSavedSameGame(value: unknown): value is SavedSameGame {
+  if (!isPlainRecord(value)) return false;
+  const lastRemoved = value.lastRemoved;
+  if (value.version !== 1 ||
+      (value.difficulty !== "small" && value.difficulty !== "normal" && value.difficulty !== "large") ||
+      !Number.isSafeInteger(value.score) || (value.score as number) < 0 ||
+      typeof lastRemoved !== "number" || !Number.isSafeInteger(lastRemoved) || lastRemoved < 0) return false;
+  const settings = difficultySettings[value.difficulty];
+  const board = value.board;
+  return lastRemoved <= settings.columns * settings.rows &&
+    Array.isArray(board) && board.length === settings.columns * settings.rows &&
+    board.every((cell) => cell === null || colors.includes(cell)) &&
+    hasMoves(board, settings.columns, settings.rows);
+}
+
 export function SameGame({ onBack }: SameGameProps) {
   const { language } = useI18n();
   const isEnglish = language === "en";
   const text = (ja: string, en: string) => isEnglish ? en : ja;
   const confirmRecordReset = useConfirmRecordReset();
-  const [difficulty, setDifficulty] = useState<SameGameDifficulty>("normal");
-  const [board, setBoard] = useState<SameGameCell[]>(() => createBoard(difficultySettings.normal.columns, difficultySettings.normal.rows));
-  const [status, setStatus] = useState<SameGameStatus>("idle");
-  const [score, setScore] = useState(0);
-  const scoreRef = useRef(0);
-  const [lastRemoved, setLastRemoved] = useState(0);
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedSameGame));
+  const [difficulty, setDifficulty] = useState<SameGameDifficulty>(saved?.difficulty ?? "normal");
+  const [board, setBoard] = useState<SameGameCell[]>(() => saved?.board ?? createBoard(difficultySettings.normal.columns, difficultySettings.normal.rows));
+  const [status, setStatus] = useState<SameGameStatus>(saved ? "playing" : "idle");
+  const [score, setScore] = useState(saved?.score ?? 0);
+  const scoreRef = useRef(saved?.score ?? 0);
+  const [lastRemoved, setLastRemoved] = useState(saved?.lastRemoved ?? 0);
   const [message, setMessage] = useLocalizedMessage("同じ色が2個以上つながったブロックをクリックして消しましょう。", "Click groups of two or more connected blocks of the same color.");
   const [bestByDifficulty, setBestByDifficulty] = useState<Record<SameGameDifficulty, SameGameBest | undefined>>(() => readBest());
 
@@ -172,6 +191,14 @@ export function SameGame({ onBack }: SameGameProps) {
   const currentBest = bestByDifficulty[difficulty];
   const blocksLeft = remainingBlocks(board);
   const movesAvailable = useMemo(() => hasMoves(board, settings.columns, settings.rows), [board, settings.columns, settings.rows]);
+
+  useEffect(() => {
+    if (status === "playing") {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, difficulty, board, score, lastRemoved } satisfies SavedSameGame));
+    } else if (status === "finished") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [board, difficulty, lastRemoved, score, status]);
 
   useEffect(() => {
     scoreRef.current = score;
@@ -203,6 +230,7 @@ export function SameGame({ onBack }: SameGameProps) {
   };
 
   const startGame = (nextDifficulty = difficulty) => {
+    safeStorage.removeItem(PROGRESS_KEY);
     const nextSettings = difficultySettings[nextDifficulty];
     setDifficulty(nextDifficulty);
     setBoard(createBoard(nextSettings.columns, nextSettings.rows));
@@ -302,6 +330,7 @@ export function SameGame({ onBack }: SameGameProps) {
               {text("上下左右につながった同じ色のブロックを2個以上まとめて消します。消した数が多いほど得点が伸び、列が空くと右側の列が左へ詰まります。全消しできるとボーナスです。",
                 "Remove groups of at least two adjacent blocks of the same color. Larger groups score more; columns shift left when emptied. Clear the whole board for a bonus.")}
             </p>
+            <p>{text("途中の盤面はこのブラウザに自動保存されます。", "Your current board is saved automatically on this browser.")}</p>
           </div>
 
           <div className="same-options" aria-label={text("盤面サイズ", "Board size")}>

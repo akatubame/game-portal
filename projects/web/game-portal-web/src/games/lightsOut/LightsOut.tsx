@@ -4,12 +4,27 @@ import { Lightbulb, RotateCcw, Shuffle } from "lucide-react";
 import { useEffect, useState, type CSSProperties } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import { countLitCells, createPuzzle, isCleared, lightsOutDifficulties, toggleAt } from "./logic";
 import type { LightsOutBoard, LightsOutDifficultyId, LightsOutStatus } from "./types";
 
 type LightsOutProps = {
   onBack: () => void;
 };
+
+const PROGRESS_KEY = "game-shelf-progress-lights-out-v1";
+type SavedLightsOut = { version: 1; difficultyId: LightsOutDifficultyId; board: LightsOutBoard; moves: number; seconds: number };
+
+function isSavedLightsOut(value: unknown): value is SavedLightsOut {
+  if (!isPlainRecord(value) || value.version !== 1 || typeof value.difficultyId !== "string" ||
+      !Number.isSafeInteger(value.moves) || (value.moves as number) < 1 ||
+      !Number.isSafeInteger(value.seconds) || (value.seconds as number) < 0) return false;
+  const difficulty = lightsOutDifficulties.find((item) => item.id === value.difficultyId);
+  const board = value.board;
+  return Boolean(difficulty) && Array.isArray(board) && board.length === difficulty!.size &&
+    board.every((row) => Array.isArray(row) && row.length === difficulty!.size && row.every((lit) => typeof lit === "boolean")) &&
+    !isCleared(board);
+}
 
 function getDifficulty(id: LightsOutDifficultyId) {
   return lightsOutDifficulties.find((difficulty) => difficulty.id === id) ?? lightsOutDifficulties[0];
@@ -24,13 +39,14 @@ function formatTime(seconds: number) {
 export function LightsOut({ onBack }: LightsOutProps) {
   const { language } = useI18n();
   const isEnglish = language === "en";
-  const [difficultyId, setDifficultyId] = useState<LightsOutDifficultyId>("easy");
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedLightsOut));
+  const [difficultyId, setDifficultyId] = useState<LightsOutDifficultyId>(saved?.difficultyId ?? "easy");
   const difficulty = getDifficulty(difficultyId);
   const difficultyLabel = isEnglish ? { easy: "Easy", normal: "Normal", hard: "Hard" }[difficulty.id] : difficulty.label;
-  const [board, setBoard] = useState<LightsOutBoard>(() => createPuzzle(difficulty));
-  const [moves, setMoves] = useState(0);
-  const { seconds, startTimer, resetTimer, stopTimer } = useStopwatch();
-  const [status, setStatus] = useState<LightsOutStatus>("ready");
+  const [board, setBoard] = useState<LightsOutBoard>(() => saved?.board.map((row) => [...row]) ?? createPuzzle(difficulty));
+  const [moves, setMoves] = useState(saved?.moves ?? 0);
+  const { seconds, startTimer, resetTimer, stopTimer } = useStopwatch(saved?.seconds ?? 0, saved !== null);
+  const [status, setStatus] = useState<LightsOutStatus>(saved ? "playing" : "ready");
   const bestScoreKey = `game-shelf-lights-out-best-${difficulty.id}`;
   const bestTimeKey = `game-shelf-lights-out-best-time-${difficulty.id}`;
   const [bestMoves, setBestMoves] = useState<number | null>(() => {
@@ -44,6 +60,14 @@ export function LightsOut({ onBack }: LightsOutProps) {
   const ranking = useRanking({ gameId: `lights-out-${difficulty.id}`, metricLabel: "Moves", mode: "lower" });
 
   useEffect(() => {
+    if (status === "playing") {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, difficultyId, board, moves, seconds } satisfies SavedLightsOut));
+    } else if (status === "cleared") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [board, difficultyId, moves, seconds, status]);
+
+  useEffect(() => {
     const stored = safeStorage.getItem(bestScoreKey);
     setBestMoves(stored ? Number(stored) || null : null);
     const storedTime = safeStorage.getItem(bestTimeKey);
@@ -52,6 +76,7 @@ export function LightsOut({ onBack }: LightsOutProps) {
 
 
   const resetGame = (nextDifficultyId = difficultyId) => {
+    safeStorage.removeItem(PROGRESS_KEY);
     const nextDifficulty = getDifficulty(nextDifficultyId);
     setDifficultyId(nextDifficultyId);
     setBoard(createPuzzle(nextDifficulty));
@@ -166,6 +191,7 @@ export function LightsOut({ onBack }: LightsOutProps) {
                 ? "Pressing a cell toggles it and its up, down, left, and right neighbors. Turn all lights off to clear the puzzle."
                 : "マスを押すと、そのマスと上下左右のライトが反転します。すべてのライトを消せばクリアです。"}
             </p>
+            <p>{isEnglish ? "Your current board is saved on this browser. Time pauses while the page is closed." : "途中の盤面はこのブラウザに保存されます。ページを閉じている間、時間は進みません。"}</p>
           </div>
 
           <label className="select-label">

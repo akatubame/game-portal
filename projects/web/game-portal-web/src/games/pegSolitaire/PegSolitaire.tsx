@@ -1,9 +1,10 @@
 import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { CircleDot, RotateCcw, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import { useLocalizedMessage } from "../useLocalizedMessage";
 import type { PegBest, PegCell, PegPosition, PegStatus } from "./types";
 
@@ -12,7 +13,9 @@ type PegSolitaireProps = {
 };
 
 const BEST_KEY = "game-shelf-peg-solitaire-best";
+const PROGRESS_KEY = "game-shelf-progress-peg-solitaire-v1";
 const BOARD_SIZE = 7;
+type SavedPeg = { version: 1; board: PegCell[]; moves: number };
 const directions = [
   { row: -1, column: 0 },
   { row: 1, column: 0 },
@@ -96,6 +99,18 @@ function hasLegalMove(board: PegCell[]) {
   });
 }
 
+function isSavedPeg(value: unknown): value is SavedPeg {
+  if (!isPlainRecord(value)) return false;
+  const moves = value.moves;
+  if (value.version !== 1 || typeof moves !== "number" || !Number.isSafeInteger(moves) || moves < 0 || moves > 30) return false;
+  const board = value.board;
+  return Array.isArray(board) && board.length === BOARD_SIZE * BOARD_SIZE &&
+    board.every((cell, index) => {
+      const valid = isValidPosition(Math.floor(index / BOARD_SIZE), index % BOARD_SIZE);
+      return valid ? cell === "peg" || cell === "empty" : cell === "invalid";
+    }) && countPegs(board) === 32 - moves && hasLegalMove(board);
+}
+
 function getLegalTargets(board: PegCell[], from: PegPosition | null) {
   if (!from) {
     return new Set<number>();
@@ -129,16 +144,25 @@ export function PegSolitaire({ onBack }: PegSolitaireProps) {
   const isEnglish = language === "en";
   const text = (ja: string, en: string) => isEnglish ? en : ja;
   const confirmRecordReset = useConfirmRecordReset();
-  const [board, setBoard] = useState<PegCell[]>(() => createBoard());
-  const [status, setStatus] = useState<PegStatus>("idle");
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedPeg));
+  const [board, setBoard] = useState<PegCell[]>(() => saved?.board ?? createBoard());
+  const [status, setStatus] = useState<PegStatus>(saved ? "playing" : "idle");
   const [selected, setSelected] = useState<PegPosition | null>(null);
-  const [moves, setMoves] = useState(0);
+  const [moves, setMoves] = useState(saved?.moves ?? 0);
   const [best, setBest] = useState<PegBest | null>(() => readBest());
   const [message, setMessage] = useLocalizedMessage("ペグを選び、隣のペグを飛び越えて空きマスへ移動します。飛び越えたペグは取り除かれます。", "Jump one peg over another into an empty space. The peg you jump over is removed.");
 
   const remaining = countPegs(board);
   const ranking = useRanking({ gameId: "peg-solitaire-result", metricLabel: "Result", mode: "lower" });
   const legalTargets = useMemo(() => getLegalTargets(board, selected), [board, selected]);
+
+  useEffect(() => {
+    if (status === "playing") {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, board, moves } satisfies SavedPeg));
+    } else if (status === "cleared" || status === "stuck") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [board, moves, status]);
 
   const saveBest = (nextRemaining: number, nextMoves: number) => {
     if (!isBetterBest(best, nextRemaining, nextMoves)) {
@@ -155,6 +179,7 @@ export function PegSolitaire({ onBack }: PegSolitaireProps) {
   };
 
   const startGame = () => {
+    safeStorage.removeItem(PROGRESS_KEY);
     setBoard(createBoard());
     setStatus("playing");
     setSelected(null);
@@ -289,6 +314,7 @@ export function PegSolitaire({ onBack }: PegSolitaireProps) {
               {text("ペグは上下左右に2マス先の空きマスへジャンプできます。間にあるペグは取り除かれます。これを繰り返して、最後の1本を目指しましょう。",
                 "Jump a peg two spaces horizontally or vertically into an empty hole. Remove the peg you jumped over. Try to finish with one peg.")}
             </p>
+            <p>{text("途中の盤面はこのブラウザに自動保存されます。", "Your current board is saved automatically on this browser.")}</p>
           </div>
 
           <div className="peg-progress">

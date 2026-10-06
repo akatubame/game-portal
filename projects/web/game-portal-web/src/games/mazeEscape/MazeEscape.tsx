@@ -5,6 +5,7 @@ import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, RotateCcw, Sparkles } from "
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import type { CSSProperties } from "react";
 import type { MazeBest, MazeCell, MazeDifficulty, MazeStatus } from "./types";
 
@@ -16,6 +17,8 @@ type Direction = "top" | "right" | "bottom" | "left";
 
 const BEST_KEY = "game-shelf-maze-escape-best";
 const TIME_KEY = "game-shelf-maze-escape-time-best";
+const PROGRESS_KEY = "game-shelf-progress-maze-escape-v1";
+type SavedMaze = { version: 1; difficulty: MazeDifficulty; maze: MazeCell[]; playerIndex: number; moves: number; seconds: number };
 
 const difficultySettings: Record<MazeDifficulty, { label: string; size: number; description: string }> = {
   small: { label: "小さめ", size: 9, description: "まずは軽く遊べる9×9迷路。" },
@@ -29,6 +32,42 @@ const directionDelta: Record<Direction, { row: number; column: number; opposite:
   bottom: { row: 1, column: 0, opposite: "top" },
   left: { row: 0, column: -1, opposite: "right" }
 };
+
+function isSavedMaze(value: unknown): value is SavedMaze {
+  if (!isPlainRecord(value) || value.version !== 1 || typeof value.difficulty !== "string" ||
+      !Object.prototype.hasOwnProperty.call(difficultySettings, value.difficulty) || !Number.isSafeInteger(value.playerIndex) ||
+      !Number.isSafeInteger(value.moves) || (value.moves as number) < 0 || (value.moves as number) > 100000 ||
+      !Number.isSafeInteger(value.seconds) || (value.seconds as number) < 0) return false;
+  const size = difficultySettings[value.difficulty as MazeDifficulty].size;
+  const maze = value.maze;
+  if (!Array.isArray(maze) || maze.length !== size * size || (value.playerIndex as number) < 0 ||
+      (value.playerIndex as number) >= maze.length - 1 || ((value.moves as number) === 0 && value.playerIndex !== 0)) return false;
+  for (let index = 0; index < maze.length; index += 1) {
+    const cell = maze[index];
+    if (!isPlainRecord(cell) || !isPlainRecord(cell.walls) || cell.visited !== false) return false;
+    const walls = cell.walls;
+    if (!["top", "right", "bottom", "left"].every((side) => typeof walls[side] === "boolean")) return false;
+    const row = Math.floor(index / size), column = index % size;
+    if ((row === 0 && !walls.top) || (column === 0 && !walls.left) ||
+        (row === size - 1 && !walls.bottom) || (column === size - 1 && !walls.right)) return false;
+    if (row > 0 && walls.top !== maze[index - size]?.walls?.bottom) return false;
+    if (column > 0 && walls.left !== maze[index - 1]?.walls?.right) return false;
+  }
+  const reachable = new Set<number>([0]);
+  const queue = [0];
+  for (let cursor = 0; cursor < queue.length; cursor += 1) {
+    const index = queue[cursor];
+    const row = Math.floor(index / size), column = index % size;
+    for (const side of Object.keys(directionDelta) as Direction[]) {
+      const delta = directionDelta[side];
+      const nextRow = row + delta.row, nextColumn = column + delta.column;
+      if (maze[index].walls[side] || nextRow < 0 || nextRow >= size || nextColumn < 0 || nextColumn >= size) continue;
+      const next = nextRow * size + nextColumn;
+      if (!reachable.has(next)) { reachable.add(next); queue.push(next); }
+    }
+  }
+  return reachable.size === maze.length;
+}
 
 function createEmptyMaze(size: number): MazeCell[] {
   return Array.from({ length: size * size }, () => ({
@@ -101,13 +140,14 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
   const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
-  const [difficulty, setDifficulty] = useState<MazeDifficulty>("normal");
-  const [maze, setMaze] = useState<MazeCell[]>(() => generateMaze(difficultySettings.normal.size));
-  const [playerIndex, setPlayerIndex] = useState(0);
-  const [status, setStatus] = useState<MazeStatus>("idle");
-  const [moves, setMoves] = useState(0);
-  const { seconds, resetTimer, stopTimer } = useStopwatch();
-  const [message, setMessage] = useState<"idle" | "start" | "wall" | "moving" | "clear">("idle");
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedMaze));
+  const [difficulty, setDifficulty] = useState<MazeDifficulty>(saved?.difficulty ?? "normal");
+  const [maze, setMaze] = useState<MazeCell[]>(() => saved?.maze.map((cell) => ({ walls: { ...cell.walls }, visited: false })) ?? generateMaze(difficultySettings.normal.size));
+  const [playerIndex, setPlayerIndex] = useState(saved?.playerIndex ?? 0);
+  const [status, setStatus] = useState<MazeStatus>(saved ? "playing" : "idle");
+  const [moves, setMoves] = useState(saved?.moves ?? 0);
+  const { seconds, resetTimer, stopTimer } = useStopwatch(saved?.seconds ?? 0, saved !== null);
+  const [message, setMessage] = useState<"idle" | "start" | "wall" | "moving" | "clear">(saved ? "start" : "idle");
   const [result, setResult] = useState<(MazeBest & { improved: boolean }) | null>(null);
   const [timeBySize, setTimeBySize] = useState<Record<string, MazeBest>>(() => readBest(TIME_KEY));
   const [bestBySize, setBestBySize] = useState<Record<string, MazeBest>>(() => readBest());
@@ -131,8 +171,17 @@ export function MazeEscape({ onBack }: MazeEscapeProps) {
     return visited;
   }, [maze]);
 
+  useEffect(() => {
+    if (status === "playing") {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, difficulty, maze, playerIndex, moves, seconds } satisfies SavedMaze));
+    } else if (status === "cleared") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [difficulty, maze, playerIndex, moves, seconds, status]);
+
 
   const startGame = (nextDifficulty = difficulty) => {
+    safeStorage.removeItem(PROGRESS_KEY);
     const nextSize = difficultySettings[nextDifficulty].size;
     setDifficulty(nextDifficulty);
     setMaze(generateMaze(nextSize));

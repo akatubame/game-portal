@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import { useLocalizedMessage } from "../useLocalizedMessage";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import type { PongBall, PongDifficulty, PongResult, PongStatus } from "./types";
 
 type PongProps = {
@@ -21,6 +22,7 @@ const BALL_SIZE = 14;
 const PADDLE_SPEED = 7.8;
 const WIN_SCORE = 5;
 const BEST_KEY = "game-shelf-pong-best";
+const PROGRESS_KEY = "game-shelf-progress-pong-v1";
 
 const difficultySettings: Record<
   PongDifficulty,
@@ -78,20 +80,49 @@ function createServe(direction: 1 | -1): PongBall {
   };
 }
 
+type PongProgress = {
+  version: 1;
+  ball: PongBall;
+  playerY: number;
+  cpuY: number;
+  playerScore: number;
+  cpuScore: number;
+  difficulty: PongDifficulty;
+};
+
+function isPongProgress(value: unknown): value is PongProgress {
+  if (!isPlainRecord(value) || value.version !== 1 || !isPlainRecord(value.ball) ||
+      (value.difficulty !== "easy" && value.difficulty !== "normal" && value.difficulty !== "hard") ||
+      !Number.isFinite(value.playerY) || !Number.isFinite(value.cpuY) ||
+      (value.playerY as number) < 0 || (value.playerY as number) > BOARD_HEIGHT - PADDLE_HEIGHT ||
+      (value.cpuY as number) < 0 || (value.cpuY as number) > BOARD_HEIGHT - PADDLE_HEIGHT ||
+      !Number.isInteger(value.playerScore) || !Number.isInteger(value.cpuScore) ||
+      (value.playerScore as number) < 0 || (value.cpuScore as number) < 0 ||
+      (value.playerScore as number) >= WIN_SCORE || (value.cpuScore as number) >= WIN_SCORE) {
+    return false;
+  }
+  const ball = value.ball;
+  return Number.isFinite(ball.x) && Number.isFinite(ball.y) && Number.isFinite(ball.vx) && Number.isFinite(ball.vy) &&
+    (ball.x as number) >= -BALL_SIZE && (ball.x as number) <= BOARD_WIDTH &&
+    (ball.y as number) >= 0 && (ball.y as number) <= BOARD_HEIGHT - BALL_SIZE &&
+    Math.abs(ball.vx as number) >= 0.1 && Math.abs(ball.vx as number) <= 15 && Math.abs(ball.vy as number) <= 15;
+}
+
 export function Pong({ onBack }: PongProps) {
+  const [savedGame] = useState(() => readSavedProgress(PROGRESS_KEY, isPongProgress));
   const { language } = useI18n();
   const isEnglish = language === "en";
   const text = (ja: string, en: string) => isEnglish ? en : ja;
   const difficultyLabel = (level: PongDifficulty) => text(difficultySettings[level].label, { easy: "Easy", normal: "Normal", hard: "Hard" }[level]);
   const confirmRecordReset = useConfirmRecordReset();
-  const [status, setStatus] = useState<PongStatus>("idle");
-  const [ball, setBall] = useState<PongBall>(initialBall);
-  const [playerY, setPlayerY] = useState((BOARD_HEIGHT - PADDLE_HEIGHT) / 2);
-  const [cpuY, setCpuY] = useState((BOARD_HEIGHT - PADDLE_HEIGHT) / 2);
-  const [playerScore, setPlayerScore] = useState(0);
-  const [cpuScore, setCpuScore] = useState(0);
-  const [difficulty, setDifficulty] = useState<PongDifficulty>("normal");
-  const [message, setMessage] = useLocalizedMessage("スタートを押して、CPUとのポン対戦を始めましょう。", "Press Start to play Pong against the CPU.");
+  const [status, setStatus] = useState<PongStatus>(savedGame ? "paused" : "idle");
+  const [ball, setBall] = useState<PongBall>(savedGame?.ball ?? initialBall);
+  const [playerY, setPlayerY] = useState(savedGame?.playerY ?? (BOARD_HEIGHT - PADDLE_HEIGHT) / 2);
+  const [cpuY, setCpuY] = useState(savedGame?.cpuY ?? (BOARD_HEIGHT - PADDLE_HEIGHT) / 2);
+  const [playerScore, setPlayerScore] = useState(savedGame?.playerScore ?? 0);
+  const [cpuScore, setCpuScore] = useState(savedGame?.cpuScore ?? 0);
+  const [difficulty, setDifficulty] = useState<PongDifficulty>(savedGame?.difficulty ?? "normal");
+  const [message, setMessage] = useLocalizedMessage(savedGame ? "対戦を復元しました。再開ボタンで続けられます。" : "スタートを押して、CPUとのポン対戦を始めましょう。", savedGame ? "Match restored. Press Resume to continue." : "Press Start to play Pong against the CPU.");
   const [bestResult, setBestResult] = useState<PongResult | null>(() => readBestResult());
   const ranking = useRanking({ gameId: `pong-${difficulty}`, metricLabel: "Margin", mode: "higher" });
 
@@ -109,6 +140,24 @@ export function Pong({ onBack }: PongProps) {
     moveUpRef.current = false;
     moveDownRef.current = false;
   };
+
+  useEffect(() => {
+    const save = () => safeStorage.setItem(PROGRESS_KEY, JSON.stringify({
+      version: 1, ball: ballRef.current, playerY: playerYRef.current, cpuY: cpuYRef.current,
+      playerScore: playerScoreRef.current, cpuScore: cpuScoreRef.current, difficulty: difficultyRef.current
+    } satisfies PongProgress));
+    if (status === "playing") {
+      const timerId = window.setInterval(save, 500);
+      window.addEventListener("pagehide", save);
+      return () => {
+        save();
+        window.clearInterval(timerId);
+        window.removeEventListener("pagehide", save);
+      };
+    }
+    if (status === "paused") save();
+    if (status === "finished" || status === "idle") safeStorage.removeItem(PROGRESS_KEY);
+  }, [status]);
 
   useEffect(() => {
     statusRef.current = status;
@@ -359,6 +408,7 @@ export function Pong({ onBack }: PongProps) {
   }, []);
 
   const startGame = () => {
+    safeStorage.removeItem(PROGRESS_KEY);
     releaseControls();
     setStatus("playing");
     setBall(createServe(Math.random() > 0.5 ? 1 : -1));
@@ -375,6 +425,7 @@ export function Pong({ onBack }: PongProps) {
 
   const changeDifficulty = (nextDifficulty: PongDifficulty) => {
     if (nextDifficulty === difficulty) return;
+    safeStorage.removeItem(PROGRESS_KEY);
     releaseControls();
     setStatus("idle");
     statusRef.current = "idle";

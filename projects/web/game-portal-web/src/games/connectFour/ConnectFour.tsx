@@ -5,6 +5,7 @@ import { CircleDot, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import type {
   ConnectFourCell,
   ConnectFourDifficulty,
@@ -22,6 +23,8 @@ type ConnectFourProps = {
 const ROWS = 6;
 const COLUMNS = 7;
 const RECORD_KEY = "game-shelf-connect-four-record";
+const PROGRESS_KEY = "game-shelf-progress-connect-four-v1";
+type SavedConnectFour = { version: 1; board: ConnectFourCell[]; turn: ConnectFourPlayer; difficulty: ConnectFourDifficulty };
 
 const difficultyLabels: Record<ConnectFourDifficulty, string> = {
   easy: "やさしい",
@@ -236,6 +239,26 @@ function getOutcome(result: ConnectFourResult, board: ConnectFourCell[]): Connec
   return null;
 }
 
+function isSavedConnectFour(value: unknown): value is SavedConnectFour {
+  if (!isPlainRecord(value) || value.version !== 1 || !Array.isArray(value.board) || value.board.length !== ROWS * COLUMNS ||
+      !value.board.every((cell) => cell === null || cell === "red" || cell === "yellow") ||
+      (value.turn !== "red" && value.turn !== "yellow") || typeof value.difficulty !== "string" ||
+      !Object.prototype.hasOwnProperty.call(difficultyLabels, value.difficulty)) return false;
+  const board = value.board as ConnectFourCell[];
+  for (let column = 0; column < COLUMNS; column += 1) {
+    let emptyBelow = false;
+    for (let row = ROWS - 1; row >= 0; row -= 1) {
+      const cell = board[toIndex(row, column)];
+      if (cell === null) emptyBelow = true;
+      else if (emptyBelow) return false;
+    }
+  }
+  const red = board.filter((cell) => cell === "red").length;
+  const yellow = board.filter((cell) => cell === "yellow").length;
+  return red >= yellow && red <= yellow + 1 && (value.turn === "red" ? red === yellow : red === yellow + 1) &&
+    getOutcome(findResult(board), board) === null;
+}
+
 function updateRecord(record: ConnectFourRecord, outcome: ConnectFourOutcome): ConnectFourRecord {
   if (outcome === "win") return { ...record, wins: record.wins + 1, streak: record.streak + 1 };
   if (outcome === "lose") return { ...record, losses: record.losses + 1, streak: 0 };
@@ -247,19 +270,28 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
   const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
-  const [board, setBoard] = useState<ConnectFourCell[]>(() => createBoard());
-  const [status, setStatus] = useState<ConnectFourStatus>("idle");
-  const [turn, setTurn] = useState<ConnectFourPlayer>("red");
-  const [difficulty, setDifficulty] = useState<ConnectFourDifficulty>("normal");
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedConnectFour));
+  const [board, setBoard] = useState<ConnectFourCell[]>(() => saved?.board.slice() ?? createBoard());
+  const [status, setStatus] = useState<ConnectFourStatus>(saved ? "playing" : "idle");
+  const [turn, setTurn] = useState<ConnectFourPlayer>(saved?.turn ?? "red");
+  const [difficulty, setDifficulty] = useState<ConnectFourDifficulty>(saved?.difficulty ?? "normal");
   const [record, setRecord] = useState<ConnectFourRecord>(() => readRecord());
   const [completedRecord, setCompletedRecord] = useState<Readonly<ConnectFourRecord> | null>(null);
-  const [message, setMessage] = useLocalizedMessage("赤があなた、黄がCOMです。先に4つ並べましょう。", "You are red and the CPU is yellow. Connect four to win.");
+  const [message, setMessage] = useLocalizedMessage(saved ? (saved.turn === "yellow" ? "前回の続きです。COMが考えています……" : "前回の続きです。あなたの番です。") : "赤があなた、黄がCOMです。先に4つ並べましょう。", saved ? (saved.turn === "yellow" ? "Resumed. CPU is thinking..." : "Resumed. Your turn.") : "You are red and the CPU is yellow. Connect four to win.");
 
   const result = useMemo(() => findResult(board), [board]);
   const outcome = getOutcome(result, board);
   const ranking = useRanking({ gameId: `connect-four-${difficulty}`, metricLabel: "Wins", mode: "higher" });
   const legalColumns = getLegalColumns(board);
   const visibleDifficultyLabel = isEnglish ? difficultyLabelsEn[difficulty] : difficultyLabels[difficulty];
+
+  useEffect(() => {
+    if (status === "playing" && !outcome) {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, board, turn, difficulty } satisfies SavedConnectFour));
+    } else if (status === "finished") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [board, difficulty, outcome, status, turn]);
 
   useEffect(() => {
     if (status !== "playing" || !outcome) {
@@ -303,6 +335,7 @@ export function ConnectFour({ onBack }: ConnectFourProps) {
   }, [board, difficulty, outcome, status, turn]);
 
   const startGame = () => {
+    safeStorage.removeItem(PROGRESS_KEY);
     setCompletedRecord(null);
     setBoard(createBoard());
     setStatus("playing");

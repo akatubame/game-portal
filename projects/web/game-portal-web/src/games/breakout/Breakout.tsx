@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import { useLocalizedMessage } from "../useLocalizedMessage";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import type { Ball, Brick, BreakoutResult, BreakoutStatus } from "./types";
 
 type BreakoutProps = {
@@ -20,6 +21,7 @@ const BALL_SIZE = 14;
 const PADDLE_SPEED = 18;
 const INITIAL_LIVES = 3;
 const BEST_KEY = "game-shelf-breakout-best";
+const PROGRESS_KEY = "game-shelf-progress-breakout-v1";
 
 const initialBall: Ball = {
   x: BOARD_WIDTH / 2 - BALL_SIZE / 2,
@@ -72,17 +74,48 @@ function overlaps(ball: Ball, brick: Brick) {
   );
 }
 
+type BreakoutProgress = {
+  version: 1;
+  ball: Ball;
+  paddleX: number;
+  bricks: Brick[];
+  lives: number;
+};
+
+function isBreakoutProgress(value: unknown): value is BreakoutProgress {
+  if (!isPlainRecord(value) || value.version !== 1 || !isPlainRecord(value.ball) ||
+      !Array.isArray(value.bricks) || value.bricks.length !== 40 ||
+      !Number.isFinite(value.paddleX) || (value.paddleX as number) < 0 || (value.paddleX as number) > BOARD_WIDTH - PADDLE_WIDTH ||
+      !Number.isInteger(value.lives) || (value.lives as number) < 1 || (value.lives as number) > INITIAL_LIVES) {
+    return false;
+  }
+  const ball = value.ball;
+  if (!Number.isFinite(ball.x) || !Number.isFinite(ball.y) || !Number.isFinite(ball.vx) || !Number.isFinite(ball.vy) ||
+      (ball.x as number) < -BALL_SIZE || (ball.x as number) > BOARD_WIDTH ||
+      (ball.y as number) < 0 || (ball.y as number) > BOARD_HEIGHT ||
+      Math.abs(ball.vx as number) > 15 || Math.abs(ball.vy as number) > 15 || (ball.vy as number) === 0) {
+    return false;
+  }
+  const layout = createBricks();
+  return value.bricks.some((brick) => isPlainRecord(brick) && brick.alive === true) &&
+    value.bricks.every((brick, index) => isPlainRecord(brick) &&
+      brick.id === layout[index].id && brick.x === layout[index].x && brick.y === layout[index].y &&
+      brick.width === layout[index].width && brick.height === layout[index].height && brick.color === layout[index].color &&
+      (brick.alive === true || brick.alive === false));
+}
+
 export function Breakout({ onBack }: BreakoutProps) {
+  const [savedGame] = useState(() => readSavedProgress(PROGRESS_KEY, isBreakoutProgress));
   const { language } = useI18n();
   const isEnglish = language === "en";
   const text = (ja: string, en: string) => isEnglish ? en : ja;
   const confirmRecordReset = useConfirmRecordReset();
-  const [status, setStatus] = useState<BreakoutStatus>("idle");
-  const [ball, setBall] = useState<Ball>(initialBall);
-  const [paddleX, setPaddleX] = useState((BOARD_WIDTH - PADDLE_WIDTH) / 2);
-  const [bricks, setBricks] = useState<Brick[]>(() => createBricks());
-  const [lives, setLives] = useState(INITIAL_LIVES);
-  const [message, setMessage] = useLocalizedMessage("スタートを押して、パドルでボールを打ち返しましょう。", "Press Start and bounce the ball with your paddle.");
+  const [status, setStatus] = useState<BreakoutStatus>(savedGame ? "paused" : "idle");
+  const [ball, setBall] = useState<Ball>(savedGame?.ball ?? initialBall);
+  const [paddleX, setPaddleX] = useState(savedGame?.paddleX ?? (BOARD_WIDTH - PADDLE_WIDTH) / 2);
+  const [bricks, setBricks] = useState<Brick[]>(() => savedGame?.bricks ?? createBricks());
+  const [lives, setLives] = useState(savedGame?.lives ?? INITIAL_LIVES);
+  const [message, setMessage] = useLocalizedMessage(savedGame ? "プレイを復元しました。再開ボタンで続けられます。" : "スタートを押して、パドルでボールを打ち返しましょう。", savedGame ? "Run restored. Press Resume to continue." : "Press Start and bounce the ball with your paddle.");
   const [bestResult, setBestResult] = useState<BreakoutResult | null>(() => readBestResult());
 
   const statusRef = useRef(status);
@@ -101,6 +134,24 @@ export function Breakout({ onBack }: BreakoutProps) {
     moveLeftRef.current = false;
     moveRightRef.current = false;
   };
+
+  useEffect(() => {
+    const save = () => safeStorage.setItem(PROGRESS_KEY, JSON.stringify({
+      version: 1, ball: ballRef.current, paddleX: paddleXRef.current,
+      bricks: bricksRef.current, lives: livesRef.current
+    } satisfies BreakoutProgress));
+    if (status === "playing") {
+      const timerId = window.setInterval(save, 500);
+      window.addEventListener("pagehide", save);
+      return () => {
+        save();
+        window.clearInterval(timerId);
+        window.removeEventListener("pagehide", save);
+      };
+    }
+    if (status === "paused") save();
+    if (status === "finished" || status === "cleared") safeStorage.removeItem(PROGRESS_KEY);
+  }, [status]);
 
   useEffect(() => {
     statusRef.current = status;
@@ -337,6 +388,7 @@ export function Breakout({ onBack }: BreakoutProps) {
   }, []);
 
   const startGame = () => {
+    safeStorage.removeItem(PROGRESS_KEY);
     const nextBricks = createBricks();
 
     setStatus("playing");

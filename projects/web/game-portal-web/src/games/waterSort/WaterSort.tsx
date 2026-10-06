@@ -1,9 +1,10 @@
 import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { RotateCcw, Sparkles, Trophy, Undo2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import { useLocalizedMessage } from "../useLocalizedMessage";
 import type { WaterBottle, WaterColor, WaterSortHistory, WaterSortRecord, WaterSortStatus } from "./types";
 
@@ -18,7 +19,9 @@ type WaterSortLevel = {
 };
 
 const RECORD_KEY = "game-shelf-water-sort-record-v2";
+const PROGRESS_KEY = "game-shelf-progress-water-sort-v1";
 const CAPACITY = 4;
+type SavedWaterSort = { version: 1; levelId: string; bottles: WaterBottle[]; moves: number; history: WaterSortHistory[] };
 
 const colorLabels: Record<WaterColor, string> = {
   red: "赤",
@@ -76,6 +79,34 @@ const levels: WaterSortLevel[] = [
     ]
   }
 ];
+
+function isSavedWaterSort(value: unknown): value is SavedWaterSort {
+  if (!isPlainRecord(value) || value.version !== 1 || typeof value.levelId !== "string" ||
+      !Number.isSafeInteger(value.moves) || (value.moves as number) < 1 || (value.moves as number) > 10000 ||
+      !Array.isArray(value.history) || value.history.length !== value.moves) return false;
+  const level = levels.find((item) => item.id === value.levelId);
+  if (!level) return false;
+  const expected = level.bottles.flat().sort().join(",");
+  const validBottles = (candidate: unknown): candidate is WaterBottle[] =>
+    Array.isArray(candidate) && candidate.length === level.bottles.length &&
+    candidate.every((bottle) => Array.isArray(bottle) && bottle.length <= CAPACITY &&
+      bottle.every((color) => typeof color === "string" && color in colorLabels)) &&
+    candidate.flat().sort().join(",") === expected;
+  if (!validBottles(value.bottles) || isSolved(value.bottles) ||
+      !value.history.every((entry, index) => isPlainRecord(entry) && entry.moves === index && validBottles(entry.bottles))) return false;
+  const history = value.history as WaterSortHistory[];
+  const finalBottles = value.bottles as WaterBottle[];
+  if (JSON.stringify(history[0].bottles) !== JSON.stringify(level.bottles)) return false;
+  return history.every((entry, index) => {
+    const next = index + 1 < history.length ? history[index + 1].bottles : finalBottles;
+    for (let source = 0; source < next.length; source += 1) for (let destination = 0; destination < next.length; destination += 1) {
+      if (source === destination) continue;
+      const poured = pour(entry.bottles, source, destination);
+      if (poured && JSON.stringify(poured) === JSON.stringify(next)) return true;
+    }
+    return false;
+  });
+}
 
 function cloneBottles(bottles: WaterBottle[]) {
   return bottles.map((bottle) => [...bottle]);
@@ -145,11 +176,12 @@ export function WaterSort({ onBack }: WaterSortProps) {
   const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
-  const [levelIndex, setLevelIndex] = useState(0);
-  const [bottles, setBottles] = useState<WaterBottle[]>(() => cloneBottles(levels[0].bottles));
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedWaterSort));
+  const [levelIndex, setLevelIndex] = useState(() => Math.max(0, levels.findIndex((item) => item.id === saved?.levelId)));
+  const [bottles, setBottles] = useState<WaterBottle[]>(() => cloneBottles(saved?.bottles ?? levels[0].bottles));
   const [selectedBottle, setSelectedBottle] = useState<number | null>(null);
-  const [moves, setMoves] = useState(0);
-  const [history, setHistory] = useState<WaterSortHistory[]>([]);
+  const [moves, setMoves] = useState(saved?.moves ?? 0);
+  const [history, setHistory] = useState<WaterSortHistory[]>(() => saved?.history.map((entry) => ({ bottles: cloneBottles(entry.bottles), moves: entry.moves })) ?? []);
   const [status, setStatus] = useState<WaterSortStatus>("playing");
   const [record, setRecord] = useState<WaterSortRecord>(() => readRecord());
   const [message, setMessage] = useLocalizedMessage("同じ色の水だけを重ねられます。ボトルを選んで、注ぎ先を選びましょう。", "Only matching colors can be stacked. Choose a bottle, then choose where to pour.");
@@ -159,7 +191,16 @@ export function WaterSort({ onBack }: WaterSortProps) {
   const bestMoves = record[level.id] ?? null;
   const filledBottleCount = useMemo(() => bottles.filter((bottle) => bottle.length === CAPACITY && bottle.every((color) => color === bottle[0])).length, [bottles]);
 
+  useEffect(() => {
+    if (status === "playing" && moves > 0) {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, levelId: level.id, bottles, moves, history } satisfies SavedWaterSort));
+    } else if (status === "cleared") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [bottles, history, level.id, moves, status]);
+
   const startLevel = (nextLevelIndex = levelIndex) => {
+    safeStorage.removeItem(PROGRESS_KEY);
     const nextLevel = levels[nextLevelIndex];
 
     setLevelIndex(nextLevelIndex);
@@ -247,6 +288,8 @@ export function WaterSort({ onBack }: WaterSortProps) {
     if (!previous || status !== "playing") {
       return;
     }
+
+    if (previous.moves === 0) safeStorage.removeItem(PROGRESS_KEY);
 
     setBottles(cloneBottles(previous.bottles));
     setMoves(previous.moves);

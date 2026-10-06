@@ -8,7 +8,7 @@ const scripts = [
   "test-color-chain-rotation.mjs",
   "test-color-chain-map.mjs",
   "test-portal-browser.mjs",
-  ...Array.from({ length: 12 }, (_, i) => `test-portal-phase${i + 2}.mjs`)
+  ...Array.from({ length: 17 }, (_, i) => `test-portal-phase${i + 2}.mjs`)
 ];
 if (process.argv.includes("--list")) {
   console.log(scripts.join("\n"));

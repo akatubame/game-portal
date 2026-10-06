@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import { useLocalizedMessage } from "../useLocalizedMessage";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import type { Direction, Point, SnakeResult, SnakeStatus } from "./types";
 
 type SnakeGameProps = {
@@ -14,6 +15,7 @@ type SnakeGameProps = {
 const BOARD_SIZE = 18;
 const TICK_MS = 135;
 const BEST_KEY = "game-shelf-snake-best";
+const PROGRESS_KEY = "game-shelf-progress-snake-v1";
 
 const INITIAL_SNAKE: Point[] = [
   { x: 8, y: 9 },
@@ -66,17 +68,46 @@ function calculateScore(apples: number, length: number) {
   return apples * 120 + Math.max(0, length - INITIAL_SNAKE.length) * 30;
 }
 
+type SnakeProgress = {
+  version: 1;
+  snake: Point[];
+  food: Point;
+  direction: Direction;
+  apples: number;
+};
+
+function isBoardPoint(value: unknown): value is Point {
+  return isPlainRecord(value) && Number.isInteger(value.x) && Number.isInteger(value.y) &&
+    (value.x as number) >= 0 && (value.x as number) < BOARD_SIZE &&
+    (value.y as number) >= 0 && (value.y as number) < BOARD_SIZE;
+}
+
+function isSnakeProgress(value: unknown): value is SnakeProgress {
+  if (!isPlainRecord(value) || value.version !== 1 || !Array.isArray(value.snake) ||
+      value.snake.length < INITIAL_SNAKE.length || value.snake.length >= BOARD_SIZE * BOARD_SIZE ||
+      !value.snake.every(isBoardPoint) || !isBoardPoint(value.food) ||
+      (value.direction !== "up" && value.direction !== "down" && value.direction !== "left" && value.direction !== "right") ||
+      !Number.isInteger(value.apples) || (value.apples as number) !== value.snake.length - INITIAL_SNAKE.length) {
+    return false;
+  }
+  const points = value.snake as Point[];
+  return new Set(points.map((point) => `${point.x},${point.y}`)).size === points.length &&
+    points.every((point, index) => index === 0 || Math.abs(point.x - points[index - 1].x) + Math.abs(point.y - points[index - 1].y) === 1) &&
+    !points.some((point) => isSamePoint(point, value.food as Point));
+}
+
 export function SnakeGame({ onBack }: SnakeGameProps) {
+  const [savedGame] = useState(() => readSavedProgress(PROGRESS_KEY, isSnakeProgress));
   const { language } = useI18n();
   const isEnglish = language === "en";
   const text = (ja: string, en: string) => isEnglish ? en : ja;
   const confirmRecordReset = useConfirmRecordReset();
-  const [status, setStatus] = useState<SnakeStatus>("idle");
-  const [snake, setSnake] = useState<Point[]>(INITIAL_SNAKE);
-  const [food, setFood] = useState<Point>(INITIAL_FOOD);
-  const [direction, setDirection] = useState<Direction>("right");
-  const [apples, setApples] = useState(0);
-  const [message, setMessage] = useLocalizedMessage("スタートを押して、ヘビを操作しましょう。矢印キーまたはWASDで移動できます。", "Press Start, then steer the snake with the arrow keys or WASD.");
+  const [status, setStatus] = useState<SnakeStatus>(savedGame ? "paused" : "idle");
+  const [snake, setSnake] = useState<Point[]>(savedGame?.snake ?? INITIAL_SNAKE);
+  const [food, setFood] = useState<Point>(savedGame?.food ?? INITIAL_FOOD);
+  const [direction, setDirection] = useState<Direction>(savedGame?.direction ?? "right");
+  const [apples, setApples] = useState(savedGame?.apples ?? 0);
+  const [message, setMessage] = useLocalizedMessage(savedGame ? "プレイを復元しました。再開ボタンで続けられます。" : "スタートを押して、ヘビを操作しましょう。矢印キーまたはWASDで移動できます。", savedGame ? "Run restored. Press Resume to continue." : "Press Start, then steer the snake with the arrow keys or WASD.");
   const [bestResult, setBestResult] = useState<SnakeResult | null>(() => readBestResult());
 
   const snakeRef = useRef(snake);
@@ -88,6 +119,14 @@ export function SnakeGame({ onBack }: SnakeGameProps) {
 
   const score = useMemo(() => calculateScore(apples, snake.length), [apples, snake.length]);
   const ranking = useRanking({ gameId: "snake-score", metricLabel: "Score", mode: "higher" });
+
+  useEffect(() => {
+    if (status === "playing" || status === "paused") {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, snake, food, direction, apples } satisfies SnakeProgress));
+    } else if (status === "finished") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [status, snake, food, direction, apples]);
 
   useEffect(() => {
     snakeRef.current = snake;
@@ -231,6 +270,7 @@ export function SnakeGame({ onBack }: SnakeGameProps) {
   }, []);
 
   const startGame = () => {
+    safeStorage.removeItem(PROGRESS_KEY);
     const nextSnake = INITIAL_SNAKE.map((segment) => ({ ...segment }));
     const nextFood = INITIAL_FOOD;
 

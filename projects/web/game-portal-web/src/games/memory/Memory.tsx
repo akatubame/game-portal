@@ -4,12 +4,45 @@ import { safeStorage } from "../../safeStorage";
 import { RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { RankingPanel, useRanking } from "../ranking";
-import { countMatchedPairs, createMemoryCards, isCleared, memoryDifficulties } from "./logic";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
+import { countMatchedPairs, createMemoryCards, isCleared, memoryDifficulties, memorySymbols } from "./logic";
 import type { MemoryCard, MemoryDifficultyId, MemoryStatus } from "./types";
 
 type MemoryProps = {
   onBack: () => void;
 };
+
+const PROGRESS_KEY = "game-shelf-progress-memory-v1";
+type SavedMemory = { version: 1; difficultyId: MemoryDifficultyId; cards: MemoryCard[]; selectedCardId: string | null; moves: number; seconds: number };
+
+function isSavedMemory(value: unknown): value is SavedMemory {
+  if (!isPlainRecord(value) || value.version !== 1 || typeof value.difficultyId !== "string" ||
+      !Number.isSafeInteger(value.moves) || (value.moves as number) < 0 || (value.moves as number) > 10000 ||
+      !Number.isSafeInteger(value.seconds) || (value.seconds as number) < 0 ||
+      !Array.isArray(value.cards) || (value.selectedCardId !== null && typeof value.selectedCardId !== "string")) return false;
+  const difficulty = memoryDifficulties.find((item) => item.id === value.difficultyId);
+  if (!difficulty || value.cards.length !== difficulty.pairs * 2) return false;
+  const ids = new Set<string>();
+  const pairFlags: Record<string, boolean[]> = {};
+  const flipped: string[] = [];
+  for (const card of value.cards) {
+    if (!isPlainRecord(card) || typeof card.id !== "string" || typeof card.pairId !== "string" ||
+        typeof card.symbol !== "string" || typeof card.flipped !== "boolean" || typeof card.matched !== "boolean" ||
+        !/^(0|[1-9]\d*)-[ab]$/.test(card.id) || card.pairId !== card.id.split("-")[0] ||
+        Number(card.pairId) >= difficulty.pairs || card.symbol !== memorySymbols[Number(card.pairId)] ||
+        ids.has(card.id) || (card.matched && !card.flipped)) return false;
+    ids.add(card.id);
+    (pairFlags[card.pairId] ??= []).push(card.matched);
+    if (card.flipped && !card.matched) flipped.push(card.id);
+  }
+  if (Object.values(pairFlags).length !== difficulty.pairs ||
+      Object.values(pairFlags).some((flags) => flags.length !== 2 || flags[0] !== flags[1]) ||
+      flipped.length !== (value.selectedCardId === null ? 0 : 1) ||
+      (flipped.length === 1 && flipped[0] !== value.selectedCardId) ||
+      Object.values(pairFlags).every((flags) => flags[0])) return false;
+  const matchedPairs = Object.values(pairFlags).filter((flags) => flags[0]).length;
+  return (value.moves as number) >= matchedPairs && ((value.moves as number) > 0 || value.selectedCardId !== null);
+}
 
 function getDifficulty(id: MemoryDifficultyId) {
   return memoryDifficulties.find((difficulty) => difficulty.id === id) ?? memoryDifficulties[0];
@@ -26,16 +59,33 @@ export function Memory({ onBack }: MemoryProps) {
   const en = language === "en";
   const label = (id: MemoryDifficultyId) => en
     ? ({ easy: "Easy", normal: "Normal", hard: "Hard" })[id] : getDifficulty(id).label;
-  const [difficultyId, setDifficultyId] = useState<MemoryDifficultyId>("easy");
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedMemory));
+  const [difficultyId, setDifficultyId] = useState<MemoryDifficultyId>(saved?.difficultyId ?? "easy");
   const difficulty = getDifficulty(difficultyId);
-  const [cards, setCards] = useState<MemoryCard[]>(() => createMemoryCards(difficulty));
-  const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
-  const [moves, setMoves] = useState(0);
-  const { seconds, startTimer, resetTimer, stopTimer } = useStopwatch();
-  const [status, setStatus] = useState<MemoryStatus>("ready");
+  const [cards, setCards] = useState<MemoryCard[]>(() => saved?.cards.map((card) => ({ ...card })) ?? createMemoryCards(difficulty));
+  const [selectedCardIds, setSelectedCardIds] = useState<string[]>(saved?.selectedCardId ? [saved.selectedCardId] : []);
+  const [moves, setMoves] = useState(saved?.moves ?? 0);
+  const { seconds, startTimer, resetTimer, stopTimer } = useStopwatch(saved?.seconds ?? 0, saved !== null);
+  const [status, setStatus] = useState<MemoryStatus>(saved ? "playing" : "ready");
   const [locked, setLocked] = useState(false);
   const judgingTimer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(judgingTimer.current), []);
+
+  useEffect(() => {
+    if (status === "playing") {
+      const pending = locked && selectedCardIds.length === 2;
+      const firstId = selectedCardIds[0];
+      const secondId = selectedCardIds[1];
+      const stableCards = pending ? cards.map((card) => card.id === secondId ? { ...card, flipped: false } : card) : cards;
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({
+        version: 1, difficultyId, cards: stableCards,
+        selectedCardId: pending ? firstId : (selectedCardIds[0] ?? null),
+        moves: pending ? moves - 1 : moves, seconds
+      } satisfies SavedMemory));
+    } else if (status === "cleared") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [cards, difficultyId, locked, moves, seconds, selectedCardIds, status]);
 
   const matchedPairs = useMemo(() => countMatchedPairs(cards), [cards]);
   const bestScoreKey = `game-shelf-memory-best-${difficulty.id}`;
@@ -59,6 +109,7 @@ export function Memory({ onBack }: MemoryProps) {
 
 
   const resetGame = (nextDifficultyId = difficultyId) => {
+    safeStorage.removeItem(PROGRESS_KEY);
     window.clearTimeout(judgingTimer.current);
     judgingTimer.current = undefined;
     const nextDifficulty = getDifficulty(nextDifficultyId);

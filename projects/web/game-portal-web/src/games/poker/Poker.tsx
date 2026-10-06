@@ -2,8 +2,9 @@ import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { safeStorage } from "../../safeStorage";
 import { useI18n } from "../../i18n";
 import { CircleDollarSign, RotateCcw, Sparkles, Trophy } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import type { PokerCard, PokerHandResult, PokerRank, PokerRecord, PokerStatus, PokerSuit } from "./types";
 
 type PokerProps = {
@@ -11,8 +12,22 @@ type PokerProps = {
 };
 
 const RECORD_KEY = "game-shelf-poker-record";
+const PROGRESS_KEY = "game-shelf-progress-poker-v1";
+type SavedPoker = { version: 1; deck: PokerCard[]; hand: PokerCard[]; selectedIndexes: number[] };
 const SUITS: PokerSuit[] = ["♠", "♥", "♦", "♣"];
 const RANKS: PokerRank[] = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+
+function isSavedPoker(value: unknown): value is SavedPoker {
+  if (!isPlainRecord(value) || value.version !== 1 || !Array.isArray(value.deck) || value.deck.length !== 47 ||
+      !Array.isArray(value.hand) || value.hand.length !== 5 || !Array.isArray(value.selectedIndexes) ||
+      value.selectedIndexes.length > 5 || !value.selectedIndexes.every((index) => Number.isSafeInteger(index) && index >= 0 && index < 5) ||
+      new Set(value.selectedIndexes).size !== value.selectedIndexes.length) return false;
+  const keys = [...value.deck, ...value.hand].map((card) => {
+    if (!isPlainRecord(card) || !SUITS.includes(card.suit as PokerSuit) || !RANKS.includes(card.rank as PokerRank)) return null;
+    return `${card.suit}-${card.rank}`;
+  });
+  return keys.every((key) => key !== null) && new Set(keys).size === 52;
+}
 const RANK_VALUES: Record<PokerRank, number> = {
   A: 14,
   "2": 2,
@@ -119,16 +134,25 @@ export function Poker({ onBack }: PokerProps) {
   const en = language === "en";
   const text = (ja: string, english: string) => en ? english : ja;
   const handName = (name: string) => !en ? name : ({ "ロイヤルフラッシュ": "Royal Flush", "ストレートフラッシュ": "Straight Flush", "フォーカード": "Four of a Kind", "フルハウス": "Full House", "フラッシュ": "Flush", "ストレート": "Straight", "スリーカード": "Three of a Kind", "ツーペア": "Two Pair", "ワンペア": "One Pair", "ハイカード": "High Card", "なし": "None", "未判定": "Not evaluated" } as Record<string, string>)[name] ?? "Unknown hand";
-  const [deck, setDeck] = useState<PokerCard[]>(() => createDeck());
-  const [hand, setHand] = useState<PokerCard[]>([]);
-  const [selectedIndexes, setSelectedIndexes] = useState<number[]>([]);
-  const [status, setStatus] = useState<PokerStatus>("idle");
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedPoker));
+  const [deck, setDeck] = useState<PokerCard[]>(() => saved?.deck.map((card) => ({ ...card })) ?? createDeck());
+  const [hand, setHand] = useState<PokerCard[]>(() => saved?.hand.map((card) => ({ ...card })) ?? []);
+  const [selectedIndexes, setSelectedIndexes] = useState<number[]>(saved?.selectedIndexes ?? []);
+  const [status, setStatus] = useState<PokerStatus>(saved ? "dealt" : "idle");
   const [record, setRecord] = useState<PokerRecord>(() => readRecord());
   const [exchangedCount, setExchangedCount] = useState(0);
 
   const result = useMemo(() => evaluateHand(hand), [hand]);
   const ranking = useRanking({ gameId: "poker-hand-score", metricLabel: "Score", mode: "higher" });
   const selectedCount = selectedIndexes.length;
+
+  useEffect(() => {
+    if (status === "dealt") {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, deck, hand, selectedIndexes } satisfies SavedPoker));
+    } else if (status === "drawn") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [deck, hand, selectedIndexes, status]);
   const message = status === "idle"
     ? text("5枚のカードを配り、交換したいカードを選んで役を作りましょう。", "Deal five cards, then select the cards to exchange.")
     : status === "dealt"
@@ -136,6 +160,7 @@ export function Poker({ onBack }: PokerProps) {
       : text(exchangedCount === 0 ? `交換なしで勝負。役は「${result.name}」です。` : `${exchangedCount}枚交換しました。役は「${result.name}」です。`, `${exchangedCount} card${exchangedCount === 1 ? "" : "s"} exchanged. Your hand: ${handName(result.name)}.`);
 
   const deal = () => {
+    safeStorage.removeItem(PROGRESS_KEY);
     const nextDeck = createDeck();
     const drawn = draw(nextDeck, 5);
 

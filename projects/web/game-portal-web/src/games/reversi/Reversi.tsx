@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
 import { useLocalizedMessage } from "../useLocalizedMessage";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import type { ReversiDifficulty, ReversiDisc, ReversiMove, ReversiOutcome, ReversiPlayer, ReversiRecord, ReversiStatus } from "./types";
 
 type ReversiProps = {
@@ -13,6 +14,7 @@ type ReversiProps = {
 
 const SIZE = 8;
 const RECORD_KEY = "game-shelf-reversi-record";
+const PROGRESS_KEY = "game-shelf-progress-reversi-v1";
 const DIRECTIONS = [
   [-1, -1],
   [-1, 0],
@@ -163,25 +165,59 @@ function updateRecord(record: ReversiRecord, outcome: ReversiOutcome): ReversiRe
   return record;
 }
 
+type ReversiProgress = {
+  version: 1;
+  board: ReversiDisc[];
+  turn: ReversiPlayer;
+  difficulty: ReversiDifficulty;
+  lastMove: number | null;
+};
+
+function isReversiProgress(value: unknown): value is ReversiProgress {
+  if (!isPlainRecord(value) || value.version !== 1 || !Array.isArray(value.board) || value.board.length !== SIZE * SIZE ||
+      !value.board.every((disc) => disc === null || disc === "black" || disc === "white") ||
+      (value.turn !== "black" && value.turn !== "white") ||
+      (value.difficulty !== "easy" && value.difficulty !== "normal" && value.difficulty !== "hard") ||
+      (value.lastMove !== null && (!Number.isInteger(value.lastMove) || (value.lastMove as number) < 0 || (value.lastMove as number) >= SIZE * SIZE))) {
+    return false;
+  }
+  const board = value.board as ReversiDisc[];
+  const count = countDiscs(board);
+  const occupied = count.black + count.white;
+  return count.black >= 1 && count.white >= 1 && occupied >= 4 &&
+    (occupied !== 4 || board.every((disc, index) => disc === createInitialBoard()[index])) &&
+    (value.lastMove === null || board[value.lastMove as number] !== null) &&
+    (getLegalMoves(board, "black").length > 0 || getLegalMoves(board, "white").length > 0);
+}
+
 export function Reversi({ onBack }: ReversiProps) {
+  const [savedGame] = useState(() => readSavedProgress(PROGRESS_KEY, isReversiProgress));
   const { language } = useI18n();
   const isEnglish = language === "en";
   const text = (ja: string, en: string) => isEnglish ? en : ja;
   const difficultyName = (level: ReversiDifficulty) => text(difficultyLabels[level], { easy: "Easy", normal: "Normal", hard: "Hard" }[level]);
   const confirmRecordReset = useConfirmRecordReset();
-  const [board, setBoard] = useState<ReversiDisc[]>(() => createInitialBoard());
-  const [status, setStatus] = useState<ReversiStatus>("idle");
-  const [turn, setTurn] = useState<ReversiPlayer>("black");
-  const [difficulty, setDifficulty] = useState<ReversiDifficulty>("normal");
+  const [board, setBoard] = useState<ReversiDisc[]>(() => savedGame?.board ?? createInitialBoard());
+  const [status, setStatus] = useState<ReversiStatus>(savedGame ? "playing" : "idle");
+  const [turn, setTurn] = useState<ReversiPlayer>(savedGame?.turn ?? "black");
+  const [difficulty, setDifficulty] = useState<ReversiDifficulty>(savedGame?.difficulty ?? "normal");
   const [record, setRecord] = useState<ReversiRecord>(() => readRecord());
-  const [message, setMessage] = useLocalizedMessage("黒があなた、白がCOMです。難易度を選んで始めましょう。", "You play black and the CPU plays white. Choose a difficulty to begin.");
-  const [lastMove, setLastMove] = useState<number | null>(null);
+  const [message, setMessage] = useLocalizedMessage(savedGame ? "対局を復元しました。続きから遊べます。" : "黒があなた、白がCOMです。難易度を選んで始めましょう。", savedGame ? "Match restored. Continue playing." : "You play black and the CPU plays white. Choose a difficulty to begin.");
+  const [lastMove, setLastMove] = useState<number | null>(savedGame?.lastMove ?? null);
 
   const score = useMemo(() => countDiscs(board), [board]);
   const playerMoves = useMemo(() => getLegalMoves(board, "black"), [board]);
   const cpuMoves = useMemo(() => getLegalMoves(board, "white"), [board]);
   const ranking = useRanking({ gameId: `reversi-${difficulty}`, metricLabel: "Margin", mode: "higher" });
   const legalMoveIndexes = new Set(playerMoves.map((move) => move.index));
+
+  useEffect(() => {
+    if (status === "playing") {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, board, turn, difficulty, lastMove } satisfies ReversiProgress));
+    } else if (status === "finished") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [board, status, turn, difficulty, lastMove]);
 
   const finishGame = (finalBoard: ReversiDisc[]) => {
     const outcome = getOutcome(finalBoard);
@@ -244,6 +280,7 @@ export function Reversi({ onBack }: ReversiProps) {
   }, [board, cpuMoves, difficulty, status, turn]);
 
   const startGame = () => {
+    safeStorage.removeItem(PROGRESS_KEY);
     setBoard(createInitialBoard());
     setStatus("playing");
     setTurn("black");

@@ -2,9 +2,10 @@ import { useConfirmRecordReset } from "../useConfirmRecordReset";
 import { useStopwatch } from "../useStopwatch";
 import { safeStorage } from "../../safeStorage";
 import { RotateCcw, Sparkles } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import { useLocalizedMessage } from "../useLocalizedMessage";
 import type { CSSProperties } from "react";
 import type { HanoiBest, HanoiPeg, HanoiStatus } from "./types";
@@ -16,6 +17,22 @@ type HanoiProps = {
 const BEST_KEY = "game-shelf-hanoi-best";
 const BEST_TIME_KEY = "game-shelf-hanoi-best-times";
 const DISK_OPTIONS = [3, 4, 5, 6];
+const PROGRESS_KEY = "game-shelf-progress-hanoi-v1";
+type SavedHanoi = { version: 1; diskCount: number; pegs: HanoiPeg[]; moves: number; seconds: number };
+
+function isSavedHanoi(value: unknown): value is SavedHanoi {
+  if (!isPlainRecord(value)) return false;
+  const diskCount = value.diskCount;
+  if (value.version !== 1 || typeof diskCount !== "number" || !DISK_OPTIONS.includes(diskCount) ||
+      !Number.isSafeInteger(value.moves) || (value.moves as number) < 0 ||
+      !Number.isSafeInteger(value.seconds) || (value.seconds as number) < 0) return false;
+  const pegs = value.pegs;
+  if (!Array.isArray(pegs) || pegs.length !== 3 || !pegs.every((peg) =>
+    Array.isArray(peg) && peg.every((disk, index) => Number.isInteger(disk) && disk >= 1 && disk <= diskCount &&
+      (index === 0 || peg[index - 1] > disk)))) return false;
+  const disks = pegs.flat();
+  return disks.length === diskCount && new Set(disks).size === diskCount && pegs[2].length !== diskCount;
+}
 
 function createPegs(disks: number): HanoiPeg[] {
   return [Array.from({ length: disks }, (_, index) => disks - index), [], []];
@@ -59,12 +76,13 @@ export function Hanoi({ onBack }: HanoiProps) {
   const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
-  const [diskCount, setDiskCount] = useState(4);
-  const [pegs, setPegs] = useState<HanoiPeg[]>(() => createPegs(4));
-  const [status, setStatus] = useState<HanoiStatus>("idle");
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedHanoi));
+  const [diskCount, setDiskCount] = useState(saved?.diskCount ?? 4);
+  const [pegs, setPegs] = useState<HanoiPeg[]>(() => saved?.pegs.map((peg) => [...peg]) ?? createPegs(4));
+  const [status, setStatus] = useState<HanoiStatus>(saved ? "playing" : "idle");
   const [selectedPeg, setSelectedPeg] = useState<number | null>(null);
-  const [moves, setMoves] = useState(0);
-  const { seconds, resetTimer, stopTimer } = useStopwatch();
+  const [moves, setMoves] = useState(saved?.moves ?? 0);
+  const { seconds, resetTimer, stopTimer } = useStopwatch(saved?.seconds ?? 0, saved !== null);
   const [message, setMessage] = useLocalizedMessage("円盤を1枚ずつ動かして、すべて右端の柱へ移しましょう。", "Move one disk at a time until all disks are on the rightmost peg.");
   const [bestByDisk, setBestByDisk] = useState<Record<string, HanoiBest>>(() => readBest());
   const [bestTimes, setBestTimes] = useState<Record<string, number>>(() => readBestTimes());
@@ -75,8 +93,17 @@ export function Hanoi({ onBack }: HanoiProps) {
   const isSolved = useMemo(() => pegs[2].length === diskCount, [diskCount, pegs]);
   const ranking = useRanking({ gameId: `hanoi-${diskCount}`, metricLabel: "Moves", mode: "lower" });
 
+  useEffect(() => {
+    if (status === "playing") {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, diskCount, pegs, moves, seconds } satisfies SavedHanoi));
+    } else if (status === "solved") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [diskCount, moves, pegs, seconds, status]);
+
 
   const startGame = (nextDiskCount = diskCount) => {
+    safeStorage.removeItem(PROGRESS_KEY);
     setDiskCount(nextDiskCount);
     setPegs(createPegs(nextDiskCount));
     setStatus("playing");
@@ -247,6 +274,7 @@ export function Hanoi({ onBack }: HanoiProps) {
                 ? "You can move only the top disk. You cannot place a larger disk on a smaller disk. Move every disk to the rightmost peg to clear the puzzle."
                 : "一度に動かせる円盤は一番上の1枚だけです。大きい円盤を小さい円盤の上に置くことはできません。すべての円盤を右端の柱へ移せばクリアです。"}
             </p>
+            <p>{isEnglish ? "Progress is saved on this browser. Time pauses while the page is closed." : "途中の盤面はこのブラウザに保存されます。ページを閉じている間、時間は進みません。"}</p>
           </div>
 
           <div className="hanoi-options" aria-label={isEnglish ? "disk count" : "円盤数"}>

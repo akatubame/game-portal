@@ -4,6 +4,7 @@ import { Brain, Play, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import type { SimonBest, SimonColor, SimonStatus } from "./types";
 
 type SimonSaysProps = {
@@ -17,6 +18,8 @@ type SimonPad = {
 };
 
 const BEST_KEY = "game-shelf-simon-says-best";
+const PROGRESS_KEY = "game-shelf-progress-simon-says-v1";
+type SavedSimon = { version: 1; sequence: SimonColor[] };
 const ROUND_CLEAR_LEVEL = 12;
 const PADS: SimonPad[] = [
   { id: "green", label: "GREEN", tone: "みどり" },
@@ -24,6 +27,12 @@ const PADS: SimonPad[] = [
   { id: "yellow", label: "YELLOW", tone: "きいろ" },
   { id: "blue", label: "BLUE", tone: "あお" }
 ];
+
+function isSavedSimon(value: unknown): value is SavedSimon {
+  return isPlainRecord(value) && value.version === 1 && Array.isArray(value.sequence) &&
+    value.sequence.length >= 1 && value.sequence.length <= ROUND_CLEAR_LEVEL &&
+    value.sequence.every((color) => PADS.some((pad) => pad.id === color));
+}
 
 function readBest(): SimonBest | null {
   const stored = safeStorage.getItem(BEST_KEY);
@@ -58,12 +67,13 @@ export function SimonSays({ onBack }: SimonSaysProps) {
   const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
-  const [status, setStatus] = useState<SimonStatus>("idle");
-  const [sequence, setSequence] = useState<SimonColor[]>([]);
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedSimon));
+  const [status, setStatus] = useState<SimonStatus>(saved ? "watching" : "idle");
+  const [sequence, setSequence] = useState<SimonColor[]>(saved?.sequence ?? []);
   const [inputIndex, setInputIndex] = useState(0);
   const [activeColor, setActiveColor] = useState<SimonColor | null>(null);
   const [best, setBest] = useState<SimonBest | null>(() => readBest());
-  const [lastScore, setLastScore] = useState(0);
+  const [lastScore, setLastScore] = useState(saved ? Math.max(0, saved.sequence.length - 1) * 10 : 0);
   const timeoutRefs = useRef<number[]>([]);
 
   const level = sequence.length;
@@ -90,6 +100,14 @@ export function SimonSays({ onBack }: SimonSaysProps) {
   useEffect(() => {
     return clearTimers;
   }, []);
+
+  useEffect(() => {
+    if (status === "watching" || status === "input") {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, sequence } satisfies SavedSimon));
+    } else if (status === "failed" || status === "cleared") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [sequence, status]);
 
   const saveBest = (nextLevel: number, nextScore: number) => {
     if (best && (best.level > nextLevel || (best.level === nextLevel && best.score >= nextScore))) {
@@ -129,7 +147,13 @@ export function SimonSays({ onBack }: SimonSaysProps) {
     timeoutRefs.current.push(inputTimer);
   };
 
+  useEffect(() => {
+    if (saved) showSequence(saved.sequence);
+    // 再読み込み時はそのラウンドを最初から再提示し、途中入力は破棄する。
+  }, []);
+
   const startGame = () => {
+    safeStorage.removeItem(PROGRESS_KEY);
     const firstSequence = [randomColor()];
     setLastScore(0);
     setSequence(firstSequence);

@@ -5,6 +5,7 @@ import { Delete, Keyboard, RotateCcw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import type { LetterState, WordGuessAttempt, WordGuessRecord, WordGuessStatus } from "./types";
 
 type WordGuessProps = {
@@ -12,6 +13,8 @@ type WordGuessProps = {
 };
 
 const RECORD_KEY = "game-shelf-word-guess-record";
+const PROGRESS_KEY = "game-shelf-progress-word-guess-v1";
+type SavedWordGuess = { version: 1; answer: string; input: string; attempts: WordGuessAttempt[] };
 const WORD_LENGTH = 5;
 const MAX_ATTEMPTS = 6;
 const WORDS = [
@@ -128,6 +131,15 @@ function judgeGuess(answer: string, guess: string): LetterState[] {
   return result;
 }
 
+function isSavedWordGuess(value: unknown): value is SavedWordGuess {
+  if (!isPlainRecord(value) || value.version !== 1 || typeof value.answer !== "string" || !WORDS.includes(value.answer) ||
+      typeof value.input !== "string" || !/^[A-Z]{0,5}$/.test(value.input) ||
+      !Array.isArray(value.attempts) || value.attempts.length >= MAX_ATTEMPTS) return false;
+  return value.attempts.every((attempt) => isPlainRecord(attempt) && typeof attempt.guess === "string" &&
+    WORDS.includes(attempt.guess) && attempt.guess !== value.answer && Array.isArray(attempt.result) &&
+    JSON.stringify(attempt.result) === JSON.stringify(judgeGuess(value.answer as string, attempt.guess)));
+}
+
 function getKeyStates(attempts: WordGuessAttempt[]) {
   const priority: Record<LetterState, number> = {
     absent: 1,
@@ -173,20 +185,30 @@ export function WordGuess({ onBack }: WordGuessProps) {
   const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
-  const [answer, setAnswer] = useState(() => pickWord());
-  const [status, setStatus] = useState<WordGuessStatus>("idle");
-  const [input, setInput] = useState("");
-  const [attempts, setAttempts] = useState<WordGuessAttempt[]>([]);
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedWordGuess));
+  const [answer, setAnswer] = useState(() => saved?.answer ?? pickWord());
+  const [status, setStatus] = useState<WordGuessStatus>(saved ? "playing" : "idle");
+  const [input, setInput] = useState(saved?.input ?? "");
+  const [attempts, setAttempts] = useState<WordGuessAttempt[]>(saved?.attempts ?? []);
   const [record, setRecord] = useState<WordGuessRecord>(() => readRecord());
   const [completedRecord, setCompletedRecord] = useState<Readonly<WordGuessRecord> | null>(null);
-  const [message, setMessage] = useLocalizedMessage("5文字の英単語を6回以内に当てましょう。緑は位置も一致、黄は文字だけ一致です。", "Guess the five-letter English word in six tries. Green means the right letter and position; yellow means the letter is elsewhere.");
+  const [message, setMessage] = useLocalizedMessage(saved ? "前回の続きから再開しました。" : "5文字の英単語を6回以内に当てましょう。緑は位置も一致、黄は文字だけ一致です。", saved ? "Resumed your previous game." : "Guess the five-letter English word in six tries. Green means the right letter and position; yellow means the letter is elsewhere.");
 
   const keyStates = useMemo(() => getKeyStates(attempts), [attempts]);
   const attemptsLeft = MAX_ATTEMPTS - attempts.length;
   const ranking = useRanking({ gameId: "word-guess-attempts", metricLabel: "Attempts", mode: "lower" });
   const visibleMessage = message;
 
+  useEffect(() => {
+    if (status === "playing") {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, answer, input, attempts } satisfies SavedWordGuess));
+    } else if (status === "won" || status === "lost") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [answer, attempts, input, status]);
+
   const startGame = useCallback(() => {
+    safeStorage.removeItem(PROGRESS_KEY);
     setCompletedRecord(null);
     setAnswer(pickWord());
     setStatus("playing");

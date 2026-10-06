@@ -5,6 +5,7 @@ import { Hand, RotateCcw, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "../../i18n";
 import { RankingPanel, useRanking } from "../ranking";
+import { isPlainRecord, readSavedProgress } from "../savedProgress";
 import type { NimDifficulty, NimRecord, NimSetup, NimStatus, NimTurn } from "./types";
 
 type NimProps = {
@@ -17,6 +18,8 @@ type NimMove = {
 };
 
 const RECORD_KEY = "game-shelf-nim-record";
+const PROGRESS_KEY = "game-shelf-progress-nim-v1";
+type SavedNim = { version: 1; setup: NimSetup; difficulty: NimDifficulty; piles: number[]; turn: NimTurn };
 
 const setupPiles: Record<NimSetup, number[]> = {
   classic: [3, 4, 5],
@@ -66,6 +69,17 @@ const difficultyEnglishDescriptions: Record<NimDifficulty, string> = {
   normal: "The CPU sometimes looks for winning lines.",
   hard: "The CPU checks the nim-sum and plays quite accurately."
 };
+
+function isSavedNim(value: unknown): value is SavedNim {
+  if (!isPlainRecord(value) || value.version !== 1 || typeof value.setup !== "string" ||
+      !Object.prototype.hasOwnProperty.call(setupPiles, value.setup) || typeof value.difficulty !== "string" ||
+      !Object.prototype.hasOwnProperty.call(difficultyLabels, value.difficulty) ||
+      (value.turn !== "player" && value.turn !== "cpu") || !Array.isArray(value.piles)) return false;
+  const initial = setupPiles[value.setup as NimSetup];
+  const piles = value.piles as number[];
+  return piles.length === initial.length && piles.every((pile, index) => Number.isSafeInteger(pile) && pile >= 0 && pile <= initial[index]) &&
+    piles.some((pile) => pile > 0) && (value.turn === "player" || piles.some((pile, index) => pile < initial[index]));
+}
 
 function readRecord(): NimRecord {
   const stored = safeStorage.getItem(RECORD_KEY);
@@ -148,20 +162,29 @@ export function Nim({ onBack }: NimProps) {
   const confirmRecordReset = useConfirmRecordReset();
   const { language } = useI18n();
   const isEnglish = language === "en";
-  const [setup, setSetup] = useState<NimSetup>("classic");
-  const [difficulty, setDifficulty] = useState<NimDifficulty>("normal");
-  const [piles, setPiles] = useState<number[]>(() => setupPiles.classic);
-  const [status, setStatus] = useState<NimStatus>("idle");
-  const [turn, setTurn] = useState<NimTurn>("player");
+  const [saved] = useState(() => readSavedProgress(PROGRESS_KEY, isSavedNim));
+  const [setup, setSetup] = useState<NimSetup>(saved?.setup ?? "classic");
+  const [difficulty, setDifficulty] = useState<NimDifficulty>(saved?.difficulty ?? "normal");
+  const [piles, setPiles] = useState<number[]>(() => saved?.piles.slice() ?? [...setupPiles.classic]);
+  const [status, setStatus] = useState<NimStatus>(saved ? "playing" : "idle");
+  const [turn, setTurn] = useState<NimTurn>(saved?.turn ?? "player");
   const [record, setRecord] = useState<NimRecord>(() => readRecord());
   const [completedRecord, setCompletedRecord] = useState<Readonly<NimRecord> | null>(null);
-  const [message, setMessage] = useLocalizedMessage("一つの山を選び、1個以上の石を取ります。最後の石を取った方が勝ちです。", "Choose a pile and take one or more stones. Whoever takes the last stone wins.");
+  const [message, setMessage] = useLocalizedMessage(saved ? (saved.turn === "cpu" ? "前回の続きです。COMが考えています……" : "前回の続きです。あなたの番です。") : "一つの山を選び、1個以上の石を取ります。最後の石を取った方が勝ちです。", saved ? (saved.turn === "cpu" ? "Resumed. CPU is thinking..." : "Resumed. Your turn.") : "Choose a pile and take one or more stones. Whoever takes the last stone wins.");
 
   const remaining = useMemo(() => piles.reduce((total, pile) => total + pile, 0), [piles]);
   const nimSum = useMemo(() => getNimSum(piles), [piles]);
   const ranking = useRanking({ gameId: `nim-${setup}-${difficulty}`, metricLabel: "Streak", mode: "higher" });
   const canPlay = status === "playing" && turn === "player";
   const visibleMessage = message;
+
+  useEffect(() => {
+    if (status === "playing") {
+      safeStorage.setItem(PROGRESS_KEY, JSON.stringify({ version: 1, setup, difficulty, piles, turn } satisfies SavedNim));
+    } else if (status === "won" || status === "lost") {
+      safeStorage.removeItem(PROGRESS_KEY);
+    }
+  }, [difficulty, piles, setup, status, turn]);
 
   const finishGame = (nextStatus: "won" | "lost") => {
     const nextRecord = updateRecord(record, nextStatus);
@@ -196,6 +219,7 @@ export function Nim({ onBack }: NimProps) {
   }, [difficulty, piles, status, turn]);
 
   const startGame = (nextSetup = setup) => {
+    safeStorage.removeItem(PROGRESS_KEY);
     setCompletedRecord(null);
     if (nextSetup !== setup) {
       const nextRecord = { ...record, streak: 0 };
